@@ -1,0 +1,37 @@
+{% extends "print/a4.html" %}
+{% block title %}Discharge summary {{ admission.number }}{% endblock %}
+{% block print_label %}Print / save as PDF{% endblock %}
+{% block toolbar_extra %}{% if versions|length > 1 %}<span class="text-label text-muted">Version:</span>{% for v in versions %}<a class="btn btn-ghost btn-sm {% if v == version %}font-bold{% endif %}" href="?v={{ v.version }}">v{{ v.version }}</a>{% endfor %}{% endif %}{% endblock %}
+{% block document %}
+    {% if not version %}<p class="absolute inset-x-0 top-1/3 -rotate-12 text-center text-[48px] font-bold text-red/20 uppercase select-none" aria-hidden="true">Draft · not signed</p>{% endif %}
+    {% include "print/_letterhead.html" with org=request.organization branch=admission.branch unit="Inpatient department" doc_title="Discharge summary" doc_number=content.admission_number doc_version=version.version doc_note=version|yesno:",Draft" %}
+    <section class="mt-4 grid grid-cols-2 gap-2 text-label">
+      <p><span class="text-muted">Patient:</span> <span class="font-semibold">{{ patient.full_name }}</span></p>
+      <p class="text-right"><span class="text-muted">MRN:</span> {{ content.patient_mrn }} · {{ patient.age_label }} · {{ patient.get_gender_display }}</p>
+      <p><span class="text-muted">Admitted:</span> {{ admission.admitted_at|date:"d M Y, H:i" }}</p>
+      <p class="text-right"><span class="text-muted">Discharged:</span> {% if admission.discharged_at %}{{ admission.discharged_at|date:"d M Y, H:i" }}{% else %}—{% endif %}</p>
+      <p><span class="text-muted">Consultant:</span> {{ content.admitting_doctor }} · {{ content.department }}</p>
+      <p class="text-right"><span class="text-muted">Discharge:</span> {{ content.discharge_type }}{% if content.discharge_condition %} · {{ content.discharge_condition }}{% endif %}</p>
+      <p class="col-span-2"><span class="text-muted">Allergies:</span> {% for a in allergies %}{{ a.substance }}{% if not forloop.last %}, {% endif %}{% empty %}{% if patient.allergy_status == "none" %}No known allergies{% else %}Not recorded{% endif %}{% endfor %}</p>
+      <p class="col-span-2"><span class="text-muted">Beds:</span> {% for b in content.beds %}{{ b.bed }} ({{ b.ward }}){% if not forloop.last %} → {% endif %}{% endfor %}</p>
+    </section>
+    {% with c=content %}
+    <section class="mt-5 space-y-4 text-body">
+      <div><h2 class="text-label font-semibold tracking-wide text-muted uppercase">Reason for admission</h2><p>{{ c.admission_reason }}</p>{% if c.admission_diagnosis %}<p class="text-label">Admission diagnosis: {{ c.admission_diagnosis|linebreaksbr }}</p>{% endif %}</div>
+      <div><h2 class="text-label font-semibold tracking-wide text-muted uppercase">Discharge diagnosis</h2><p>{{ c.discharge_diagnosis|default:"—"|linebreaksbr }}</p></div>
+      <div><h2 class="text-label font-semibold tracking-wide text-muted uppercase">Hospital course</h2><p>{{ c.hospital_course|default:"—"|linebreaksbr }}</p></div>
+      <div><h2 class="text-label font-semibold tracking-wide text-muted uppercase">Medicines on discharge</h2>
+        {% if c.discharge_medicines %}
+        <table class="mt-1 w-full text-left text-label"><thead><tr class="border-b border-line"><th class="py-1">Medicine</th><th>Dose</th><th>How often</th><th>For</th><th>Instructions</th></tr></thead>
+          <tbody>{% for m in c.discharge_medicines %}<tr class="border-b border-line"><td class="py-1 font-semibold">{{ m.medicine }}</td><td>{{ m.dose }}</td><td>{{ m.frequency }}</td><td>{{ m.duration }}</td><td>{{ m.instructions }}</td></tr>{% endfor %}</tbody></table>
+        {% else %}<p>None.</p>{% endif %}</div>
+      {% if c.discharge_advice %}<div><h2 class="text-label font-semibold tracking-wide text-muted uppercase">Advice</h2><p>{{ c.discharge_advice|linebreaksbr }}</p></div>{% endif %}
+      <div><h2 class="text-label font-semibold tracking-wide text-muted uppercase">Follow-up</h2><p>{% if c.follow_up_date %}{{ c.follow_up_date }}{% else %}As needed{% endif %}{% if c.follow_up_instructions %} · {{ c.follow_up_instructions|linebreaksbr }}{% endif %}</p></div>
+    </section>
+    {% endwith %}
+    <footer class="mt-10 flex items-end justify-between border-t border-line pt-3 text-label text-muted">
+      <span>{% if version %}Signed {{ version.created_at|date:"d M Y, H:i" }} by {{ version.signed_by.get_full_name|default:version.signed_by }}{% if version.amendment_reason %} · amended: {{ version.amendment_reason }}{% endif %}{% else %}Draft printed {% now "d M Y, H:i" %}{% endif %}</span>
+      <span>Doctor's signature ____________________</span>
+    </footer>
+    {% include "print/_footer.html" with org=request.organization %}
+{% endblock %}

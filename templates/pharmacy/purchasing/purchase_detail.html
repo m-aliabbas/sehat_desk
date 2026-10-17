@@ -1,0 +1,150 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}{{ purchase.number }}{% endblock %}
+{% block page_title %}Purchase {{ purchase.number }}{% endblock %}
+{% block page_subtitle %}{{ purchase.vendor }} · {% if purchase.status == "received" %}received {{ purchase.received_at|date:"d M Y, H:i" }} by {{ purchase.received_by }}{% elif purchase.status == "cancelled" %}cancelled — {{ purchase.cancel_reason }}{% else %}{{ purchase.get_status_display }} · not in stock until received{% endif %}{% endblock %}
+{% block page_actions %}
+  {% status_chip purchase.status purchase.get_status_display %}
+  {% if purchase.status == "draft" %}<form method="post" action="{% url 'pharmacy:purchase-order' purchase.pk %}">{% csrf_token %}<button class="btn btn-secondary">Mark as ordered</button></form>{% endif %}
+  {% if can_return %}<a href="{% url 'pharmacy:purchase-return' purchase.pk %}" class="btn btn-secondary">Return to supplier</a>{% endif %}
+{% endblock %}
+{% block content %}
+{% include "pharmacy/purchasing/_tabs.html" with active="purchases" %}
+{% if purchase.is_editable %}
+<ol class="card mb-6 grid gap-4 md:grid-cols-3" aria-label="Purchase steps">
+  <li class="flex items-center gap-3"><span class="flex h-7 w-7 items-center justify-center rounded-full bg-teal text-label font-bold text-white">1</span><span class="text-body">Supplier · {{ purchase.vendor }}</span></li>
+  <li class="flex items-center gap-3"><span class="flex h-7 w-7 items-center justify-center rounded-full {% if items %}bg-teal text-white{% else %}bg-page text-muted{% endif %} text-label font-bold">2</span><span class="text-body font-semibold">Items{% if items %} · {{ items|length }}{% endif %}</span></li>
+  <li class="flex items-center gap-3"><span class="flex h-7 w-7 items-center justify-center rounded-full {% if not problems %}bg-teal text-white{% else %}bg-page text-muted{% endif %} text-label font-bold">3</span><span class="text-body">Batch details &amp; post stock</span></li>
+</ol>
+{% endif %}
+  <section class="card mb-6">
+    <h2 class="section-title mb-4">Items</h2>
+    {% if items %}
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th scope="col">Item</th><th scope="col">Qty + free</th><th scope="col">Batch</th><th scope="col">Expiry</th><th scope="col">Sale price</th><th scope="col" class="text-right">Cost</th>{% if purchase.is_editable %}<th scope="col"><span class="sr-only">Actions</span></th>{% endif %}</tr></thead>
+        <tbody>
+        {% for i in items %}
+          <tr class="align-top">
+            <td><p class="font-medium">{{ i.product.display_name }}</p><p class="text-label text-muted">{{ i.unit_cost|floatformat:"2g" }} / unit{% if i.free_quantity %} · {{ i.effective_unit_cost|floatformat:"2g" }} with free{% endif %}</p>
+              {% if i.returned %}<p class="text-label text-red">{{ i.returned }} returned</p>{% endif %}</td>
+            {% if purchase.is_editable %}
+            <td><div class="flex gap-1"><label class="sr-only" for="q{{ i.pk }}">Quantity</label><input id="q{{ i.pk }}" form="line-{{ i.pk }}" name="quantity" type="number" min="1" value="{{ i.quantity }}" class="input w-20"><label class="sr-only" for="f{{ i.pk }}">Free</label><input id="f{{ i.pk }}" form="line-{{ i.pk }}" name="free_quantity" type="number" min="0" value="{{ i.free_quantity }}" class="input w-16" title="Free units"></div></td>
+            <td><label class="sr-only" for="b{{ i.pk }}">Batch</label><input id="b{{ i.pk }}" form="line-{{ i.pk }}" name="batch_number" value="{{ i.batch_number }}" maxlength="40" class="input w-28 {% if not i.batch_number %}border-amber{% endif %}" placeholder="Batch"></td>
+            <td><label class="sr-only" for="e{{ i.pk }}">Expiry</label><input id="e{{ i.pk }}" form="line-{{ i.pk }}" name="expiry_date" type="date" value="{{ i.expiry_date|date:'Y-m-d' }}" class="input w-36 {% if not i.expiry_date or i.expiry_date <= today %}border-amber{% endif %}"></td>
+            <td><label class="sr-only" for="s{{ i.pk }}">Sale price</label><input id="s{{ i.pk }}" form="line-{{ i.pk }}" name="sale_price" type="number" step="0.01" min="0" value="{{ i.sale_price|default_if_none:''|stringformat:'s' }}" class="input w-24" placeholder="{{ i.product.sale_price|floatformat:'2' }}"></td>
+            <td class="text-right">{{ i.line_cost|floatformat:"2g" }}</td>
+            <td class="whitespace-nowrap text-right">
+              <form id="line-{{ i.pk }}" method="post" action="{% url 'pharmacy:purchase-item' purchase.pk i.pk %}" class="inline">{% csrf_token %}<button class="btn btn-secondary btn-sm">Save</button></form>
+              <form method="post" action="{% url 'pharmacy:purchase-item' purchase.pk i.pk %}" class="inline">{% csrf_token %}<input type="hidden" name="action" value="remove"><button class="btn btn-ghost btn-icon btn-sm text-red" aria-label="Remove {{ i.product.display_name }}">{% icon "trash" "h-4 w-4" %}</button></form>
+            </td>
+            {% else %}
+            <td>{{ i.quantity }}{% if i.free_quantity %} + {{ i.free_quantity }}{% endif %}</td>
+            <td class="font-mono text-label">{{ i.batch_number|default:"—" }}</td>
+            <td>{{ i.expiry_date|date:"d M Y"|default:"—" }}</td>
+            <td>{{ i.stock_txn.batch.sale_price|default:i.sale_price|floatformat:"2g" }}</td>
+            <td class="text-right">{{ i.line_cost|floatformat:"2g" }}</td>
+            {% endif %}
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      <p class="text-label text-muted">No items yet. Add what you are buying below.</p>
+    {% endif %}
+  </section>
+<div class="grid gap-6 xl:grid-cols-3">
+  {% if purchase.is_editable or returns %}
+  <div class="space-y-6 xl:col-span-2">
+
+    {% if purchase.is_editable %}
+    <section class="card">
+      <h2 class="section-title mb-4">Add item</h2>
+      <form method="post" novalidate>
+        {% csrf_token %}<input type="hidden" name="form" value="item">
+        {% for e in item_form.non_field_errors %}{% include "components/alert.html" with level="danger" message=e %}{% endfor %}
+        <div class="grid gap-4 md:grid-cols-4">
+          <div class="md:col-span-4">{% include "components/field.html" with field=item_form.product %}</div>
+          {% include "components/field.html" with field=item_form.packs %}
+          {% include "components/field.html" with field=item_form.loose_units %}
+          {% include "components/field.html" with field=item_form.free_quantity %}
+          {% include "components/field.html" with field=item_form.unit_cost %}
+          {% include "components/field.html" with field=item_form.batch_number %}
+          {% include "components/field.html" with field=item_form.expiry_date %}
+          {% include "components/field.html" with field=item_form.sale_price %}
+        </div>
+        <p class="mt-3 text-label text-muted">Quantity = packs × the product's pack size + loose units. Batch and expiry can be filled in when the goods arrive.</p>
+        <button class="btn btn-primary mt-4">{% icon "plus" "h-4 w-4" %} Add item</button>
+      </form>
+    </section>
+    {% endif %}
+
+    {% if returns %}
+    <section class="card">
+      <h2 class="section-title mb-3">Returns to supplier</h2>
+      <ul class="divide-y divide-line">
+        {% for r in returns %}
+        <li class="py-3">
+          <p class="flex justify-between"><span><span class="font-mono font-medium">{{ r.number }}</span> · {{ r.created_at|date:"d M Y" }} · {{ r.created_by }}{% if r.reference %} · note {{ r.reference }}{% endif %}</span><span class="font-semibold">−{{ r.amount|floatformat:"2g" }}</span></p>
+          <p class="text-label text-muted">{% for ri in r.items.all %}{{ ri.purchase_item.product.display_name }} × {{ ri.quantity }}{% if not forloop.last %}, {% endif %}{% endfor %} — {{ r.reason }}</p>
+        </li>
+        {% endfor %}
+      </ul>
+    </section>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <div class="space-y-6 {% if not purchase.is_editable and not returns %}xl:col-span-3 xl:max-w-md{% endif %}">
+    <section class="card">
+      <h2 class="section-title mb-3">Supplier invoice</h2>
+      {% if purchase.is_editable %}
+      <form method="post" action="{% url 'pharmacy:purchase-details' purchase.pk %}" class="space-y-4">
+        {% csrf_token %}
+        {% include "components/field.html" with field=details_form.supplier_invoice_number %}
+        {% include "components/field.html" with field=details_form.supplier_invoice_date %}
+        <div class="grid grid-cols-2 gap-3">
+          {% include "components/field.html" with field=details_form.discount %}
+          {% include "components/field.html" with field=details_form.tax_amount %}
+        </div>
+        {% include "components/field.html" with field=details_form.notes %}
+        <button class="btn btn-secondary w-full">Save invoice details</button>
+      </form>
+      {% else %}
+      <dl class="space-y-2 text-body">
+        <div class="flex justify-between"><dt class="text-muted">Supplier</dt><dd><a class="hover:underline" href="{% url 'pharmacy:vendor-detail' purchase.vendor.pk %}">{{ purchase.vendor }}</a></dd></div>
+        <div class="flex justify-between"><dt class="text-muted">Invoice</dt><dd>{{ purchase.supplier_invoice_number|default:"—" }}</dd></div>
+        <div class="flex justify-between"><dt class="text-muted">Invoice date</dt><dd>{{ purchase.supplier_invoice_date|date:"d M Y"|default:"—" }}</dd></div>
+        {% if purchase.notes %}<p class="text-label text-muted">{{ purchase.notes }}</p>{% endif %}
+      </dl>
+      {% endif %}
+      <dl class="mt-4 space-y-2 border-t border-line pt-4 text-body">
+        <div class="flex justify-between"><dt class="text-muted">Items</dt><dd>{{ purchase.subtotal|floatformat:"2g" }}</dd></div>
+        {% if purchase.discount %}<div class="flex justify-between"><dt class="text-muted">Discount</dt><dd>−{{ purchase.discount|floatformat:"2g" }}</dd></div>{% endif %}
+        {% if purchase.tax_amount %}<div class="flex justify-between"><dt class="text-muted">Tax</dt><dd>{{ purchase.tax_amount|floatformat:"2g" }}</dd></div>{% endif %}
+        <div class="flex justify-between text-[20px] font-bold"><dt>Total</dt><dd>{{ organization.currency }} {{ purchase.grand_total|floatformat:"2g" }}</dd></div>
+      </dl>
+    </section>
+
+    {% if purchase.is_editable %}
+    <section class="card">
+      <h2 class="section-title mb-3">Goods receipt</h2>
+      {% if problems %}
+        <ul class="mb-4 space-y-1 rounded-control bg-amber-soft p-3 text-label text-ink">{% for p in problems %}<li class="flex gap-2">{% icon "alert-triangle" "h-4 w-4 shrink-0 text-amber" %} {{ p }}</li>{% endfor %}</ul>
+      {% else %}
+        <p class="mb-4 text-label text-muted">Every line has a batch and expiry. Posting adds the stock and {{ organization.currency }} {{ purchase.grand_total|floatformat:"2g" }} to the supplier's balance.</p>
+      {% endif %}
+      <form method="post" action="{% url 'pharmacy:purchase-receive' purchase.pk %}">{% csrf_token %}
+        <button class="btn btn-primary w-full" {% if problems %}disabled{% endif %} data-confirm="Stock for every line goes on the shelf and the purchase is locked. Corrections afterwards are made with a purchase return." data-confirm-title="Post goods to stock?" data-confirm-action="Post stock">Post to stock</button>
+      </form>
+      <form method="post" action="{% url 'pharmacy:purchase-cancel' purchase.pk %}" class="mt-4 space-y-2 border-t border-line pt-4">{% csrf_token %}
+        <label class="field-label" for="cancel-reason">Cancel this purchase</label>
+        <input id="cancel-reason" name="reason" required maxlength="200" class="input" placeholder="Reason">
+        <button class="btn btn-ghost w-full text-red" data-confirm="{{ purchase.number }} will be cancelled. Nothing was received, so stock does not change." data-confirm-title="Cancel purchase?" data-confirm-action="Cancel purchase" data-confirm-danger="true">Cancel purchase</button>
+      </form>
+    </section>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

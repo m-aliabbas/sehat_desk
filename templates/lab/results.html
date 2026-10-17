@@ -1,0 +1,52 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}Results · {{ order.number }}{% endblock %}
+{% block page_title %}Enter results{% endblock %}
+{% block page_subtitle %}<span class="font-mono">{{ order.number }}</span> · {{ order.patient.full_name }} · {{ order.patient.age_label }} · {{ order.patient.get_gender_display }} · <span class="font-mono">{{ order.patient.mrn }}</span>{% endblock %}
+{% block content %}
+{% if order.clinical_notes %}<p class="mb-4 rounded-control bg-blue-soft p-3 text-body text-blue">Clinical notes: {{ order.clinical_notes }}</p>{% endif %}
+{% if rows %}
+<form method="post" class="card" novalidate>
+  {% csrf_token %}
+  <p class="mb-4 text-label text-muted">High/low flags are calculated from the reference range for the patient's sex and age. Rows left blank are not changed.</p>
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th scope="col">Test</th><th scope="col" class="w-64">Result</th><th scope="col">Reference</th><th scope="col">Interpretation</th></tr></thead>
+      <tbody>
+        {% for row in rows %}{% with i=row.item %}
+        <tr class="{% if row.error %}bg-red-soft{% endif %}">
+          <td><p class="font-medium">{{ i.test_name }}</p><p class="text-label text-muted"><span class="font-mono">{{ i.test.code }}</span> · {{ i.sample.accession }}{% if row.current %} · saved {{ row.current.get_flag_display|lower }}{% endif %}</p>{% if row.error %}<p class="field-error">{{ row.error }}</p>{% endif %}</td>
+          <td>
+            {% if i.test.result_type == "numeric" %}
+              <div class="flex items-center gap-2"><input name="value_{{ i.pk }}" value="{{ row.value|default_if_none:'' }}" class="input" inputmode="decimal" aria-label="{{ i.test_name }} result"><span class="text-label text-muted whitespace-nowrap">{{ i.unit }}</span></div>
+            {% elif i.test.result_type == "text" %}
+              <textarea name="value_{{ i.pk }}" rows="2" class="input" aria-label="{{ i.test_name }} result">{{ row.value|default_if_none:'' }}</textarea>
+            {% else %}
+              <select name="value_{{ i.pk }}" class="select" aria-label="{{ i.test_name }} result"><option value="">—</option>{% for o in i.test.option_list %}<option {% if row.value == o %}selected{% endif %}>{{ o }}</option>{% endfor %}</select>
+            {% endif %}
+          </td>
+          <td class="text-label">{{ row.range|default:"—" }}</td>
+          <td><textarea name="interp_{{ i.pk }}" rows="1" class="input" aria-label="{{ i.test_name }} interpretation">{{ row.interp|default_if_none:'' }}</textarea></td>
+        </tr>
+        {% endwith %}{% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="mt-6 flex gap-3"><button class="btn btn-primary">Save results</button><a href="{% url 'lab:order-detail' order.pk %}" class="btn btn-secondary">Cancel</a></div>
+</form>
+<section class="card mt-6">
+  <h2 class="section-title mb-3">Attachments</h2>
+  <p class="mb-3 text-label text-muted">Analyser printouts or images (PDF, PNG, JPG, up to 10 MB).</p>
+  {% for row in rows %}
+  <form method="post" action="{% url 'lab:attachment-upload' row.item.pk %}" enctype="multipart/form-data" class="mb-2 flex flex-wrap items-center gap-3">{% csrf_token %}
+    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+    <span class="w-56 text-body">{{ row.item.test_name }}{% for a in row.item.attachments.all %} <span class="chip chip-neutral">{{ a.original_name|truncatechars:20 }}</span>{% endfor %}</span>
+    <input type="file" name="file" accept=".pdf,.png,.jpg,.jpeg,.webp" class="text-body" aria-label="Attachment for {{ row.item.test_name }}" required>
+    <button class="btn btn-secondary btn-sm">Upload</button>
+  </form>
+  {% endfor %}
+</section>
+{% else %}
+<section class="card">{% url 'lab:order-detail' order.pk as back %}{% include "components/empty_state.html" with icon_name="flask" title="No tests ready for results" message="Collect the sample first. Verified results are changed by amendment from the order page." action_url=back action_label="Back to order" %}</section>
+{% endif %}
+{% endblock %}

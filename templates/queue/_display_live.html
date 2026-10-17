@@ -1,0 +1,21 @@
+<h1 class="mb-6 text-[28px] font-bold text-ink">Now serving</h1>
+{% if boards %}
+  <div class="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+    {% for b in boards %}
+      <section class="rounded-card border bg-white p-8 {% if b.fresh %}border-teal ring-4 ring-teal/30 animate-pulse{% else %}border-line{% endif %}">
+        <p class="text-[22px] text-ink">{{ b.department }}</p>
+        {% if show_doctor %}<p class="text-label text-muted">{{ b.doctor }}</p>{% endif %}
+        <p class="mt-6 font-mono text-[96px] leading-none font-bold text-teal">{{ b.current.label|default:"—" }}</p>
+        <p class="mt-4 text-[32px] font-bold text-ink">{{ b.current.room|default:"" }}</p>
+        <p class="mt-8 text-[22px] text-muted">Next: {{ b.next.label|default:"—" }}</p>
+      </section>
+    {% endfor %}
+  </div>
+{% else %}
+  <p class="text-[22px] text-muted">No tokens are being called right now.</p>
+{% endif %}
+<div class="mt-8 rounded-card bg-mint p-5">
+  <p class="font-bold">Please wait for your token</p>
+  <p class="text-label text-muted">Proceed to the room shown when your token is called. Ask reception if you need assistance.</p>
+</div>
+<p class="mt-6 text-label text-muted">Patient names and clinical information are hidden on public displays.</p>

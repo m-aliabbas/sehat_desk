@@ -1,0 +1,25 @@
+{% load static %}<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Token display · {{ branch.name }}</title>
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+  <script src="{% static 'vendor/htmx.min.js' %}" defer></script>
+</head>
+<body class="min-h-screen bg-page">
+  <header class="flex items-center justify-between bg-teal-deep px-10 py-6 text-white">
+    <span class="text-[32px] font-bold">SehatDesk</span>
+    <span class="text-[22px]">{{ branch.organization.name }} · OPD token display</span>
+    <span class="text-[22px]" id="clock">{{ now|time:"h:i A" }}</span>
+  </header>
+  <main class="px-10 py-8" hx-get="{{ request.path }}" hx-trigger="every {{ refresh_seconds|default:5 }}s" hx-swap="innerHTML">
+    {% include "queue/_display_live.html" %}
+  </main>
+  <script>
+    // Local clock between refreshes.
+    setInterval(() => { document.getElementById("clock").textContent = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); }, 10000);
+  </script>
+</body>
+</html>

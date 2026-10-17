@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000">
+<title>19 public token display</title>
+<rect x="0" y="0" width="1600" height="1000" rx="0" fill="#F3F8FB"/>
+<rect x="0" y="0" width="1600" height="118" rx="0" fill="#086C70"/>
+<text x="55" y="75" fill="white" font-family="Inter, DejaVu Sans, sans-serif" font-size="38" font-weight="700">SehatDesk</text>
+<text x="400" y="75" fill="white" font-family="Inter, DejaVu Sans, sans-serif" font-size="26" font-weight="400">Sehat Medical Centre · OPD token display</text>
+<text x="1380" y="75" fill="white" font-family="Inter, DejaVu Sans, sans-serif" font-size="24" font-weight="400">10:45 AM</text>
+<text x="55" y="184" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="29" font-weight="700">Now serving</text>
+<rect x="55" y="225" width="477" height="457" rx="16" fill="white" stroke="#E5EDF3"/>
+<text x="87" y="282" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="24" font-weight="400">General medicine</text>
+<text x="87" y="415" fill="#008E81" font-family="Inter, DejaVu Sans, sans-serif" font-size="80" font-weight="700">A-024</text>
+<text x="87" y="478" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="35" font-weight="600">Room 03</text>
+<text x="87" y="606" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="23" font-weight="400">Next: A-025</text>
+<rect x="562" y="225" width="477" height="457" rx="16" fill="white" stroke="#E5EDF3"/>
+<text x="594" y="282" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="24" font-weight="400">Cardiology</text>
+<text x="594" y="415" fill="#008E81" font-family="Inter, DejaVu Sans, sans-serif" font-size="80" font-weight="700">B-012</text>
+<text x="594" y="478" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="35" font-weight="600">Room 05</text>
+<text x="594" y="606" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="23" font-weight="400">Next: B-013</text>
+<rect x="1069" y="225" width="477" height="457" rx="16" fill="white" stroke="#E5EDF3"/>
+<text x="1101" y="282" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="24" font-weight="400">Pediatrics</text>
+<text x="1101" y="415" fill="#008E81" font-family="Inter, DejaVu Sans, sans-serif" font-size="80" font-weight="700">C-009</text>
+<text x="1101" y="478" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="35" font-weight="600">Room 07</text>
+<text x="1101" y="606" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="23" font-weight="400">Next: C-010</text>
+<rect x="55" y="723" width="1491" height="134" rx="10" fill="#E7F8F1"/>
+<text x="72" y="751" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="15" font-weight="600">Please wait for your token</text>
+<text x="72" y="777" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">Proceed to the room shown when your token is called. Ask reception if you need assistance.</text>
+<text x="55" y="936" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="17" font-weight="400">Patient names and clinical information are hidden on public displays.</text>
+</svg>

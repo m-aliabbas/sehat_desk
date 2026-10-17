@@ -1,0 +1,35 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}Patients{% endblock %}
+{% block page_title %}Patients{% endblock %}
+{% block page_subtitle %}Search by MRN, mobile number, CNIC or name before registering a new patient.{% endblock %}
+{% block page_actions %}
+  {% if "patient.create" in sd_perms %}
+    <a href="{% url 'patients:register' %}?mode=quick" class="btn btn-secondary">Quick registration</a>
+    <a href="{% url 'patients:register' %}" class="btn btn-primary">{% icon "plus" "h-4 w-4" %} Register patient</a>
+  {% endif %}
+{% endblock %}
+{% block content %}
+<section class="card">
+  <form class="mb-5 grid gap-3 md:grid-cols-[1fr_auto]" hx-get="{% url 'patients:list' %}" hx-target="#patient-results"
+        hx-trigger="input changed delay:300ms from:#patient-q, change from:#patient-status" hx-push-url="true">
+    <div class="field">
+      <label class="field-label" for="patient-q">Search</label>
+      <div class="relative">
+        <span class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-muted">{% icon "search" "h-4 w-4" %}</span>
+        <input id="patient-q" name="q" value="{{ q }}" type="search" class="input pl-9" autofocus autocomplete="off"
+               placeholder="MRN, 0300 1234567, 12345-1234567-1 or name">
+      </div>
+    </div>
+    <div class="field">
+      <label class="field-label" for="patient-status">Status</label>
+      <select id="patient-status" name="status" class="select">
+        <option value="active" {% if status == "active" %}selected{% endif %}>Active</option>
+        <option value="inactive" {% if status == "inactive" %}selected{% endif %}>Inactive</option>
+        <option value="all" {% if status == "all" %}selected{% endif %}>All</option>
+      </select>
+    </div>
+  </form>
+  <div id="patient-results">{% include "patients/_results.html" %}</div>
+</section>
+{% endblock %}

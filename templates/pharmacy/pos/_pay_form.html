@@ -1,0 +1,40 @@
+{# Payment rows for a POS sale. Context: cart, totals, methods, problems, error #}
+{% load ui %}
+{% if error %}{% include "components/alert.html" with level="danger" title="Sale not completed" message=error %}{% endif %}
+{% for p in problems %}{% include "components/alert.html" with level="warning" message=p %}{% endfor %}
+<div class="mt-2 space-y-4"
+     x-data="{
+       total: {{ totals.grand_total|stringformat:'s' }},
+       rows: [{ method: '{{ methods.0.pk }}', amount: '{{ totals.grand_total|stringformat:'s' }}', reference: '' }],
+       refs: { {% for m in methods %}'{{ m.pk }}': {{ m.requires_reference|yesno:'true,false' }}{% if not forloop.last %}, {% endif %}{% endfor %} },
+       tendered: '',
+       get paid() { return this.rows.reduce((s, r) => s + (parseFloat(r.amount) || 0), 0) },
+       get left() { return Math.round((this.total - this.paid) * 100) / 100 },
+       money(v) { return '{{ organization.currency }} ' + v.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) },
+       split() { if (this.rows.length < 3) { this.rows.push({ method: '{{ methods.1.pk|default:methods.0.pk }}', amount: Math.max(this.left, 0).toFixed(2), reference: '' }) } }
+     }">
+  <div class="rounded-control bg-page p-3 text-body">
+    <div class="flex justify-between"><span class="text-muted">Sale</span><span class="font-mono">{{ cart.number }}</span></div>
+    <div class="flex justify-between"><span class="text-muted">Customer</span><span>{{ cart.bill_to }}</span></div>
+    <div class="flex justify-between"><span class="text-muted">Items / units</span><span>{{ totals.lines }} / {{ totals.units }}</span></div>
+    <div class="mt-1 flex justify-between text-[20px] font-bold"><span>Amount due</span><span>{{ organization.currency }} {{ totals.grand_total|floatformat:"2g" }}</span></div>
+  </div>
+  <template x-for="(row, i) in rows" :key="i">
+    <div class="grid grid-cols-12 items-end gap-2">
+      <div class="col-span-5"><label class="field-label" :for="'m' + i">Method</label>
+        <select class="select mt-1" :id="'m' + i" :name="'method_' + i" x-model="row.method">
+          {% for m in methods %}<option value="{{ m.pk }}">{{ m.name }}</option>{% endfor %}
+        </select></div>
+      <div class="col-span-3"><label class="field-label" :for="'a' + i">Amount</label><input class="input mt-1" type="number" step="0.01" min="0.01" :id="'a' + i" :name="'amount_' + i" x-model="row.amount"></div>
+      <div class="col-span-3"><label class="field-label" :for="'r' + i">Reference</label><input class="input mt-1" :id="'r' + i" :name="'reference_' + i" x-model="row.reference" :required="refs[row.method]" :placeholder="refs[row.method] ? 'Required' : 'Optional'"></div>
+      <div class="col-span-1"><button type="button" class="btn btn-ghost btn-icon btn-sm" x-show="i > 0" @click="rows.splice(i, 1)" aria-label="Remove this payment">✕</button></div>
+    </div>
+  </template>
+  <button type="button" class="btn btn-ghost btn-sm" x-show="rows.length < 3" @click="split()">+ Split across another method</button>
+  <div class="flex justify-between text-body" :class="left === 0 ? 'text-teal-deep' : 'text-red'"><span>Still to allocate</span><span class="font-bold" x-text="money(left)"></span></div>
+  <div class="rounded-control border border-line p-3">
+    <label class="field-label" for="tendered">Cash handed over (to work out change)</label>
+    <input id="tendered" type="number" step="0.01" min="0" class="input mt-1" x-model="tendered">
+    <p class="mt-2 flex justify-between text-body"><span class="text-muted">Change to give</span><span class="font-bold" x-text="money(Math.max((parseFloat(tendered) || 0) - (parseFloat(rows[0].amount) || 0), 0))"></span></p>
+  </div>
+</div>

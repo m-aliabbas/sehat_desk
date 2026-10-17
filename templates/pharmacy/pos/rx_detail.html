@@ -1,0 +1,100 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}{{ rx.number }}{% endblock %}
+{% block page_title %}Prescription {{ rx.number }}{% endblock %}
+{% block page_subtitle %}{{ rx.patient.full_name }} · {{ rx.patient.mrn }} · {{ rx.doctor }} · signed {{ rx.signed_at|date:"d M Y, H:i" }}{% endblock %}
+{% block page_actions %}
+  {% if rx.dispense_status == "dispensed" %}{% status_chip "completed" rx.get_dispense_status_display %}{% elif rx.dispense_status == "partial" %}{% status_chip "partially_paid" rx.get_dispense_status_display %}{% elif rx.dispense_status == "closed" %}{% status_chip "closed" "Closed" %}{% else %}{% status_chip "pending" rx.get_dispense_status_display %}{% endif %}
+  <a href="{% url 'prescriptions:print' rx.pk %}" target="_blank" rel="noopener" class="btn btn-secondary">Print prescription</a>
+{% endblock %}
+{% block content %}
+{% include "pharmacy/pos/_tabs.html" with active="rx" %}
+{% for e in errors %}{% include "components/alert.html" with level="danger" message=e %}{% endfor %}
+<div class="mt-2 grid gap-6 xl:grid-cols-3">
+  <form method="post" class="card xl:col-span-2">
+    {% csrf_token %}
+    <div class="card-header"><h2 class="section-title">Check availability and dispense</h2></div>
+    <p class="mb-4 text-label text-muted">Choose the product and quantity for each medicine. Give less to dispense part now; a different brand of the same generic needs a reason. Quantities go to your till for payment.</p>
+    <div class="space-y-4">
+    {% for l in lines %}
+      {% with item=l.item %}
+      <fieldset class="rounded-control border border-line p-4" x-data="{ product: '{{ l.exact.0.pk|default:'' }}', exact: [{% for p in l.exact %}'{{ p.pk }}'{% if not forloop.last %},{% endif %}{% endfor %}] }">
+        <legend class="sr-only">{{ item.medicine_name }}</legend>
+        <div class="flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <p class="font-semibold">{{ item.medicine_name }}</p>
+            <p class="text-label text-muted">{{ item.generic_name|default:"" }} · {{ item.directions }}</p>
+            {% if item.instructions %}<p class="text-label text-muted">{{ item.instructions }}</p>{% endif %}
+          </div>
+          <div class="text-right text-label">
+            <p>Prescribed <strong>{{ l.prescribed|default:"—" }}</strong> · dispensed <strong>{{ l.dispensed }}</strong></p>
+            {% if l.status == "done" %}<span class="chip chip-success">Done</span>
+            {% elif l.status == "available" %}<span class="chip chip-success">In stock ({{ l.in_stock }})</span>
+            {% elif l.status == "partial" %}<span class="chip chip-warning">Only {{ l.in_stock }} of the prescribed product{% if l.substitutes %}; substitutes available{% endif %}</span>
+            {% else %}<span class="chip chip-danger">Not in stock</span>{% endif %}
+          </div>
+        </div>
+        {% if can_dispense and l.remaining %}
+        <div class="mt-3 grid gap-3 md:grid-cols-12">
+          <div class="md:col-span-6">
+            <label class="field-label" for="product_{{ item.pk }}">Product</label>
+            <select id="product_{{ item.pk }}" name="product_{{ item.pk }}" class="select mt-1" x-model="product">
+              <option value="">— Do not dispense now —</option>
+              {% if l.exact %}<optgroup label="Prescribed">{% for p in l.exact %}<option value="{{ p.pk }}" {% if not p.stock %}disabled{% endif %}>{{ p.display_name }} · {{ p.stock }} in stock · {{ p.sale_price|floatformat:"2g" }}</option>{% endfor %}</optgroup>{% endif %}
+              {% if l.substitutes %}<optgroup label="Same generic (substitute)">{% for p in l.substitutes %}<option value="{{ p.pk }}" {% if not p.stock %}disabled{% endif %}>{{ p.display_name }} · {{ p.stock }} in stock · {{ p.sale_price|floatformat:"2g" }}</option>{% endfor %}</optgroup>{% endif %}
+            </select>
+          </div>
+          <div class="md:col-span-2">
+            <label class="field-label" for="qty_{{ item.pk }}">Quantity</label>
+            <input id="qty_{{ item.pk }}" name="qty_{{ item.pk }}" type="number" min="0" class="input mt-1" value="{% if l.suggest %}{{ l.suggest }}{% elif l.substitutes %}{{ l.remaining }}{% else %}0{% endif %}">
+          </div>
+          <div class="md:col-span-4" x-show="product && !exact.includes(product)" x-cloak>
+            <label class="field-label" for="reason_{{ item.pk }}">Substitution reason</label>
+            <input id="reason_{{ item.pk }}" name="reason_{{ item.pk }}" maxlength="200" class="input mt-1" placeholder="e.g. Prescribed brand out of stock">
+          </div>
+        </div>
+        {% if not l.exact and not l.substitutes %}<p class="mt-2 text-label text-muted">No product in the catalogue is linked to this medicine or its generic name.</p>{% endif %}
+        {% endif %}
+      </fieldset>
+      {% endwith %}
+    {% endfor %}
+    </div>
+    {% if can_dispense %}
+    <div class="mt-6 flex flex-wrap gap-3">
+      <button class="btn btn-primary">Add to sale</button>
+      <a href="{% url 'pharmacy:rx-queue' %}" class="btn btn-ghost">Back</a>
+    </div>
+    {% endif %}
+  </form>
+
+  <div class="space-y-6">
+    <section class="card">
+      <h2 class="section-title mb-3">Patient</h2>
+      <p class="font-semibold">{{ rx.patient.full_name }}</p>
+      <p class="text-label text-muted">{{ rx.patient.mrn }} · {{ rx.patient.age_label }} · {{ rx.patient.get_gender_display }}</p>
+      {% with allergies=rx.patient.allergies.all %}{% if allergies %}<p class="mt-2 text-label text-red">Allergies: {% for a in allergies %}{% if not a.entered_in_error %}{{ a.substance }}{% if not forloop.last %}, {% endif %}{% endif %}{% endfor %}</p>{% endif %}{% endwith %}
+      {% if rx.advice %}<p class="mt-3 text-label"><span class="text-muted">Advice:</span> {{ rx.advice }}</p>{% endif %}
+    </section>
+    <section class="card">
+      <h2 class="section-title mb-3">Dispensed so far</h2>
+      <ul class="divide-y divide-line text-body">
+        {% for s in sales %}<li class="flex justify-between py-2"><a href="{% url 'pharmacy:sale-detail' s.pk %}" class="font-mono hover:underline">{{ s.number }}</a><span class="text-label text-muted">{{ s.completed_at|date:"d M, H:i" }} · {{ s.grand_total|floatformat:"2g" }}</span></li>
+        {% empty %}<li class="py-2 text-label text-muted">Nothing dispensed yet.</li>{% endfor %}
+      </ul>
+      {% if rx.dispense_status == "closed" %}<p class="mt-3 text-label text-muted">Closed: {{ rx.dispense_note }}</p>{% endif %}
+    </section>
+    {% if can_dispense %}
+    <section class="card">
+      <h2 class="section-title mb-2">Close prescription</h2>
+      <p class="text-label text-muted">When the rest will not be dispensed here (patient declined, buying elsewhere).</p>
+      <form method="post" action="{% url 'pharmacy:rx-close' rx.pk %}" class="mt-3 space-y-3">
+        {% csrf_token %}
+        <label class="sr-only" for="close-note">Reason</label>
+        <input id="close-note" name="note" required maxlength="200" class="input" placeholder="Reason">
+        <button class="btn btn-secondary w-full" data-confirm="{{ rx.number }} will leave the waiting list." data-confirm-title="Close prescription?" data-confirm-action="Close">Close prescription</button>
+      </form>
+    </section>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

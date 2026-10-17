@@ -1,0 +1,40 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}Suppliers{% endblock %}
+{% block page_title %}Suppliers{% endblock %}
+{% block page_subtitle %}Medicine suppliers and what the hospital owes each one.{% endblock %}
+{% block page_actions %}<a href="{% url 'pharmacy:vendor-create' %}" class="btn btn-primary">{% icon "plus" "h-4 w-4" %} New supplier</a>{% endblock %}
+{% block content %}
+{% include "pharmacy/purchasing/_tabs.html" with active="suppliers" %}
+<div class="mb-6 grid gap-4 md:grid-cols-2">
+  <div class="stat-card bg-mint"><p class="text-body text-ink">Suppliers listed</p><p class="mt-2 text-[28px] font-bold text-ink">{{ vendors|length }}</p></div>
+  <div class="stat-card bg-amber-soft"><p class="text-body text-ink">Owed to suppliers</p><p class="mt-2 text-[28px] font-bold text-ink">{{ organization.currency }} {{ owed_total|floatformat:"2g" }}</p><p class="text-label text-muted">Received purchases less returns (supplier payments come later)</p></div>
+</div>
+<section class="card">
+  <form method="get" class="mb-4 flex flex-wrap gap-3">
+    <label class="sr-only" for="v-q">Search</label><input id="v-q" type="search" name="q" value="{{ q }}" class="input max-w-md" placeholder="Name, contact person or phone">
+    <select name="show" class="select w-auto" aria-label="Show" onchange="this.form.submit()"><option value="active" {% if show == "active" %}selected{% endif %}>Active only</option><option value="all" {% if show == "all" %}selected{% endif %}>All suppliers</option></select>
+  </form>
+  {% if vendors %}
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th scope="col">Supplier</th><th scope="col">Contact</th><th scope="col">Terms</th><th scope="col" class="text-right">Purchases</th><th scope="col" class="text-right">Balance owed</th></tr></thead>
+      <tbody>
+        {% for v in vendors %}
+        <tr>
+          <td><a href="{% url 'pharmacy:vendor-detail' v.pk %}" class="font-medium hover:underline">{{ v.name }}</a>{% if not v.is_active %} {% status_chip "inactive" "Inactive" %}{% endif %}{% if v.tax_number %}<p class="text-label text-muted">NTN {{ v.tax_number }}</p>{% endif %}</td>
+          <td>{{ v.contact_person|default:"—" }}<p class="text-label text-muted">{{ v.phone }}</p></td>
+          <td>{% if v.payment_terms_days %}{{ v.payment_terms_days }} days{% else %}On delivery{% endif %}</td>
+          <td class="text-right">{{ v.purchase_count }}</td>
+          <td class="text-right font-semibold">{{ v.balance_total|floatformat:"2g" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+    {% url 'pharmacy:vendor-create' as new_url %}
+    {% include "components/empty_state.html" with icon_name="building" title="No suppliers yet" message="Add the distributors you buy medicines from." action_url=new_url action_label="New supplier" %}
+  {% endif %}
+</section>
+{% endblock %}

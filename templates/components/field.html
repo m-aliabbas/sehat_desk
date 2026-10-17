@@ -1,0 +1,13 @@
+{# {% include "components/field.html" with field=form.name %}  Optional: wide=True spans two columns #}
+{% if field.is_hidden %}{{ field }}{% else %}
+<div class="field {% if wide %}md:col-span-2{% endif %}">
+  {% if field.widget_type == "checkbox" %}
+    <label class="flex items-center gap-2 text-body">{{ field }} {{ field.label }}</label>
+  {% else %}
+    <label class="field-label" for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span class="text-red" aria-hidden="true">*</span>{% endif %}</label>
+    {{ field }}
+  {% endif %}
+  {% if field.help_text %}<p class="field-help">{{ field.help_text }}</p>{% endif %}
+  {% for error in field.errors %}<p class="field-error" id="{{ field.html_name }}-error">{{ error }}</p>{% endfor %}
+</div>
+{% endif %}

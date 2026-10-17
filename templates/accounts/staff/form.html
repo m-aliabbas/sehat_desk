@@ -1,0 +1,39 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}{% if creating %}Add staff{% else %}Edit {{ staff }}{% endif %}{% endblock %}
+{% block page_title %}{% if creating %}Add staff{% else %}Edit {{ staff }}{% endif %}{% endblock %}
+{% block page_subtitle %}{% if creating %}Creates a sign-in account. The person sets their own password at first sign-in.{% else %}Contact and identity details.{% endif %}{% endblock %}
+{% block content %}
+<form method="post" class="grid gap-6 xl:grid-cols-3" novalidate>
+  {% csrf_token %}
+  <section class="card xl:col-span-2">
+    <h2 class="section-title mb-4">Details</h2>
+    {% for e in form.non_field_errors %}{% include "components/alert.html" with level="danger" message=e %}{% endfor %}
+    <div class="grid gap-5 md:grid-cols-2">
+      {% include "components/field.html" with field=form.first_name %}
+      {% include "components/field.html" with field=form.last_name %}
+      {% include "components/field.html" with field=form.username %}
+      {% include "components/field.html" with field=form.designation %}
+      {% include "components/field.html" with field=form.email %}
+      {% include "components/field.html" with field=form.phone %}
+      {% include "components/field.html" with field=form.employee_code %}
+    </div>
+  </section>
+  {% if creating %}
+  <section class="card">
+    <h2 class="section-title mb-4">Access</h2>
+    <div class="space-y-5">
+      {% include "components/field.html" with field=form.role %}
+      {% include "components/field.html" with field=form.branch %}
+      {% include "components/field.html" with field=form.password1 %}
+      {% include "components/field.html" with field=form.password2 %}
+      <p class="text-label text-muted">You can only assign roles whose permissions you hold yourself. More roles can be added from the profile.</p>
+    </div>
+  </section>
+  {% endif %}
+  <div class="flex gap-3 xl:col-span-3">
+    <button type="submit" class="btn btn-primary">{% if creating %}Create account{% else %}Save changes{% endif %}</button>
+    <a href="{% if staff %}{% url 'accounts:staff-detail' staff.pk %}{% else %}{% url 'accounts:staff-list' %}{% endif %}" class="btn btn-secondary">Cancel</a>
+  </div>
+</form>
+{% endblock %}

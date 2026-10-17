@@ -1,0 +1,54 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}Audit trail · Settings{% endblock %}
+{% block page_title %}Audit trail{% endblock %}
+{% block page_subtitle %}Trace sensitive access and changes without exposing clinical content. Events are append-only.{% endblock %}
+{% block page_actions %}<a href="?{{ query }}{% if query %}&{% endif %}format=csv" class="btn btn-primary">Export audit (CSV)</a>{% endblock %}
+{% block content %}
+{% include "partials/settings_tabs.html" %}
+<form method="get" class="card mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6" aria-label="Audit filters">
+  <div class="sm:col-span-2"><label class="field-label" for="a-q">Search</label><input id="a-q" name="q" value="{{ f.q }}" class="input mt-1.5" placeholder="Summary text, record ID or IP address"></div>
+  <div><label class="field-label" for="a-from">From</label><input id="a-from" type="date" name="from" value="{{ f.start|date:'Y-m-d' }}" class="input mt-1.5"></div>
+  <div><label class="field-label" for="a-to">To</label><input id="a-to" type="date" name="to" value="{{ f.end|date:'Y-m-d' }}" class="input mt-1.5"></div>
+  <div><label class="field-label" for="a-actor">Staff</label>
+    <select id="a-actor" name="actor" class="select mt-1.5"><option value="">Anyone</option>{% for u in staff %}<option value="{{ u.pk }}" {% if f.actor == u.pk|stringformat:"s" %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>{% endfor %}</select></div>
+  <div><label class="field-label" for="a-cat">Event type</label>
+    <select id="a-cat" name="category" class="select mt-1.5"><option value="">All sensitive types</option>{% for k, label in categories %}<option value="{{ k }}" {% if f.category == k %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+  <div><label class="field-label" for="a-action">Action</label>
+    <select id="a-action" name="action" class="select mt-1.5"><option value="">All actions</option>
+      <optgroup label="Modules">{% for code, label in modules %}<option value="{{ code }}" {% if f.action == code %}selected{% endif %}>{{ label }} (all)</option>{% endfor %}</optgroup>
+      <optgroup label="Actions">{% for code, label in actions %}<option value="{{ code }}" {% if f.action == code %}selected{% endif %}>{{ label }}</option>{% endfor %}</optgroup>
+    </select></div>
+  <div><label class="field-label" for="a-entity">Record type</label>
+    <select id="a-entity" name="entity" class="select mt-1.5"><option value="">All records</option>{% for e in entities %}<option value="{{ e }}" {% if f.entity == e %}selected{% endif %}>{{ e }}</option>{% endfor %}</select></div>
+  <div><label class="field-label" for="a-record">Record ID</label><input id="a-record" name="record" value="{{ f.record }}" class="input mt-1.5" inputmode="numeric"></div>
+  {% if branches|length > 1 %}<div><label class="field-label" for="a-branch">Branch</label>
+    <select id="a-branch" name="branch" class="select mt-1.5"><option value="">All branches</option>{% for b in branches %}<option value="{{ b.pk }}" {% if f.branch == b.pk|stringformat:"s" %}selected{% endif %}>{{ b.name }}</option>{% endfor %}</select></div>{% endif %}
+  <div class="flex items-end gap-2"><button class="btn btn-primary">Apply filters</button><a href="{% url 'audit:log' %}" class="btn btn-ghost">Reset</a></div>
+</form>
+
+<section class="card" aria-label="Audit events">
+  {% if entries %}
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th scope="col">Time</th><th scope="col">Staff</th><th scope="col">Action</th><th scope="col">Record</th><th scope="col">Summary</th><th scope="col"><span class="sr-only">Details</span></th></tr></thead>
+      <tbody>
+        {% for e, label, module in entries %}
+        <tr>
+          <td class="whitespace-nowrap">{{ e.created_at|date:"d M Y" }}<span class="block text-label text-muted">{{ e.created_at|date:"H:i:s" }}</span></td>
+          <td>{% if e.actor %}<a class="hover:underline" href="?{% querystring actor=e.actor_id page=None %}">{{ e.actor.get_full_name|default:e.actor.username }}</a>{% else %}<span class="text-muted">System / unknown</span>{% endif %}{% if e.branch %}<span class="block text-label text-muted">{{ e.branch.name }}</span>{% endif %}</td>
+          <td>{% if e.action == "auth.login_failed" %}{% status_chip "failed" label %}{% else %}<span class="font-medium">{{ label }}</span>{% endif %}<span class="block text-label text-muted">{{ module }}</span></td>
+          <td class="whitespace-nowrap">{% if e.entity %}<a class="hover:underline" href="?{% querystring entity=e.entity record=e.record_id page=None %}">{{ e.entity }} <span class="font-mono">#{{ e.record_id }}</span></a>{% else %}—{% endif %}</td>
+          <td class="max-w-md truncate" title="{{ e.summary }}">{{ e.summary|default:"—" }}</td>
+          <td><button type="button" class="btn btn-ghost btn-sm" hx-get="{% url 'audit:entry' e.pk %}" hx-target="#overlay-root">Details</button></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% include "components/pagination.html" with page_obj=page_obj %}
+  {% else %}
+    {% include "components/empty_state.html" with icon_name="clipboard" title="No audit events" message="Nothing matches these filters. Widen the date range or clear a filter." %}
+  {% endif %}
+</section>
+{% endblock %}

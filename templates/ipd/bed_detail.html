@@ -1,0 +1,30 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}Bed {{ bed.code }}{% endblock %}
+{% block page_title %}Bed {{ bed.code }}{% endblock %}
+{% block page_subtitle %}{{ bed.room.ward.name }} · room {{ bed.room.name }} · {{ bed.room.get_kind_display }}{% if bed.room.daily_rate %} · {{ bed.room.daily_rate|floatformat:"0g" }}/day{% endif %}{% endblock %}
+{% block content %}
+<div class="grid gap-6 xl:grid-cols-[1fr_2fr]">
+  <section class="card">
+    <h2 class="section-title mb-3">Status</h2>
+    <p>{% status_chip bed.status bed.get_status_display %}{% if not bed.is_active %} <span class="chip chip-neutral">Not in use</span>{% endif %}</p>
+    {% if bed.status_note %}<p class="mt-2 text-body">{{ bed.status_note }}</p>{% endif %}
+    <p class="mt-1 text-label text-muted">Since {{ bed.status_changed_at|date:"d M Y, H:i" }}</p>
+    {% if can_manage and bed.status != "occupied" %}
+    <form method="post" action="{% url 'ipd:bed-status' bed.pk %}" class="mt-4 space-y-3">{% csrf_token %}
+      <input type="hidden" name="next" value="{{ request.path }}">
+      {% include "components/field.html" with field=status_form.status %}
+      {% include "components/field.html" with field=status_form.note %}
+      <button class="btn btn-primary btn-sm">Update status</button>
+    </form>
+    {% endif %}
+  </section>
+  <section class="card">
+    <h2 class="section-title mb-4">Occupancy history</h2>
+    <ul class="divide-y divide-line">
+      {% for o in history %}<li class="flex flex-wrap justify-between gap-2 py-2 text-body"><a href="{% url 'ipd:admission-detail' o.admission_id %}" class="hover:underline">{{ o.admission.patient.full_name }} · <span class="font-mono">{{ o.admission.number }}</span></a><span class="text-label text-muted">{{ o.started_at|date:"d M Y, H:i" }} → {{ o.ended_at|date:"d M Y, H:i"|default:"now" }}</span></li>
+      {% empty %}<li class="py-2 text-label text-muted">No patients yet.</li>{% endfor %}
+    </ul>
+  </section>
+</div>
+{% endblock %}

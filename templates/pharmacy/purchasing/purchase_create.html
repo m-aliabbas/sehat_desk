@@ -1,0 +1,21 @@
+{% extends "layouts/app.html" %}
+{% block title %}New purchase{% endblock %}
+{% block page_title %}Purchase order · Supplier{% endblock %}
+{% block page_subtitle %}Step 1 of 3 · choose the supplier. You add items next; it stays a draft until you post the goods.{% endblock %}
+{% block content %}
+{% if not has_vendors %}
+  {% include "components/alert.html" with level="info" title="Add a supplier first" message="There are no active suppliers yet." %}
+  <a href="{% url 'pharmacy:vendor-create' %}" class="btn btn-primary mt-4">New supplier</a>
+{% else %}
+<form method="post" novalidate class="card max-w-2xl">
+  {% csrf_token %}
+  {% for e in form.non_field_errors %}{% include "components/alert.html" with level="danger" message=e %}{% endfor %}
+  <div class="grid gap-5">
+    {% include "components/field.html" with field=form.vendor %}
+    {% include "components/field.html" with field=form.supplier_invoice_number %}
+    {% include "components/field.html" with field=form.notes %}
+  </div>
+  <div class="mt-6 flex gap-3"><button class="btn btn-primary">Continue to items</button><a href="{% url 'pharmacy:purchase-list' %}" class="btn btn-ghost">Cancel</a></div>
+</form>
+{% endif %}
+{% endblock %}

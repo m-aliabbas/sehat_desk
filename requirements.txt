@@ -1,0 +1,42 @@
+# SehatDesk runtime dependencies
+# Install with: conda activate agent_dev311 && pip install -r requirements.txt
+# Ranges are used because versions were not verified against PyPI in this session.
+# Run `pip freeze > requirements.lock.txt` after the first successful install and commit that lock file.
+
+# Core framework (LTS line)
+Django>=5.2,<6.0
+
+# Production server and static files (works on Windows and macOS, no compiler needed)
+waitress>=3.0,<4.0
+whitenoise>=6.7,<7.0
+
+# Configuration from environment / .env
+django-environ>=0.11,<1.0
+
+# Frontend (HTMX partial updates)
+django-htmx>=1.19,<2.0
+
+# Admin theme and back-office screens
+django-unfold>=0.50,<1.0
+
+# Tables, filters, permissions, history, security
+django-tables2>=2.7,<3.0
+django-filter>=24.3,<26.0
+django-guardian>=2.4,<3.0
+django-simple-history>=3.7,<4.0
+django-axes>=7.0,<9.0
+
+# Printing (A4 PDFs for prescriptions, lab reports, invoices)
+# NOTE: WeasyPrint needs GTK/Pango native libraries on Windows. See docs/PROJECT_NOTES.md.
+weasyprint>=70.0,<71.0
+
+# Report exports to Excel (Phase 20). Pure Python, no native libraries.
+openpyxl>=3.1,<4.0
+
+# Backup encryption (AES-256-GCM). Prebuilt wheels for Windows and macOS.
+cryptography>=43.0,<47.0
+
+# LAN discovery so the app is reachable as sehatdesk.local
+zeroconf>=0.132,<1.0
+
+# Test tools live in requirements-dev.txt so installers do not ship them.

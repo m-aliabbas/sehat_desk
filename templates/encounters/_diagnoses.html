@@ -1,0 +1,36 @@
+{# Coded diagnoses panel (htmx target #diagnoses-panel). Context: diagnosis_context(). #}
+<section class="card scroll-mt-20" id="diagnoses-panel">
+  <div class="card-header">
+    <h2 class="section-title" id="sec-diagnoses">Diagnoses</h2>
+    <p class="text-label text-muted">Search ICD-10 codes, or type a diagnosis when no code fits.</p>
+  </div>
+  {% if dx_error %}<p class="mb-3 rounded-control bg-red-soft p-3 text-body text-red" role="alert">{{ dx_error }}</p>{% endif %}
+  <ul class="divide-y divide-line">
+    {% for d in diagnoses %}
+      <li class="flex flex-wrap items-center justify-between gap-3 py-3">
+        <div>
+          <p class="font-medium">{% if d.code %}<span class="font-mono text-teal-deep">{{ d.code.code }}</span> · {% endif %}{{ d.text }}</p>
+          <p class="mt-1 flex flex-wrap gap-1">{% if d.kind == "final" %}<span class="chip chip-success">Final</span>{% else %}<span class="chip chip-warning">Provisional</span>{% endif %}{% if d.is_primary %}<span class="chip chip-info">Primary</span>{% endif %}{% if not d.code %}<span class="chip chip-neutral">Free text</span>{% endif %}</p>
+        </div>
+        {% if dx_writable %}
+        <div class="flex flex-wrap gap-1">
+          {% if d.kind == "provisional" %}<button class="btn btn-ghost btn-sm" hx-post="{% url 'encounters:diagnosis-update' encounter.pk d.pk %}" hx-vals='{"kind": "final"}' hx-target="#diagnoses-panel" hx-swap="outerHTML">Mark final</button>
+          {% else %}<button class="btn btn-ghost btn-sm" hx-post="{% url 'encounters:diagnosis-update' encounter.pk d.pk %}" hx-vals='{"kind": "provisional"}' hx-target="#diagnoses-panel" hx-swap="outerHTML">Back to provisional</button>{% endif %}
+          {% if not d.is_primary %}<button class="btn btn-ghost btn-sm" hx-post="{% url 'encounters:diagnosis-update' encounter.pk d.pk %}" hx-vals='{"primary": "1"}' hx-target="#diagnoses-panel" hx-swap="outerHTML">Make primary</button>{% endif %}
+          <button class="btn btn-ghost btn-sm text-red" hx-post="{% url 'encounters:diagnosis-remove' encounter.pk d.pk %}" hx-target="#diagnoses-panel" hx-swap="outerHTML" aria-label="Remove {{ d.text }}">Remove</button>
+        </div>
+        {% endif %}
+      </li>
+    {% empty %}
+      <li class="py-2 text-label text-muted">No coded diagnoses yet.{% if dx_writable %} The free-text diagnosis fields above also count.{% endif %}</li>
+    {% endfor %}
+  </ul>
+  {% if dx_writable %}
+  <div class="mt-4 border-t border-line pt-4">
+    <label class="field-label" for="dx-search">Add diagnosis</label>
+    <input id="dx-search" name="dx_q" type="search" class="input" autocomplete="off" placeholder="Search by code or name, e.g. J06 or fever"
+           hx-get="{% url 'encounters:diagnosis-search' encounter.pk %}" hx-trigger="input changed delay:300ms, search" hx-target="#dx-results">
+    <div id="dx-results" class="mt-2"></div>
+  </div>
+  {% endif %}
+</section>

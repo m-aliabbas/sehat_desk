@@ -1,0 +1,32 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}Reports{% endblock %}
+{% block page_title %}Operational reports{% endblock %}
+{% block page_subtitle %}Hospital activity with date, branch, department and doctor filters. Every report exports to CSV, Excel and PDF.{% endblock %}
+{% block page_actions %}
+  {% if "lab.result.verify" in sd_perms or "lab.result.enter" in sd_perms or "lab.sample.collect" in sd_perms or "reports.view" in sd_perms %}<a href="{% url 'reports:lab-dashboard' %}" class="btn btn-secondary">{% icon "flask" "h-4 w-4" %} Lab dashboard</a>{% endif %}
+  {% if "pharmacy.sale" in sd_perms or "pharmacy.inventory.manage" in sd_perms or "reports.view" in sd_perms %}<a href="{% url 'reports:pharmacy-dashboard' %}" class="btn btn-secondary">{% icon "pill" "h-4 w-4" %} Pharmacy dashboard</a>{% endif %}
+{% endblock %}
+{% block content %}
+{% if groups %}
+<div class="grid gap-6 xl:grid-cols-2">
+  {% for key, label, items in groups %}
+  <section class="card" aria-labelledby="grp-{{ key }}">
+    <h2 id="grp-{{ key }}" class="section-title mb-3">{{ label }}</h2>
+    <ul class="divide-y divide-line">
+      {% for r in items %}
+      <li>
+        <a href="{% url 'reports:report' r.key %}" class="flex items-center justify-between gap-4 py-3 hover:bg-page">
+          <span><span class="block font-medium text-ink">{{ r.title }}</span><span class="block text-label text-muted">{{ r.description }}</span></span>
+          {% icon "chevron-right" "h-4 w-4 shrink-0 text-muted" %}
+        </a>
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endfor %}
+</div>
+{% else %}
+  {% include "components/empty_state.html" with icon_name="lock" title="No reports in your role" message="Ask an administrator for report access." %}
+{% endif %}
+{% endblock %}

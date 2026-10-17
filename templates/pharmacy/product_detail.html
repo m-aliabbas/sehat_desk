@@ -1,0 +1,62 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}{{ product.display_name }}{% endblock %}
+{% block page_title %}{{ product.display_name }}{% endblock %}
+{% block page_subtitle %}{{ product.generic_name|default:"No generic name" }} · <span class="font-mono">{{ product.sku }}</span>{% if product.barcode %} · barcode {{ product.barcode }}{% endif %}{% if product.manufacturer %} · {{ product.manufacturer }}{% endif %}{% endblock %}
+{% block page_actions %}
+  {% if not product.is_active %}{% status_chip "inactive" %}{% endif %}
+  {% if can_manage %}<a href="{% url 'pharmacy:product-edit' product.pk %}" class="btn btn-secondary">Edit</a><a href="{% url 'pharmacy:receive' %}?product={{ product.pk }}" class="btn btn-primary">{% icon "plus" "h-4 w-4" %} Receive stock</a>{% endif %}
+{% endblock %}
+{% block content %}
+<div class="mb-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+  <div class="stat-card {% if on_hand == 0 %}bg-red-soft{% elif product.reorder_level and on_hand <= product.reorder_level %}bg-amber-soft{% else %}bg-mint{% endif %}"><p class="text-body text-ink">Saleable stock</p><p class="mt-2 text-[28px] font-bold text-ink">{{ on_hand }}</p><p class="text-label text-muted">{{ product.get_unit_display|lower }}s · reorder at {{ product.reorder_level }}</p></div>
+  <div class="stat-card bg-blue-soft"><p class="text-body text-ink">Next to dispense (FEFO)</p><p class="mt-2 text-[22px] font-bold text-ink">{{ next_batch.batch_number|default:"—" }}</p><p class="text-label text-muted">{% if next_batch %}expires {{ next_batch.expiry_date|date:"d M Y" }}{% else %}No saleable batch{% endif %}</p></div>
+  <div class="stat-card bg-violet-soft"><p class="text-body text-ink">Price</p><p class="mt-2 text-[22px] font-bold text-ink">{{ organization.currency }} {{ product.sale_price|floatformat:"2g" }}</p><p class="text-label text-muted">per {{ product.get_unit_display|lower }}{% if product.pack_size > 1 %} · pack of {{ product.pack_size }}{% endif %}</p></div>
+  <div class="stat-card bg-page"><p class="text-body text-ink">Medicine master</p><p class="mt-2 text-body font-semibold text-ink">{{ product.medicine|default:"Not linked" }}</p><p class="text-label text-muted">{% if product.requires_prescription %}Prescription only{% else %}Over the counter{% endif %}</p></div>
+</div>
+
+<section class="card mb-6">
+  <h2 class="section-title mb-1">Batches in {{ current_branch.name }}</h2>
+  <p class="mb-4 text-label text-muted">First expiry, first out: sell the top saleable batch first. Expired batches can never be sold; write them off.</p>
+  {% if batches %}
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th scope="col">Batch</th><th scope="col">Expiry</th><th scope="col" class="text-right">Available / received</th><th scope="col" class="text-right">Cost · price</th>{% if can_manage %}<th scope="col">Stock action</th>{% endif %}</tr></thead>
+      <tbody>
+        {% for b in batches %}
+        <tr class="{% if b.is_expired and b.quantity_available %}bg-red-soft{% elif b.quantity_available == 0 %}opacity-60{% endif %}">
+          <td><span class="font-mono font-semibold">{{ b.batch_number }}</span>{% if b == next_batch %} <span class="chip chip-info">Dispense next</span>{% endif %}</td>
+          <td>{{ b.expiry_date|date:"d M Y" }}{% if b.is_expired %} <span class="chip chip-danger">Expired</span>{% elif b.days_to_expiry <= near_days %} <span class="chip chip-warning">{{ b.days_to_expiry }} d left</span>{% endif %}</td>
+          <td class="text-right"><span class="font-semibold">{{ b.quantity_available }}</span> / {{ b.quantity_received }}</td>
+          <td class="text-right">{{ b.purchase_cost|floatformat:"2g" }} · {{ b.sale_price|floatformat:"2g" }}</td>
+          {% if can_manage %}
+          <td>
+            {% if b.quantity_available or not b.is_expired %}
+            <details>
+              <summary class="btn btn-ghost btn-sm cursor-pointer">Adjust / write off</summary>
+              <form method="post" action="{% url 'pharmacy:batch-action' b.pk %}" class="mt-2 grid gap-2 md:grid-cols-2">{% csrf_token %}
+                <select name="action" class="select" aria-label="Action">{% for v, l in action_form.fields.action.choices %}<option value="{{ v }}" {% if b.is_expired and v == "expired" %}selected{% endif %}>{{ l }}</option>{% endfor %}</select>
+                <input name="quantity" type="number" min="0" class="input" required placeholder="Quantity" aria-label="Quantity" {% if b.is_expired %}value="{{ b.quantity_available }}"{% endif %}>
+                <input name="reason" class="input" required maxlength="200" placeholder="Reason" aria-label="Reason">
+                <input name="reference" class="input" maxlength="80" placeholder="Reference (optional)" aria-label="Reference">
+                <button class="btn btn-secondary btn-sm md:col-span-2" data-confirm="This is recorded in the stock ledger and cannot be edited later." data-confirm-title="Post this stock change?">Post change</button>
+              </form>
+            </details>
+            {% endif %}
+          </td>
+          {% endif %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+    {% include "components/empty_state.html" with icon_name="package" title="No batches yet" message="Receive stock to create the first batch." compact=True %}
+  {% endif %}
+</section>
+
+<section class="card">
+  <h2 class="section-title mb-4">Stock movements</h2>
+  {% include "pharmacy/_ledger_table.html" with transactions=ledger %}
+</section>
+{% endblock %}

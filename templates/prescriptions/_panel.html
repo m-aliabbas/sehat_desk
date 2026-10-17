@@ -1,0 +1,125 @@
+{# Prescription builder (htmx target #rx-panel). Context: prescriptions.views.panel_context(). #}
+{% load ui %}
+<section class="card scroll-mt-20" id="rx-panel">
+  <div class="card-header">
+    <div>
+      <h2 class="section-title" id="sec-prescription">Prescription</h2>
+      {% if rx %}<p class="text-label text-muted"><span class="font-mono">{{ rx.number }}</span> · {% if rx.is_draft %}draft, signed with the consultation{% else %}signed {{ rx.signed_at|date:"d M Y, H:i" }}{% endif %}{% if rx.sent_to_pharmacy_at %} · sent to pharmacy {{ rx.sent_to_pharmacy_at|date:"H:i" }}{% endif %}</p>{% endif %}
+    </div>
+    <div class="flex flex-wrap gap-2">
+      {% if rx and rx_items %}<a href="{% url 'prescriptions:print' rx.pk %}" target="_blank" class="btn btn-secondary btn-sm">Print</a>{% endif %}
+      {% if can_send %}<form method="post" action="{% url 'prescriptions:send' rx.pk %}">{% csrf_token %}<button class="btn btn-primary btn-sm">Send to pharmacy</button></form>{% endif %}
+      {% if rx.sent_to_pharmacy_at %}{% status_chip "completed" "Sent to pharmacy" %}{% endif %}
+    </div>
+  </div>
+
+  {# Allergy context is always visible while prescribing. #}
+  <div class="mb-4 flex flex-wrap items-center gap-2">
+    <span class="text-label font-semibold text-muted uppercase">Allergies</span>
+    {% if patient.allergy_status == "unknown" %}<span class="chip chip-warning">Not asked yet — ask before prescribing</span>{% elif patient.allergy_status == "none" and not rx_allergies %}<span class="chip chip-success">No known allergies</span>{% endif %}
+    {% for al in rx_allergies %}<span class="chip chip-danger">{{ al.substance }}</span>{% endfor %}
+  </div>
+
+  {% if rx_error %}<p class="mb-3 rounded-control bg-red-soft p-3 text-body text-red" role="alert">{{ rx_error }}</p>{% endif %}
+
+  {% if rx_items %}
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th scope="col">#</th><th scope="col">Medicine</th><th scope="col">Directions</th><th scope="col" class="text-right">Qty</th>{% if rx_writable %}<th scope="col"><span class="sr-only">Actions</span></th>{% endif %}</tr></thead>
+      <tbody>
+        {% for i in rx_items %}
+        <tr>
+          <td>{{ forloop.counter }}</td>
+          <td><p class="font-medium">{{ i.medicine_name }}</p><p class="text-label text-muted">{{ i.generic_name|default:"Not in medicine list" }}{% if i.form %} · {{ i.get_form_display }}{% endif %} · {{ i.get_route_display }}</p>
+            {% if i.allergy_override_reason %}<p class="text-label text-red">Allergy override: {{ i.allergy_override_reason }}</p>{% endif %}</td>
+          <td>{{ i.directions }}{% if i.instructions %}<p class="text-label text-muted">{{ i.instructions }}</p>{% endif %}</td>
+          <td class="text-right">{{ i.quantity|default:"—" }}</td>
+          {% if rx_writable %}<td class="text-right"><button class="btn btn-ghost btn-sm text-red" hx-post="{% url 'prescriptions:item-remove' encounter.pk i.pk %}" hx-target="#rx-panel" hx-swap="outerHTML" aria-label="Remove {{ i.medicine_name }}">Remove</button></td>{% endif %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+    <p class="text-label text-muted">No medicines prescribed.</p>
+  {% endif %}
+
+  {% if rx_writable %}
+  <form class="mt-5 rounded-card border border-line bg-page p-4" hx-post="{% url 'prescriptions:item-add' encounter.pk %}" hx-target="#rx-panel" hx-swap="outerHTML"
+        x-data="{ medId: '{{ rx_form.medicine.value|default_if_none:'' }}', medName: '{{ rx_form.medicine_name.value|default_if_none:''|escapejs }}', picked: '' }" novalidate>
+    <h3 class="mb-3 text-body font-semibold">Add medicine</h3>
+    {% if rx_conflict %}
+      <div class="mb-4 rounded-control border border-red bg-red-soft p-3 text-body text-red" role="alert">
+        <p class="font-semibold">{% icon "alert-triangle" "inline h-4 w-4" %} Allergy warning: {{ rx_conflict|join:", " }}</p>
+        <p>This medicine matches an allergy on the patient record. Choose another medicine, or give a reason to prescribe it anyway.</p>
+        <div class="mt-2">{% include "components/field.html" with field=rx_form.override_reason %}</div>
+      </div>
+    {% endif %}
+    <input type="hidden" name="medicine" x-model="medId">
+    <div class="grid gap-4 md:grid-cols-6">
+      <div class="field md:col-span-3">
+        <label class="field-label" for="rx-med">Medicine <span class="text-red" aria-hidden="true">*</span></label>
+        <input id="rx-med" name="medicine_name" class="input" autocomplete="off" maxlength="200" required x-model="medName" @input="medId = ''; picked = ''"
+               placeholder="Search brand or generic name" hx-get="{% url 'prescriptions:medicine-search' %}" hx-trigger="input changed delay:300ms" hx-target="#rx-med-results" hx-swap="innerHTML" hx-include="this">
+        <p class="field-help" x-show="medId" x-text="picked ? 'From medicine list: ' + picked : 'From medicine list'"></p>
+        <p class="field-help" x-show="!medId && medName.length > 1">Not picked from the list: saved as free text.</p>
+        {% for e in rx_form.medicine_name.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+        <div id="rx-med-results" class="mt-1" @click="const b = $event.target.closest('[data-med-id]'); if (b) { medId = b.dataset.medId; medName = b.dataset.medName; picked = b.dataset.medGeneric; $refs.route.value = b.dataset.medRoute; $el.innerHTML = ''; $refs.dose.focus(); }"></div>
+      </div>
+      <div class="field md:col-span-1"><label class="field-label" for="rx-dose">Dose <span class="text-red" aria-hidden="true">*</span></label><input id="rx-dose" name="dose" x-ref="dose" class="input" maxlength="40" required value="{{ rx_form.dose.value|default_if_none:'' }}" placeholder="1 tablet">{% for e in rx_form.dose.errors %}<p class="field-error">{{ e }}</p>{% endfor %}</div>
+      <div class="field md:col-span-2"><label class="field-label" for="rx-route">Route</label><select id="rx-route" name="route" x-ref="route" class="select">{% for v, l in rx_form.fields.route.choices %}<option value="{{ v }}" {% if rx_form.route.value == v %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+      {% include "components/field.html" with field=rx_form.frequency %}
+      {% include "components/field.html" with field=rx_form.duration_value %}
+      {% include "components/field.html" with field=rx_form.duration_unit %}
+      {% include "components/field.html" with field=rx_form.quantity %}
+      {% include "components/field.html" with field=rx_form.food %}
+      {% include "components/field.html" with field=rx_form.instructions %}
+    </div>
+    <button type="submit" class="btn btn-primary mt-4">{% icon "plus" "h-4 w-4" %} Add to prescription</button>
+  </form>
+
+  <div class="mt-5 grid gap-4 lg:grid-cols-2">
+    <div class="rounded-card border border-line p-4">
+      <h3 class="mb-2 text-body font-semibold">Favourites</h3>
+      <ul class="space-y-2">
+        {% for f in favorites %}
+          <li class="flex items-center justify-between gap-2 text-body"><span>{{ f.name }} <span class="text-label text-muted">· {{ f.items|length }} medicine{{ f.items|length|pluralize }}</span></span>
+            <span class="flex gap-1">
+              <button class="btn btn-secondary btn-sm" hx-post="{% url 'prescriptions:favorite-apply' encounter.pk f.pk %}" hx-target="#rx-panel" hx-swap="outerHTML">Apply</button>
+              <button class="btn btn-ghost btn-sm text-red" hx-post="{% url 'prescriptions:favorite-delete' f.pk %}" hx-vals='{"encounter": "{{ encounter.pk }}"}' hx-target="#rx-panel" hx-swap="outerHTML" hx-confirm="Delete the favourite “{{ f.name }}”?" data-confirm-danger="true" aria-label="Delete favourite {{ f.name }}">{% icon "trash" "h-4 w-4" %}</button>
+            </span>
+          </li>
+        {% empty %}<li class="text-label text-muted">No favourites yet.</li>{% endfor %}
+      </ul>
+      {% if rx_items %}
+      <form class="mt-3 flex gap-2" hx-post="{% url 'prescriptions:favorite-save' encounter.pk %}" hx-target="#rx-panel" hx-swap="outerHTML">
+        <label class="sr-only" for="fav-name">Favourite name</label><input id="fav-name" name="name" class="input h-9" maxlength="80" required placeholder="Save these medicines as…">
+        <button class="btn btn-secondary btn-sm">Save</button>
+      </form>
+      {% endif %}
+    </div>
+    <div class="rounded-card border border-line p-4">
+      <h3 class="mb-2 text-body font-semibold">Previous prescriptions</h3>
+      <ul class="space-y-3">
+        {% for p in previous_rx %}
+          <li class="text-body">
+            <div class="flex items-center justify-between gap-2"><span>{{ p.signed_at|date:"d M Y" }} <span class="text-label text-muted">· {{ p.doctor }}</span></span>
+              <button class="btn btn-secondary btn-sm" hx-post="{% url 'prescriptions:copy-previous' encounter.pk p.pk %}" hx-target="#rx-panel" hx-swap="outerHTML">Reuse all</button></div>
+            <p class="text-label text-muted">{% for i in p.items.all %}{{ i.medicine_name }}{% if not forloop.last %}, {% endif %}{% endfor %}</p>
+          </li>
+        {% empty %}<li class="text-label text-muted">No earlier prescriptions for this patient.</li>{% endfor %}
+      </ul>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if rx_writable %}
+  <form class="mt-5" hx-post="{% url 'prescriptions:advice' encounter.pk %}" hx-trigger="change" hx-target="#rx-panel" hx-swap="outerHTML">
+    <label class="field-label" for="rx-advice">Advice for the patient</label>
+    <textarea id="rx-advice" name="advice" rows="2" class="input" placeholder="e.g. Drink plenty of fluids. Return if fever lasts more than 3 days.">{{ rx.advice|default:"" }}</textarea>
+    <p class="field-help">Printed under the medicines. Saved when you leave the box.</p>
+  </form>
+  {% elif rx.advice %}
+    <div class="mt-4"><p class="field-label">Advice</p><p class="text-body whitespace-pre-line">{{ rx.advice }}</p></div>
+  {% endif %}
+</section>

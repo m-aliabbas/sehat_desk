@@ -1,0 +1,39 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}Medicines{% endblock %}
+{% block page_title %}Medicine list{% endblock %}
+{% block page_subtitle %}The shared medicine master: doctors prescribe from it and pharmacy products link to it.{% endblock %}
+{% block page_actions %}<a href="{% url 'prescriptions:medicine-create' %}" class="btn btn-primary">{% icon "plus" "h-4 w-4" %} New medicine</a>{% endblock %}
+{% block content %}
+{% include "partials/settings_tabs.html" %}
+<section class="card">
+  <form class="mb-4" method="get"><label class="sr-only" for="med-q">Search medicines</label><input id="med-q" name="q" value="{{ q }}" type="search" class="input" placeholder="Search by brand, generic or strength"></form>
+  {% if medicines %}
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th scope="col">Brand</th><th scope="col">Generic</th><th scope="col">Form · route</th><th scope="col">Manufacturer</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+      <tbody>
+        {% for m in medicines %}
+        <tr>
+          <td class="font-medium">{{ m.display_name }}</td>
+          <td>{{ m.generic_name }}</td>
+          <td>{{ m.get_form_display }} · {{ m.get_route_display }}</td>
+          <td>{{ m.manufacturer|default:"—" }}</td>
+          <td>{% if m.is_active %}{% status_chip "active" %}{% else %}{% status_chip "inactive" %}{% endif %}</td>
+          <td class="text-right whitespace-nowrap">
+            <a href="{% url 'prescriptions:medicine-edit' m.pk %}" class="btn btn-ghost btn-sm">Edit</a>
+            <form method="post" action="{% url 'prescriptions:medicine-toggle' m.pk %}" class="inline">{% csrf_token %}{% if m.is_active %}<button class="btn btn-ghost btn-sm text-red">Deactivate</button>{% else %}<button class="btn btn-ghost btn-sm">Activate</button>{% endif %}</form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% elif q %}
+    {% include "components/empty_state.html" with icon_name="search" title="No medicines match" message="Try the generic name or a shorter search." %}
+  {% else %}
+    {% url 'prescriptions:medicine-create' as create_url %}
+    {% include "components/empty_state.html" with icon_name="pill" title="No medicines yet" message="Add the medicines your doctors prescribe, e.g. Panadol 500 mg (Paracetamol)." action_url=create_url action_label="New medicine" %}
+  {% endif %}
+</section>
+{% endblock %}

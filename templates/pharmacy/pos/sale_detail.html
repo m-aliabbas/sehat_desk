@@ -1,0 +1,67 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}{{ sale.number }}{% endblock %}
+{% block page_title %}Sale {{ sale.number }}{% endblock %}
+{% block page_subtitle %}{{ sale.bill_to }} · {{ sale.completed_at|date:"j F Y, H:i" }} · {{ sale.cashier }}{% endblock %}
+{% block page_actions %}
+  <a href="{% url 'pharmacy:sale-receipt' sale.pk %}" target="_blank" rel="noopener" class="btn btn-secondary">Print receipt</a>
+  {% if can_return %}<a href="{% url 'pharmacy:sale-return' sale.pk %}" class="btn btn-secondary">Return items</a>{% endif %}
+  {% if "pharmacy.sale" in sd_perms %}<a href="{% url 'pharmacy:pos' %}" class="btn btn-primary">New sale</a>{% endif %}
+{% endblock %}
+{% block content %}
+{% include "pharmacy/pos/_tabs.html" with active="sales" %}
+{% if done %}
+  <div class="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-control bg-mint p-4 text-teal-deep" role="status">
+    <p class="flex items-center gap-2 font-medium">{% icon "check-circle" "h-5 w-5" %} Sale completed · {{ organization.currency }} {{ sale.grand_total|floatformat:"2g" }} paid. Stock updated.</p>
+    <a href="{% url 'pharmacy:sale-receipt' sale.pk %}" target="_blank" rel="noopener" class="btn btn-primary btn-sm">Print receipt</a>
+  </div>
+{% endif %}
+<div class="grid gap-6 xl:grid-cols-3">
+  <section class="card xl:col-span-2">
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th scope="col">Item</th><th scope="col">Batch</th><th scope="col" class="text-right">Qty</th><th scope="col" class="text-right">Price</th><th scope="col" class="text-right">Total</th></tr></thead>
+        <tbody>
+          {% for i in items %}
+          <tr>
+            <td><p class="font-medium">{{ i.product.display_name }}</p>
+              {% if i.prescription_item %}<p class="text-label text-muted">for {{ i.prescription_item.medicine_name }}</p>{% endif %}
+              {% if i.substituted %}<p class="text-label text-amber">Substitute — {{ i.substitution_reason }}</p>{% endif %}
+              {% if i.returned %}<p class="text-label text-red">{{ i.returned }} returned</p>{% endif %}</td>
+            <td class="font-mono text-label">{{ i.batch.batch_number }}<p class="text-muted">exp {{ i.batch.expiry_date|date:"m/Y" }}</p></td>
+            <td class="text-right">{{ i.quantity }}</td>
+            <td class="text-right">{{ i.unit_price|floatformat:"2g" }}</td>
+            <td class="text-right">{{ i.line_total|floatformat:"2g" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if returns %}
+    <h2 class="section-title mt-6 mb-3">Returns</h2>
+    <ul class="divide-y divide-line">
+      {% for r in returns %}
+      <li class="py-3">
+        <p class="flex justify-between"><span><span class="font-mono font-medium">{{ r.number }}</span> · {{ r.created_at|date:"d M Y, H:i" }} · {{ r.created_by }}</span><span class="font-semibold">−{{ r.amount|floatformat:"2g" }}</span></p>
+        <p class="text-label text-muted">{% for ri in r.items.all %}{{ ri.sale_item.product.display_name }} × {{ ri.quantity }}{% if not forloop.last %}, {% endif %}{% endfor %} — {{ r.reason }}</p>
+        <p class="text-label text-muted">Refunded {% for f in r.refunds.all %}{{ f.number }} ({{ f.method }} {{ f.amount|floatformat:"2g" }}){% if not forloop.last %}, {% endif %}{% empty %}nothing{% endfor %}</p>
+      </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+  </section>
+  <section class="card">
+    <h2 class="section-title mb-3">Payment</h2>
+    <dl class="space-y-2 text-body">
+      <div class="flex justify-between"><dt class="text-muted">Invoice</dt><dd>{% if "billing.view" in sd_perms %}<a class="font-mono hover:underline" href="{% url 'billing:invoice-detail' sale.invoice.pk %}">{{ sale.invoice.number }}</a>{% else %}<span class="font-mono">{{ sale.invoice.number }}</span>{% endif %}</dd></div>
+      {% if sale.prescription %}<div class="flex justify-between"><dt class="text-muted">Prescription</dt><dd><a class="font-mono hover:underline" href="{% url 'pharmacy:rx-detail' sale.prescription.pk %}">{{ sale.prescription.number }}</a></dd></div>{% endif %}
+      <div class="flex justify-between"><dt class="text-muted">Subtotal</dt><dd>{{ sale.invoice.subtotal|floatformat:"2g" }}</dd></div>
+      {% if sale.invoice.tax_total %}<div class="flex justify-between"><dt class="text-muted">Tax</dt><dd>{{ sale.invoice.tax_total|floatformat:"2g" }}</dd></div>{% endif %}
+      {% if sale.invoice.invoice_discount %}<div class="flex justify-between"><dt class="text-muted">Discount</dt><dd>−{{ sale.invoice.invoice_discount|floatformat:"2g" }}</dd></div><p class="text-label text-muted">{{ sale.discount_reason }} · approved by {{ sale.discount_by }}</p>{% endif %}
+      <div class="flex justify-between border-t border-line pt-2 text-[20px] font-bold"><dt>Total</dt><dd>{{ organization.currency }} {{ sale.grand_total|floatformat:"2g" }}</dd></div>
+      {% for p in payments %}<div class="flex justify-between text-label"><dt>{{ p.number }} · {{ p.method }}{% if p.reference %} · {{ p.reference }}{% endif %}</dt><dd>{{ p.amount|floatformat:"2g" }}</dd></div>{% endfor %}
+      {% if sale.invoice.amount_refunded %}<div class="flex justify-between text-label text-red"><dt>Refunded</dt><dd>−{{ sale.invoice.amount_refunded|floatformat:"2g" }}</dd></div>{% endif %}
+    </dl>
+  </section>
+</div>
+{% endblock %}

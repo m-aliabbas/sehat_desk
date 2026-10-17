@@ -1,0 +1,12 @@
+{% extends "components/modal_base.html" %}
+{% block modal_title %}Collect payment{% endblock %}
+{% block modal_body %}
+<form id="pay-form" method="post" action="{% url 'billing:invoice-pay' invoice.pk %}" hx-post="{% url 'billing:invoice-pay' invoice.pk %}" hx-target="#overlay-root" hx-disabled-elt="#pay-submit">
+  {% csrf_token %}
+  {% include "billing/_pay_form.html" %}
+</form>
+{% endblock %}
+{% block modal_footer %}
+<button type="button" class="btn btn-secondary" @click="open = false">Cancel</button>
+<button id="pay-submit" type="submit" form="pay-form" class="btn btn-primary">Confirm payment</button>
+{% endblock %}

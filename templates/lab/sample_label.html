@@ -1,0 +1,15 @@
+{% extends "print/base.html" %}
+{# Sized for a 50 × 25 mm tube label printer. #}
+{% block title %}Label {{ sample.accession }}{% endblock %}
+{% block page_size %}50mm 25mm{% endblock %}
+{% block page_margin %}1mm{% endblock %}
+{% block print_label %}Print label{% endblock %}
+{% block print_sheet_css %}border: 0 !important; margin: 0 !important;{% endblock %}
+{% block sheet_class %}w-[50mm] border border-line p-[1.5mm]{% endblock %}
+{% block document %}
+    <p class="truncate text-[9px] leading-tight font-bold">{{ sample.order.patient.full_name }}</p>
+    <p class="text-[8px] leading-tight">{{ sample.order.patient.mrn }} · {{ sample.order.patient.age_label }} · {{ sample.order.patient.get_gender_display|slice:":1" }}</p>
+    <div class="my-[0.5mm] h-[9mm] [&_svg]:h-full [&_svg]:w-full">{{ barcode }}</div>
+    <p class="text-center font-mono text-[9px] leading-tight font-bold">{{ sample.accession }}</p>
+    <p class="truncate text-[7px] leading-tight">{{ sample.get_sample_type_display }} · {% for t in tests %}{{ t.test.code }}{% if not forloop.last %} {% endif %}{% endfor %}{% if sample.collected_at %} · {{ sample.collected_at|date:"d/m H:i" }}{% endif %}</p>
+{% endblock %}

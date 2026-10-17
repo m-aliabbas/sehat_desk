@@ -1,0 +1,27 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}Doctor patient queue{% endblock %}
+{% block page_title %}Doctor patient queue{% endblock %}
+{% block page_subtitle %}{{ organization.name }} · {{ current_branch.name }}{% if doctor %} · {{ doctor }}{% endif %}{% endblock %}
+{% block page_actions %}
+  {% if all_doctors %}
+    <form method="get" x-data @change="$el.submit()">
+      <label class="sr-only" for="doc-pick">Doctor</label>
+      <select id="doc-pick" name="doctor" class="select h-10 w-64">
+        <option value="">Choose a doctor</option>
+        {% for d in all_doctors %}<option value="{{ d.pk }}" {% if doctor.pk == d.pk %}selected{% endif %}>{{ d.display_name }}</option>{% endfor %}
+      </select>
+    </form>
+  {% endif %}
+{% endblock %}
+{% block content %}
+{% if not doctor %}
+  <section class="card">
+    {% include "components/empty_state.html" with icon_name="stethoscope" title="No doctor profile linked" message="Your account has no doctor profile. Reception staff can choose a doctor above to manage their queue." %}
+  </section>
+{% else %}
+  <div id="doctor-live" hx-get="{{ request.get_full_path }}" hx-trigger="every 5s [document.visibilityState === 'visible']">
+    {% include "queue/_doctor_live.html" %}
+  </div>
+{% endif %}
+{% endblock %}

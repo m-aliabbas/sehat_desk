@@ -1,0 +1,39 @@
+{% extends "layouts/auth.html" %}
+{% load ui %}
+{% block title %}Sign in{% endblock %}
+{% block card %}
+<h1 class="section-title text-[22px]">Sign in</h1>
+<p class="mt-1 text-body text-muted">Use the account your hospital administrator created for you.</p>
+
+{% if form.errors %}
+  {% for error in form.non_field_errors %}
+    {% include "components/alert.html" with level="danger" title="Could not sign in" message=error %}
+  {% endfor %}
+{% elif session_expired %}
+  {% include "components/alert.html" with level="warning" title="Session expired" message="You were signed out after a period of inactivity. Sign in to continue." %}
+{% endif %}
+
+<form method="post" class="mt-6 space-y-5" novalidate>
+  {% csrf_token %}
+  <input type="hidden" name="next" value="{{ next }}">
+  <div class="field">
+    <label class="field-label" for="id_username">Username</label>
+    <input class="input" type="text" name="username" id="id_username" autocomplete="username" autofocus required
+           value="{{ form.username.value|default:'' }}">
+  </div>
+  <div class="field" x-data="{ show: false }">
+    <div class="flex items-center justify-between">
+      <label class="field-label" for="id_password">Password</label>
+      <a href="{% url 'accounts:password-reset' %}" class="text-label font-medium text-teal-deep hover:underline">Forgot password?</a>
+    </div>
+    <div class="relative">
+      <input class="input pr-16" :type="show ? 'text' : 'password'" type="password" name="password" id="id_password" autocomplete="current-password" required>
+      <button type="button" class="absolute inset-y-0 right-3 text-label font-medium text-teal-deep" @click="show = !show" x-text="show ? 'Hide' : 'Show'">Show</button>
+    </div>
+  </div>
+  <button type="submit" class="btn btn-primary w-full">{% icon "lock" "h-4 w-4" %} Sign in</button>
+</form>
+{% endblock %}
+{% block below %}
+<p class="mt-6 text-center text-label text-muted">Accounts lock for a few minutes after repeated failed attempts.</p>
+{% endblock %}

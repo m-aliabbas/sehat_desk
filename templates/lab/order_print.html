@@ -1,0 +1,33 @@
+{% extends "print/a5.html" %}
+{% block title %}Lab order {{ order.number }}{% endblock %}
+{% block print_label %}Print lab order{% endblock %}
+{% block document %}
+    {% include "print/_letterhead.html" with org=request.organization branch=order.branch unit="Laboratory" doc_title="Lab order" doc_number=order.number doc_date=order.created_at doc_status=order.get_priority_display %}
+    <section class="mt-4 grid grid-cols-2 gap-x-6 gap-y-1 text-label">
+      <p><span class="text-muted">Patient:</span> <span class="font-semibold">{{ order.patient.full_name }}</span></p>
+      <p class="text-right"><span class="text-muted">MRN:</span> <span class="font-mono">{{ order.patient.mrn }}</span></p>
+      <p><span class="text-muted">Age / sex:</span> {{ order.patient.age_label }} · {{ order.patient.get_gender_display }}</p>
+      <p class="text-right"><span class="text-muted">Payment:</span> {{ order.payment_label }}{% if order.invoice %} · <span class="font-mono">{{ order.invoice.number }}</span>{% endif %}</p>
+      <p class="col-span-2"><span class="text-muted">Ordered by:</span> {{ order.doctor|default:"Lab desk / walk-in" }}</p>
+      {% if order.clinical_notes %}<p class="col-span-2"><span class="text-muted">Clinical notes:</span> {{ order.clinical_notes }}</p>{% endif %}
+    </section>
+    <table class="mt-4 w-full text-body">
+      <thead><tr class="border-b border-ink text-left text-label uppercase"><th class="py-1.5">#</th><th>Test</th><th>Sample</th><th>Accession</th></tr></thead>
+      <tbody>
+        {% for i in items %}
+        <tr class="border-b border-line {% if i.status == 'cancelled' %}text-muted line-through{% endif %}">
+          <td class="py-1.5">{{ forloop.counter }}</td>
+          <td>{{ i.test_name }}{% if i.panel %}<span class="block text-label text-muted">{{ i.panel.name }}</span>{% endif %}</td>
+          <td>{% if i.sample %}{{ i.sample.get_sample_type_display }}{% else %}{{ i.test.get_sample_type_display|default:"—" }}{% endif %}</td>
+          <td class="font-mono text-label">{{ i.sample.accession|default:"—" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% if order.status == "cancelled" %}<p class="mt-4 text-center font-bold text-red uppercase">Cancelled — {{ order.cancel_reason }}</p>{% endif %}
+    <section class="mt-8 grid grid-cols-2 gap-6 text-label">
+      <div><div class="h-8 border-b border-ink"></div><p class="mt-1">Collected by / time</p></div>
+      <div><div class="h-8 border-b border-ink"></div><p class="mt-1">Received in lab / time</p></div>
+    </section>
+    {% include "print/_footer.html" with org=request.organization note="Bring this form to the sample collection counter." %}
+{% endblock %}

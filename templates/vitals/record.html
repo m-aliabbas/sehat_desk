@@ -1,0 +1,35 @@
+{% extends "layouts/app.html" %}
+{% load ui vitals %}
+{% block title %}Record vitals · {{ patient.full_name }}{% endblock %}
+{% block page_title %}Record vitals{% endblock %}
+{% block page_subtitle %}{{ patient.full_name }} · {{ patient.age_label }} · {{ patient.get_gender_display }} · <span class="font-mono">{{ patient.mrn }}</span>{% if token %} · Token {{ token.label }}{% endif %}{% if encounter %} · {{ encounter.number }}{% endif %}{% endblock %}
+{% block content %}
+<div class="grid gap-6 xl:grid-cols-[1fr_340px]">
+  <form method="post" class="card" novalidate>
+    {% csrf_token %}
+    <input type="hidden" name="next" value="{{ next }}">
+    {% if token %}<input type="hidden" name="token" value="{{ token.pk }}">{% elif encounter %}<input type="hidden" name="encounter" value="{{ encounter.pk }}">{% else %}<input type="hidden" name="patient" value="{{ patient.pk }}">{% endif %}
+    {% for e in form.non_field_errors %}{% include "components/alert.html" with level="danger" message=e %}{% endfor %}
+    {% include "vitals/_form_fields.html" %}
+    <div class="mt-6 flex gap-3">
+      <button type="submit" class="btn btn-primary">Save vitals</button>
+      <a href="{{ next }}" class="btn btn-secondary">Cancel</a>
+    </div>
+  </form>
+  <aside class="space-y-6">
+    <section class="card">
+      <h2 class="section-title mb-3">Last recorded</h2>
+      {% if previous %}
+        <div class="flex flex-wrap gap-1">{% for row in previous_summary %}{% vital_chip row %}{% endfor %}</div>
+        <p class="mt-2 text-label text-muted">{{ previous.recorded_at|date:"d M Y, H:i" }} by {{ previous.recorded_by }}</p>
+      {% else %}<p class="text-label text-muted">No earlier vitals for this patient.</p>{% endif %}
+    </section>
+    <section class="card text-label text-muted">
+      <h2 class="section-title mb-2 text-ink">How values are flagged</h2>
+      <p>Values outside the usual adult range show <span class="chip chip-warning">High</span> or <span class="chip chip-warning">Low</span>; dangerous values show <span class="chip chip-danger">Critical</span>.</p>
+      {% if child %}<p class="mt-2 font-medium text-amber">This patient is under 18: pulse, breathing rate, BP and BMI are not flagged because normal values depend on age.</p>{% endif %}
+      <p class="mt-2">BMI is calculated from weight and height.</p>
+    </section>
+  </aside>
+</div>
+{% endblock %}

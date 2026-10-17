@@ -1,0 +1,13 @@
+{% extends "components/modal_base.html" %}
+{% block modal_size %}max-w-xl{% endblock %}
+{% block modal_title %}Take payment{% endblock %}
+{% block modal_body %}
+<form id="pos-pay-form" method="post" action="{% url 'pharmacy:pos-pay' %}" hx-post="{% url 'pharmacy:pos-pay' %}" hx-target="#overlay-root" hx-disabled-elt="#pos-pay-submit">
+  {% csrf_token %}
+  {% include "pharmacy/pos/_pay_form.html" %}
+</form>
+{% endblock %}
+{% block modal_footer %}
+<button type="button" class="btn btn-secondary" @click="open = false">Back to sale</button>
+<button id="pos-pay-submit" type="submit" form="pos-pay-form" class="btn btn-primary" {% if problems %}disabled{% endif %}>Complete sale</button>
+{% endblock %}

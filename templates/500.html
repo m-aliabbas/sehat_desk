@@ -1,0 +1,5 @@
+{% extends "layouts/error.html" %}
+{% block title %}Server error{% endblock %}
+{% block error_code %}500{% endblock %}
+{% block error_title %}Something went wrong{% endblock %}
+{% block error_message %}SehatDesk hit an unexpected error. Your saved records are safe. Try again, and tell your administrator if it keeps happening.{% if request_id %}<span class="mt-3 block text-label">Reference: <span class="font-mono">{{ request_id }}</span></span>{% endif %}{% endblock %}

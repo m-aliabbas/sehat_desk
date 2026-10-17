@@ -1,0 +1,18 @@
+{% load ui %}
+{% if groups %}
+  {% for g in groups %}
+  <div class="py-1">
+    <p class="flex items-center gap-2 px-3 pt-2 pb-1 text-label font-semibold text-muted uppercase">{% icon g.icon "h-3.5 w-3.5" %} {{ g.label }}</p>
+    {% include "search/_hits.html" with compact=True %}
+    {% if g.more %}<a class="search-hit block px-3 py-1.5 text-label text-teal-deep hover:underline" href="{% url 'search:page' %}?q={{ q|urlencode }}&type={{ g.key }}">More {{ g.label|lower }} →</a>{% endif %}
+  </div>
+  {% endfor %}
+  <a class="search-hit block border-t border-line px-3 py-2 text-label font-medium text-teal-deep hover:bg-page" href="{% url 'search:page' %}?q={{ q|urlencode }}">See all results for “{{ q }}”</a>
+{% elif recent %}
+  <p class="px-3 pt-2 pb-1 text-label font-semibold text-muted uppercase">Recent searches</p>
+  <ul role="list">{% for r in recent %}<li><a class="search-hit flex items-center gap-2 px-3 py-2 hover:bg-page" href="{% url 'search:page' %}?q={{ r|urlencode }}">{% icon "search" "h-3.5 w-3.5 text-muted" %} {{ r }}</a></li>{% endfor %}</ul>
+{% elif too_short %}
+  <p class="px-3 py-3 text-label text-muted">Type at least 2 characters: name, MRN, phone, CNIC, invoice, appointment or lab number.</p>
+{% else %}
+  <p class="px-3 py-3 text-label text-muted">No matches for “{{ q }}”.</p>
+{% endif %}

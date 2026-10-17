@@ -1,0 +1,806 @@
+[
+  {
+    "id": 1,
+    "title": "Admin Dashboard",
+    "module": "Core desktop",
+    "file": "01-admin-dashboard"
+  },
+  {
+    "id": 2,
+    "title": "Reception Token Desk",
+    "module": "Core desktop",
+    "file": "02-reception-token-desk"
+  },
+  {
+    "id": 3,
+    "title": "Patient Registration",
+    "module": "Core desktop",
+    "file": "03-patient-registration"
+  },
+  {
+    "id": 4,
+    "title": "Appointments Calendar",
+    "module": "Core desktop",
+    "file": "04-appointments-calendar"
+  },
+  {
+    "id": 5,
+    "title": "Patient History",
+    "module": "Core desktop",
+    "file": "05-patient-history"
+  },
+  {
+    "id": 6,
+    "title": "Doctor Prescription Ai",
+    "module": "Core desktop",
+    "file": "06-doctor-prescription-ai"
+  },
+  {
+    "id": 7,
+    "title": "Ipd Bed Management",
+    "module": "Core desktop",
+    "file": "07-ipd-bed-management"
+  },
+  {
+    "id": 8,
+    "title": "Laboratory Worklist",
+    "module": "Core desktop",
+    "file": "08-laboratory-worklist"
+  },
+  {
+    "id": 9,
+    "title": "Pharmacy Inventory",
+    "module": "Core desktop",
+    "file": "09-pharmacy-inventory"
+  },
+  {
+    "id": 10,
+    "title": "Invoicing Payments",
+    "module": "Core desktop",
+    "file": "10-invoicing-payments"
+  },
+  {
+    "id": 11,
+    "title": "Reports Analytics",
+    "module": "Core desktop",
+    "file": "11-reports-analytics"
+  },
+  {
+    "id": 12,
+    "title": "Design System",
+    "module": "Core desktop",
+    "file": "12-design-system"
+  },
+  {
+    "id": 13,
+    "title": "Login",
+    "module": "Core desktop",
+    "file": "13-login"
+  },
+  {
+    "id": 14,
+    "title": "Password Reset",
+    "module": "Core desktop",
+    "file": "14-password-reset"
+  },
+  {
+    "id": 15,
+    "title": "Role And Counter Selection",
+    "module": "Core desktop",
+    "file": "15-role-and-counter-selection"
+  },
+  {
+    "id": 16,
+    "title": "Staff Profile",
+    "module": "Core desktop",
+    "file": "16-staff-profile"
+  },
+  {
+    "id": 17,
+    "title": "Staff Directory",
+    "module": "Core desktop",
+    "file": "17-staff-directory"
+  },
+  {
+    "id": 18,
+    "title": "Counter Management",
+    "module": "Core desktop",
+    "file": "18-counter-management"
+  },
+  {
+    "id": 19,
+    "title": "Public Token Display",
+    "module": "Core desktop",
+    "file": "19-public-token-display"
+  },
+  {
+    "id": 20,
+    "title": "Counter Settings",
+    "module": "Core desktop",
+    "file": "20-counter-settings"
+  },
+  {
+    "id": 21,
+    "title": "Nursing Workspace",
+    "module": "Core desktop",
+    "file": "21-nursing-workspace"
+  },
+  {
+    "id": 22,
+    "title": "Consultation Notes",
+    "module": "Core desktop",
+    "file": "22-consultation-notes"
+  },
+  {
+    "id": 23,
+    "title": "Follow Up Plan",
+    "module": "Core desktop",
+    "file": "23-follow-up-plan"
+  },
+  {
+    "id": 24,
+    "title": "Ipd Admission",
+    "module": "Core desktop",
+    "file": "24-ipd-admission"
+  },
+  {
+    "id": 25,
+    "title": "Bed Transfer",
+    "module": "Core desktop",
+    "file": "25-bed-transfer"
+  },
+  {
+    "id": 26,
+    "title": "Discharge Workspace",
+    "module": "Core desktop",
+    "file": "26-discharge-workspace"
+  },
+  {
+    "id": 27,
+    "title": "Lab Result Entry",
+    "module": "Core desktop",
+    "file": "27-lab-result-entry"
+  },
+  {
+    "id": 28,
+    "title": "Lab Report Verification",
+    "module": "Core desktop",
+    "file": "28-lab-report-verification"
+  },
+  {
+    "id": 29,
+    "title": "Pharmacy Dispensing",
+    "module": "Core desktop",
+    "file": "29-pharmacy-dispensing"
+  },
+  {
+    "id": 30,
+    "title": "Stock Receipt",
+    "module": "Core desktop",
+    "file": "30-stock-receipt"
+  },
+  {
+    "id": 31,
+    "title": "Invoice Register",
+    "module": "Core desktop",
+    "file": "31-invoice-register"
+  },
+  {
+    "id": 32,
+    "title": "Counter Cash Closing",
+    "module": "Core desktop",
+    "file": "32-counter-cash-closing"
+  },
+  {
+    "id": 33,
+    "title": "Expense Entry",
+    "module": "Core desktop",
+    "file": "33-expense-entry"
+  },
+  {
+    "id": 34,
+    "title": "Role Permissions",
+    "module": "Core desktop",
+    "file": "34-role-permissions"
+  },
+  {
+    "id": 35,
+    "title": "Hospital Settings",
+    "module": "Core desktop",
+    "file": "35-hospital-settings"
+  },
+  {
+    "id": 36,
+    "title": "Audit Log",
+    "module": "Core desktop",
+    "file": "36-audit-log"
+  },
+  {
+    "id": 37,
+    "title": "Common Interface States",
+    "module": "Core desktop",
+    "file": "37-common-interface-states"
+  },
+  {
+    "id": 38,
+    "title": "Notifications",
+    "module": "Core desktop",
+    "file": "38-notifications"
+  },
+  {
+    "id": 39,
+    "title": "Patient Directory",
+    "module": "Core desktop",
+    "file": "39-patient-directory"
+  },
+  {
+    "id": 40,
+    "title": "Appointment Booking",
+    "module": "Core desktop",
+    "file": "40-appointment-booking"
+  },
+  {
+    "id": 41,
+    "title": "Refund Approval",
+    "module": "Core desktop",
+    "file": "41-refund-approval"
+  },
+  {
+    "id": 42,
+    "title": "Doctor Schedule",
+    "module": "Core desktop",
+    "file": "42-doctor-schedule"
+  },
+  {
+    "id": 43,
+    "title": "Pharmacy point of sale",
+    "module": "Pharmacy",
+    "file": "043-pharmacy-pos"
+  },
+  {
+    "id": 44,
+    "title": "Attach patient to sale",
+    "module": "Pharmacy",
+    "file": "044-pos-patient-lookup"
+  },
+  {
+    "id": 45,
+    "title": "Prescription verification",
+    "module": "Pharmacy",
+    "file": "045-pos-prescription-link"
+  },
+  {
+    "id": 46,
+    "title": "Choose supply batches",
+    "module": "Pharmacy",
+    "file": "046-pos-batch-selection"
+  },
+  {
+    "id": 47,
+    "title": "Price & discount review",
+    "module": "Pharmacy",
+    "file": "047-pos-discount-review"
+  },
+  {
+    "id": 48,
+    "title": "Take payment",
+    "module": "Pharmacy",
+    "file": "048-pos-payment"
+  },
+  {
+    "id": 49,
+    "title": "Sale completed",
+    "module": "Pharmacy",
+    "file": "049-pos-sale-success"
+  },
+  {
+    "id": 50,
+    "title": "Held sales",
+    "module": "Pharmacy",
+    "file": "050-held-sales"
+  },
+  {
+    "id": 51,
+    "title": "Find original sale",
+    "module": "Pharmacy",
+    "file": "051-return-receipt"
+  },
+  {
+    "id": 52,
+    "title": "Review return quantities",
+    "module": "Pharmacy",
+    "file": "052-return-items"
+  },
+  {
+    "id": 53,
+    "title": "Approve refund",
+    "module": "Pharmacy",
+    "file": "053-return-refund"
+  },
+  {
+    "id": 54,
+    "title": "Medicine & product catalog",
+    "module": "Pharmacy",
+    "file": "054-pharmacy-product-catalog"
+  },
+  {
+    "id": 55,
+    "title": "New medicine \u00b7 Identity",
+    "module": "Pharmacy",
+    "file": "055-medicine-identity"
+  },
+  {
+    "id": 56,
+    "title": "New medicine \u00b7 Units & pricing",
+    "module": "Pharmacy",
+    "file": "056-medicine-pricing"
+  },
+  {
+    "id": 57,
+    "title": "New medicine \u00b7 Opening stock",
+    "module": "Pharmacy",
+    "file": "057-medicine-opening-stock"
+  },
+  {
+    "id": 58,
+    "title": "Suppliers",
+    "module": "Pharmacy",
+    "file": "058-supplier-directory"
+  },
+  {
+    "id": 59,
+    "title": "Purchase order \u00b7 Supplier",
+    "module": "Pharmacy",
+    "file": "059-purchase-supplier"
+  },
+  {
+    "id": 60,
+    "title": "Purchase order \u00b7 Items",
+    "module": "Pharmacy",
+    "file": "060-purchase-items"
+  },
+  {
+    "id": 61,
+    "title": "Purchase order \u00b7 Review",
+    "module": "Pharmacy",
+    "file": "061-purchase-review"
+  },
+  {
+    "id": 62,
+    "title": "Goods receipt \u00b7 Order",
+    "module": "Pharmacy",
+    "file": "062-goods-select-order"
+  },
+  {
+    "id": 63,
+    "title": "Goods receipt \u00b7 Batch details",
+    "module": "Pharmacy",
+    "file": "063-goods-batch-entry"
+  },
+  {
+    "id": 64,
+    "title": "Goods receipt \u00b7 Post stock",
+    "module": "Pharmacy",
+    "file": "064-goods-post-review"
+  },
+  {
+    "id": 65,
+    "title": "Expiry & quarantine",
+    "module": "Pharmacy",
+    "file": "065-expiry-quarantine"
+  },
+  {
+    "id": 66,
+    "title": "Stock adjustment \u00b7 Count",
+    "module": "Pharmacy",
+    "file": "066-stock-count"
+  },
+  {
+    "id": 67,
+    "title": "Stock adjustment \u00b7 Approval",
+    "module": "Pharmacy",
+    "file": "067-stock-adjust-review"
+  },
+  {
+    "id": 68,
+    "title": "Stock transfers",
+    "module": "Pharmacy",
+    "file": "068-pharmacy-stock-transfer"
+  },
+  {
+    "id": 69,
+    "title": "Pharmacy sales & margins",
+    "module": "Pharmacy",
+    "file": "069-pharmacy-sales-report"
+  },
+  {
+    "id": 70,
+    "title": "Laboratory operations",
+    "module": "Laboratory",
+    "file": "070-lab-dashboard"
+  },
+  {
+    "id": 71,
+    "title": "Test catalog",
+    "module": "Laboratory",
+    "file": "071-lab-test-catalog"
+  },
+  {
+    "id": 72,
+    "title": "Test setup \u00b7 Identity",
+    "module": "Laboratory",
+    "file": "072-lab-test-identity"
+  },
+  {
+    "id": 73,
+    "title": "Test setup \u00b7 Method & ranges",
+    "module": "Laboratory",
+    "file": "073-lab-test-method"
+  },
+  {
+    "id": 74,
+    "title": "Test setup \u00b7 Review",
+    "module": "Laboratory",
+    "file": "074-lab-test-review"
+  },
+  {
+    "id": 75,
+    "title": "Test packages",
+    "module": "Laboratory",
+    "file": "075-lab-test-packages"
+  },
+  {
+    "id": 76,
+    "title": "Lab order \u00b7 Patient",
+    "module": "Laboratory",
+    "file": "076-lab-order-patient"
+  },
+  {
+    "id": 77,
+    "title": "Lab order \u00b7 Tests",
+    "module": "Laboratory",
+    "file": "077-lab-order-tests"
+  },
+  {
+    "id": 78,
+    "title": "Lab order \u00b7 Review",
+    "module": "Laboratory",
+    "file": "078-lab-order-confirm"
+  },
+  {
+    "id": 79,
+    "title": "Sample collection \u00b7 Identity",
+    "module": "Laboratory",
+    "file": "079-sample-identity"
+  },
+  {
+    "id": 80,
+    "title": "Sample collection \u00b7 Label",
+    "module": "Laboratory",
+    "file": "080-sample-label"
+  },
+  {
+    "id": 81,
+    "title": "Specimen accession",
+    "module": "Laboratory",
+    "file": "081-lab-accession"
+  },
+  {
+    "id": 82,
+    "title": "Processing worklist",
+    "module": "Laboratory",
+    "file": "082-lab-processing"
+  },
+  {
+    "id": 83,
+    "title": "Result entry \u00b7 Values",
+    "module": "Laboratory",
+    "file": "083-lab-results-values"
+  },
+  {
+    "id": 84,
+    "title": "Result entry \u00b7 Validation",
+    "module": "Laboratory",
+    "file": "084-lab-results-validation"
+  },
+  {
+    "id": 85,
+    "title": "Critical result communication",
+    "module": "Laboratory",
+    "file": "085-lab-critical-alerts"
+  },
+  {
+    "id": 86,
+    "title": "Verify report \u00b7 Review",
+    "module": "Laboratory",
+    "file": "086-lab-verification-review"
+  },
+  {
+    "id": 87,
+    "title": "Verify report \u00b7 Release gate",
+    "module": "Laboratory",
+    "file": "087-lab-verification-release"
+  },
+  {
+    "id": 88,
+    "title": "Released reports",
+    "module": "Laboratory",
+    "file": "088-lab-released-reports"
+  },
+  {
+    "id": 89,
+    "title": "Amend a released report",
+    "module": "Laboratory",
+    "file": "089-lab-report-amendment"
+  },
+  {
+    "id": 90,
+    "title": "Reject / recollect specimen",
+    "module": "Laboratory",
+    "file": "090-lab-specimen-rejection"
+  },
+  {
+    "id": 91,
+    "title": "Laboratory billing",
+    "module": "Laboratory",
+    "file": "091-lab-billing"
+  },
+  {
+    "id": 92,
+    "title": "Lab operational reports",
+    "module": "Laboratory",
+    "file": "092-lab-operations-report"
+  },
+  {
+    "id": 93,
+    "title": "Doctor workspace",
+    "module": "Doctors",
+    "file": "093-doctor-home"
+  },
+  {
+    "id": 94,
+    "title": "Doctor patient queue",
+    "module": "Doctors",
+    "file": "094-doctor-patient-queue"
+  },
+  {
+    "id": 95,
+    "title": "Consultation \u00b7 Identity",
+    "module": "Doctors",
+    "file": "095-consult-identity"
+  },
+  {
+    "id": 96,
+    "title": "Consultation \u00b7 History",
+    "module": "Doctors",
+    "file": "096-consult-history"
+  },
+  {
+    "id": 97,
+    "title": "Consultation \u00b7 Examination",
+    "module": "Doctors",
+    "file": "097-consult-exam"
+  },
+  {
+    "id": 98,
+    "title": "Consultation \u00b7 Assessment",
+    "module": "Doctors",
+    "file": "098-consult-assessment"
+  },
+  {
+    "id": 99,
+    "title": "Consultation \u00b7 Investigations",
+    "module": "Doctors",
+    "file": "099-consult-orders"
+  },
+  {
+    "id": 100,
+    "title": "Consultation \u00b7 Prescription",
+    "module": "Doctors",
+    "file": "100-consult-prescription"
+  },
+  {
+    "id": 101,
+    "title": "Consultation \u00b7 Plan & follow-up",
+    "module": "Doctors",
+    "file": "101-consult-plan"
+  },
+  {
+    "id": 102,
+    "title": "Consultation \u00b7 Review & sign",
+    "module": "Doctors",
+    "file": "102-consult-review-sign"
+  },
+  {
+    "id": 103,
+    "title": "Encounter signed",
+    "module": "Doctors",
+    "file": "103-consultation-signed"
+  },
+  {
+    "id": 104,
+    "title": "Prescription item \u00b7 Medicine",
+    "module": "Doctors",
+    "file": "104-rx-select-medicine"
+  },
+  {
+    "id": 105,
+    "title": "Prescription item \u00b7 Directions",
+    "module": "Doctors",
+    "file": "105-rx-directions"
+  },
+  {
+    "id": 106,
+    "title": "Prescription item \u00b7 Review",
+    "module": "Doctors",
+    "file": "106-rx-review-item"
+  },
+  {
+    "id": 107,
+    "title": "Prescription review alerts",
+    "module": "Doctors",
+    "file": "107-prescription-alerts"
+  },
+  {
+    "id": 108,
+    "title": "Clinical documentation templates",
+    "module": "Doctors",
+    "file": "108-doctor-templates"
+  },
+  {
+    "id": 109,
+    "title": "Add doctor \u00b7 Profile",
+    "module": "Administration",
+    "file": "109-doctor-create-profile"
+  },
+  {
+    "id": 110,
+    "title": "Add doctor \u00b7 Clinic setup",
+    "module": "Administration",
+    "file": "110-doctor-create-clinic"
+  },
+  {
+    "id": 111,
+    "title": "Add doctor \u00b7 Access",
+    "module": "Administration",
+    "file": "111-doctor-create-access"
+  },
+  {
+    "id": 112,
+    "title": "Leave & availability",
+    "module": "Doctors",
+    "file": "112-doctor-leave"
+  },
+  {
+    "id": 113,
+    "title": "Reschedule affected visits",
+    "module": "Doctors",
+    "file": "113-doctor-reschedule"
+  },
+  {
+    "id": 114,
+    "title": "Referral \u00b7 Destination",
+    "module": "Doctors",
+    "file": "114-referral-destination"
+  },
+  {
+    "id": 115,
+    "title": "Referral \u00b7 Clinical handover",
+    "module": "Doctors",
+    "file": "115-referral-handover"
+  },
+  {
+    "id": 116,
+    "title": "Medical certificates",
+    "module": "Doctors",
+    "file": "116-medical-certificate"
+  },
+  {
+    "id": 117,
+    "title": "Inpatient progress note",
+    "module": "Inpatient",
+    "file": "117-inpatient-progress-note"
+  },
+  {
+    "id": 118,
+    "title": "Ward rounds",
+    "module": "Inpatient",
+    "file": "118-doctor-ward-rounds"
+  },
+  {
+    "id": 119,
+    "title": "Discharge \u00b7 Clinical summary",
+    "module": "Inpatient",
+    "file": "119-discharge-clinical"
+  },
+  {
+    "id": 120,
+    "title": "Discharge \u00b7 Department clearance",
+    "module": "Inpatient",
+    "file": "120-discharge-clearance"
+  },
+  {
+    "id": 121,
+    "title": "Discharge \u00b7 Release episode",
+    "module": "Inpatient",
+    "file": "121-discharge-release"
+  },
+  {
+    "id": 122,
+    "title": "Reception profile",
+    "module": "Administration",
+    "file": "122-reception-profile"
+  },
+  {
+    "id": 123,
+    "title": "Nursing profile",
+    "module": "Administration",
+    "file": "123-nurse-profile"
+  },
+  {
+    "id": 124,
+    "title": "Pharmacist profile",
+    "module": "Administration",
+    "file": "124-pharmacist-profile"
+  },
+  {
+    "id": 125,
+    "title": "Lab technician profile",
+    "module": "Administration",
+    "file": "125-lab-staff-profile"
+  },
+  {
+    "id": 126,
+    "title": "Administrator profile",
+    "module": "Administration",
+    "file": "126-administrator-profile"
+  },
+  {
+    "id": 127,
+    "title": "Access & session states",
+    "module": "Administration",
+    "file": "127-authentication-states"
+  },
+  {
+    "id": 128,
+    "title": "Visit / prescription document",
+    "module": "Doctors",
+    "file": "128-print-visit-prescription"
+  },
+  {
+    "id": 129,
+    "title": "Laboratory report document",
+    "module": "Laboratory",
+    "file": "129-print-lab-report"
+  },
+  {
+    "id": 130,
+    "title": "Pharmacy receipt document",
+    "module": "Pharmacy",
+    "file": "130-print-pharmacy-receipt"
+  },
+  {
+    "id": 131,
+    "title": "Clear an unsaved sale",
+    "module": "Pharmacy",
+    "file": "131-pos-clear-confirmation"
+  },
+  {
+    "id": 132,
+    "title": "Create stock transfer",
+    "module": "Pharmacy",
+    "file": "132-stock-transfer-form"
+  },
+  {
+    "id": 133,
+    "title": "Critical result acknowledgement",
+    "module": "Laboratory",
+    "file": "133-critical-result-acknowledgement"
+  },
+  {
+    "id": 134,
+    "title": "Amend signed encounter",
+    "module": "Doctors",
+    "file": "134-signed-encounter-amendment"
+  }
+]

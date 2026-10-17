@@ -1,0 +1,11 @@
+{% extends "components/drawer_base.html" %}
+{% load ui %}
+{% block drawer_title %}Example drawer{% endblock %}
+{% block drawer_body %}
+<p class="text-body text-muted">Drawers suit quick views that keep the main list visible, such as a patient preview or an order's details.</p>
+<dl class="mt-5 space-y-3 text-body">
+  <div class="flex justify-between"><dt class="text-muted">MRN</dt><dd class="font-mono">DEMO-1004</dd></div>
+  <div class="flex justify-between"><dt class="text-muted">Status</dt><dd>{% status_chip "in_consultation" %}</dd></div>
+  <div class="flex justify-between"><dt class="text-muted">Allergies</dt><dd>{% status_chip "allergy" "Penicillin" %}</dd></div>
+</dl>
+{% endblock %}

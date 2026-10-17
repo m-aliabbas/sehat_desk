@@ -1,0 +1,39 @@
+{% load ui %}
+{% comment %}
+  {% include "components/pagination.html" with page_obj=page_obj hx_target="#list" %}
+  Keeps the current query string (filters) and only replaces the page number.
+  With hx_target, page links load over htmx; without it they are plain links.
+{% endcomment %}
+{% if page_obj.paginator.num_pages > 1 %}
+<nav class="mt-4 flex flex-wrap items-center justify-between gap-3" aria-label="Pagination">
+  <p class="text-label text-muted">
+    Showing {{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ page_obj.paginator.count }}
+  </p>
+  <div class="flex items-center gap-1">
+    {% if page_obj.has_previous %}
+      <a class="btn btn-secondary btn-sm" href="{{ request.path }}{% querystring page=page_obj.previous_page_number %}"
+         {% if hx_target %}hx-get="{{ request.path }}{% querystring page=page_obj.previous_page_number %}" hx-target="{{ hx_target }}"{% endif %}
+         aria-label="Previous page">{% icon "chevron-left" "h-4 w-4" %}</a>
+    {% else %}
+      <span class="btn btn-secondary btn-sm opacity-50" aria-disabled="true">{% icon "chevron-left" "h-4 w-4" %}</span>
+    {% endif %}
+
+    {% for num in page_obj.paginator.page_range %}
+      {% if num == page_obj.number %}
+        <span class="btn btn-primary btn-sm" aria-current="page">{{ num }}</span>
+      {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+        <a class="btn btn-secondary btn-sm" href="{{ request.path }}{% querystring page=num %}"
+           {% if hx_target %}hx-get="{{ request.path }}{% querystring page=num %}" hx-target="{{ hx_target }}"{% endif %}>{{ num }}</a>
+      {% endif %}
+    {% endfor %}
+
+    {% if page_obj.has_next %}
+      <a class="btn btn-secondary btn-sm" href="{{ request.path }}{% querystring page=page_obj.next_page_number %}"
+         {% if hx_target %}hx-get="{{ request.path }}{% querystring page=page_obj.next_page_number %}" hx-target="{{ hx_target }}"{% endif %}
+         aria-label="Next page">{% icon "chevron-right" "h-4 w-4" %}</a>
+    {% else %}
+      <span class="btn btn-secondary btn-sm opacity-50" aria-disabled="true">{% icon "chevron-right" "h-4 w-4" %}</span>
+    {% endif %}
+  </div>
+</nav>
+{% endif %}

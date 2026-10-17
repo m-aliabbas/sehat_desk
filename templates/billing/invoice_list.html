@@ -1,0 +1,75 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}{% if view == "outstanding" %}Outstanding invoices{% else %}Invoice register{% endif %}{% endblock %}
+{% block page_title %}{% if view == "outstanding" %}Outstanding invoices{% else %}Invoice register{% endif %}{% endblock %}
+{% block page_subtitle %}Track invoiced amounts, payments, and outstanding balances.{% endblock %}
+{% block page_actions %}
+  <a href="{% url 'billing:payment-list' %}" class="btn btn-secondary">Daily payments</a>
+  {% if can_collect %}<a href="{% url 'billing:invoice-create' %}" class="btn btn-primary">{% icon "plus" "h-4 w-4" %} New invoice</a>{% endif %}
+{% endblock %}
+{% block content %}
+<div class="mb-6 grid gap-4 md:grid-cols-3">
+  <a href="{% url 'billing:payment-list' %}" class="stat-card bg-mint hover:ring-2 hover:ring-teal/20">
+    <p class="text-body text-ink">Today's collection</p>
+    <p class="mt-2 text-[28px] font-bold text-ink">{{ organization.currency }} {{ today.net|floatformat:"0g" }}</p>
+    <p class="text-label text-muted">{{ today.count }} payment{{ today.count|pluralize }}{% if today.deposits.received_count %} · {{ today.deposits.received_count }} deposit{{ today.deposits.received_count|pluralize }}{% endif %}{% if today.refunded %} · {{ today.refunded|floatformat:"0g" }} refunded{% endif %}</p>
+  </a>
+  <a href="?view=outstanding" class="stat-card bg-amber-soft hover:ring-2 hover:ring-amber/20">
+    <p class="text-body text-ink">Outstanding balance</p>
+    <p class="mt-2 text-[28px] font-bold text-ink">{{ organization.currency }} {{ outstanding_total|floatformat:"0g" }}</p>
+    <p class="text-label text-muted">{{ outstanding_count }} invoice{{ outstanding_count|pluralize }} unpaid or part-paid</p>
+  </a>
+  <div class="stat-card bg-blue-soft">
+    <p class="text-body text-ink">Branch</p>
+    <p class="mt-2 text-[22px] font-bold text-ink">{{ request.branch.name }}</p>
+    <p class="text-label text-muted">Invoices and payments are kept per branch</p>
+  </div>
+</div>
+
+<section class="card">
+  <nav class="tabs mb-5" aria-label="Invoice views">
+    <a class="tab" href="{% url 'billing:invoice-list' %}" {% if view != "outstanding" %}aria-selected="true"{% endif %}>All invoices</a>
+    <a class="tab" href="?view=outstanding" {% if view == "outstanding" %}aria-selected="true"{% endif %}>Outstanding <span class="chip chip-warning ml-1">{{ outstanding_count }}</span></a>
+  </nav>
+  <form method="get" class="mb-5 grid gap-3 md:grid-cols-[1fr_auto]" x-data @change="$el.submit()">
+    <input type="hidden" name="view" value="{{ view }}">
+    <input type="search" name="q" value="{{ q }}" class="input" placeholder="Search by invoice number, patient name or MRN" aria-label="Search">
+    {% if view != "outstanding" %}
+    <select name="status" class="select" aria-label="Status">
+      <option value="">All statuses</option>
+      {% for v, l in statuses %}<option value="{{ v }}" {% if status == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
+    </select>
+    {% endif %}
+  </form>
+  {% if invoices %}
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th scope="col">Invoice</th><th scope="col">Patient</th><th scope="col" class="text-right">Amount</th><th scope="col" class="text-right">Paid</th><th scope="col" class="text-right">Balance</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+      <tbody>
+        {% for inv in invoices %}
+          <tr>
+            <td><a href="{% url 'billing:invoice-detail' inv.pk %}" class="font-mono font-medium hover:underline">{{ inv.number }}</a><p class="text-label text-muted">{{ inv.created_at|date:"d M Y, H:i" }}</p></td>
+            <td>{{ inv.bill_to }}<p class="font-mono text-label text-muted">{{ inv.patient.mrn|default:"Walk-in" }}</p></td>
+            <td class="text-right">{{ inv.grand_total|floatformat:"2g" }}</td>
+            <td class="text-right">{{ inv.amount_paid|floatformat:"2g" }}{% if inv.amount_refunded %}<p class="text-label text-muted">−{{ inv.amount_refunded|floatformat:"2g" }} refunded</p>{% endif %}</td>
+            <td class="text-right font-semibold">{{ inv.balance_due|floatformat:"2g" }}</td>
+            <td>{% status_chip inv.status inv.get_status_display %}</td>
+            <td class="text-right whitespace-nowrap">
+              {% if can_collect and inv.is_outstanding %}<a href="{% url 'billing:invoice-detail' inv.pk %}" class="btn btn-primary btn-sm">Collect</a>{% endif %}
+              <a href="{% url 'billing:invoice-detail' inv.pk %}" class="btn btn-ghost btn-sm">Open</a>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% include "components/pagination.html" with page_obj=page_obj %}
+  {% elif q or status %}
+    {% include "components/empty_state.html" with icon_name="search" title="No invoices match" message="Clear the search or status filter." %}
+  {% elif view == "outstanding" %}
+    {% include "components/empty_state.html" with icon_name="check-circle" title="Nothing outstanding" message="Every issued invoice in this branch is fully paid." %}
+  {% else %}
+    {% include "components/empty_state.html" with icon_name="credit-card" title="No invoices yet" message="Start an invoice from a patient, an appointment, or the New invoice button." %}
+  {% endif %}
+</section>
+{% endblock %}

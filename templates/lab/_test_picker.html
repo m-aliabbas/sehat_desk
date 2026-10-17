@@ -1,0 +1,36 @@
+{# Test and panel checkboxes with a live filter. Context: categories, panels, selected_tests, selected_panels. #}
+<div x-data="{ filter: '', total: 0 }" x-init="const sum = () => { total = [...$el.querySelectorAll('input[type=checkbox]:checked')].reduce((a, c) => a + parseFloat(c.dataset.price || 0), 0) }; $el.addEventListener('change', sum); sum()">
+  <div class="mb-3 flex flex-wrap items-center gap-3">
+    <label class="sr-only" for="test-filter">Filter tests</label>
+    <input id="test-filter" type="search" x-model="filter" class="input max-w-sm" placeholder="Filter tests, e.g. CBC or sugar">
+    <p class="text-body">Estimated total: <span class="font-semibold">{{ organization.currency }} <span x-text="total.toLocaleString()"></span></span></p>
+  </div>
+  {% if panels %}
+  <fieldset class="mb-4">
+    <legend class="field-label mb-2">Panels / packages</legend>
+    <div class="grid gap-2 md:grid-cols-2">
+      {% for p in panels %}
+      <label class="flex items-start gap-2 rounded-control border border-line p-2 text-body hover:bg-mint/40" x-show="!filter || '{{ p.code|lower|escapejs }} {{ p.name|lower|escapejs }}'.includes(filter.toLowerCase())">
+        <input type="checkbox" name="panels" value="{{ p.pk }}" class="checkbox mt-0.5" data-price="{{ p.price }}" {% if p.pk|stringformat:"s" in selected_panels %}checked{% endif %}>
+        <span><span class="font-medium">{{ p.name }}</span> <span class="font-mono text-label text-muted">{{ p.code }}</span><span class="block text-label text-muted">{{ p.tests.all|length }} tests · {{ organization.currency }} {{ p.price|floatformat:"0g" }}</span></span>
+      </label>
+      {% endfor %}
+    </div>
+  </fieldset>
+  {% endif %}
+  {% for c in categories %}
+  <fieldset class="mb-4">
+    <legend class="field-label mb-2">{{ c.name }}</legend>
+    <div class="grid gap-2 md:grid-cols-2">
+      {% for t in c.tests.all %}
+      <label class="flex items-start gap-2 rounded-control border border-line p-2 text-body hover:bg-mint/40" x-show="!filter || '{{ t.code|lower|escapejs }} {{ t.name|lower|escapejs }}'.includes(filter.toLowerCase())">
+        <input type="checkbox" name="tests" value="{{ t.pk }}" class="checkbox mt-0.5" data-price="{{ t.price }}" {% if t.pk|stringformat:"s" in selected_tests %}checked{% endif %}>
+        <span><span class="font-medium">{{ t.name }}</span> <span class="font-mono text-label text-muted">{{ t.code }}</span><span class="block text-label text-muted">{{ t.get_sample_type_display }} · {{ t.turnaround_hours }} h · {{ organization.currency }} {{ t.price|floatformat:"0g" }}</span></span>
+      </label>
+      {% endfor %}
+    </div>
+  </fieldset>
+  {% empty %}
+    <p class="text-label text-muted">No tests in the catalogue yet.{% if "lab.catalog.manage" in sd_perms %} <a class="text-teal-deep underline" href="{% url 'lab:catalog' %}">Add tests</a>.{% endif %}</p>
+  {% endfor %}
+</div>

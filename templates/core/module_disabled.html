@@ -1,0 +1,8 @@
+{% extends "layouts/app.html" %}
+{% block title %}Module turned off{% endblock %}
+{% block page_title %}{{ feature }} is turned off{% endblock %}
+{% block content %}
+<section class="card">
+  {% include "components/empty_state.html" with title="This module is turned off for your hospital" message="An administrator can turn it back on under Settings → Preferences. Existing records are kept." icon_name="sliders" %}
+</section>
+{% endblock %}

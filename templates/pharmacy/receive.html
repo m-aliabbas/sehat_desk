@@ -1,0 +1,27 @@
+{% extends "layouts/app.html" %}
+{% block title %}Receive stock{% endblock %}
+{% block page_title %}Receive stock{% endblock %}
+{% block page_subtitle %}Enter each batch as printed on the pack. Receiving the same batch number again adds to it.{% endblock %}
+{% block content %}
+<form method="post" novalidate class="card max-w-4xl">
+  {% csrf_token %}
+  {% for e in form.non_field_errors %}{% include "components/alert.html" with level="danger" message=e %}{% endfor %}
+  <div class="grid gap-5 md:grid-cols-2">
+    {% include "components/field.html" with field=form.product wide=True %}
+    {% include "components/field.html" with field=form.batch_number %}
+    {% include "components/field.html" with field=form.expiry_date %}
+    {% include "components/field.html" with field=form.packs %}
+    {% include "components/field.html" with field=form.loose_units %}
+    {% include "components/field.html" with field=form.purchase_cost %}
+    {% include "components/field.html" with field=form.sale_price %}
+    {% include "components/field.html" with field=form.reference %}
+    {% include "components/field.html" with field=form.opening %}
+  </div>
+  <p class="mt-4 text-label text-muted">Quantity = packs × the product's pack size + loose units. Expired stock cannot be received.</p>
+  <div class="mt-6 flex flex-wrap gap-3">
+    <button class="btn btn-primary">Post stock</button>
+    <button name="another" value="1" class="btn btn-secondary">Post &amp; receive another</button>
+    <a href="{% url 'pharmacy:dashboard' %}" class="btn btn-ghost">Cancel</a>
+  </div>
+</form>
+{% endblock %}

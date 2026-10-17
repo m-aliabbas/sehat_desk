@@ -1,0 +1,41 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}Pharmacy sales{% endblock %}
+{% block page_title %}Pharmacy sales{% endblock %}
+{% block page_subtitle %}Find the original sale to reprint a receipt or process a return.{% endblock %}
+{% block content %}
+{% include "pharmacy/pos/_tabs.html" with active="sales" %}
+<div class="mb-6 grid gap-4 md:grid-cols-2">
+  <div class="stat-card bg-mint"><p class="text-body text-ink">Sales{% if not q %} {{ start|date:"d M" }} – {{ end|date:"d M Y" }}{% endif %}</p><p class="mt-2 text-[28px] font-bold text-ink">{{ organization.currency }} {{ total|floatformat:"2g" }}</p></div>
+  <div class="stat-card bg-amber-soft"><p class="text-body text-ink">Refunded on returns</p><p class="mt-2 text-[28px] font-bold text-ink">{{ organization.currency }} {{ returned|floatformat:"2g" }}</p></div>
+</div>
+<section class="card">
+  <form method="get" class="mb-4 flex flex-wrap items-end gap-3">
+    <div class="min-w-[16rem] flex-1"><label class="field-label" for="s-q">Sale, invoice, receipt name or MRN</label><input id="s-q" type="search" name="q" value="{{ q }}" class="input mt-1.5" placeholder="e.g. PS-00012"></div>
+    <div><label class="field-label" for="s-from">From</label><input id="s-from" type="date" name="from" value="{{ start|date:'Y-m-d' }}" class="input mt-1.5"></div>
+    <div><label class="field-label" for="s-to">To</label><input id="s-to" type="date" name="to" value="{{ end|date:'Y-m-d' }}" class="input mt-1.5"></div>
+    <button class="btn btn-secondary">Show</button>
+  </form>
+  {% if sales %}
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th scope="col">Sale</th><th scope="col">Customer</th><th scope="col">Invoice</th><th scope="col">Cashier</th><th scope="col" class="text-right">Total</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+      <tbody>
+        {% for s in sales %}
+        <tr>
+          <td><a href="{% url 'pharmacy:sale-detail' s.pk %}" class="font-mono font-medium hover:underline">{{ s.number }}</a><p class="text-label text-muted">{{ s.completed_at|date:"d M Y, H:i" }}</p></td>
+          <td>{{ s.bill_to }}{% if s.patient %}<p class="font-mono text-label text-muted">{{ s.patient.mrn }}</p>{% endif %}{% if s.prescription %}<p class="text-label text-muted">Rx {{ s.prescription.number }}</p>{% endif %}</td>
+          <td class="font-mono">{{ s.invoice.number }}{% if s.invoice.amount_refunded %}<p class="text-label text-muted">−{{ s.invoice.amount_refunded|floatformat:"2g" }} refunded</p>{% endif %}</td>
+          <td>{{ s.cashier }}</td>
+          <td class="text-right font-semibold">{{ s.grand_total|floatformat:"2g" }}</td>
+          <td class="text-right"><a href="{% url 'pharmacy:sale-detail' s.pk %}" class="btn btn-ghost btn-sm">Open</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+    {% include "components/empty_state.html" with icon_name="credit-card" title="No sales found" message="Completed sales from the till appear here." %}
+  {% endif %}
+</section>
+{% endblock %}

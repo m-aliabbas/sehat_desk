@@ -1,0 +1,35 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}Diagnosis codes{% endblock %}
+{% block page_title %}Diagnosis codes{% endblock %}
+{% block page_subtitle %}ICD-10 style codes doctors search in the consultation. Free text is always allowed when no code fits.{% endblock %}
+{% block content %}
+{% include "partials/settings_tabs.html" %}
+<div class="grid gap-6 xl:grid-cols-3">
+  <section class="card xl:col-span-2">
+    <form class="mb-4" method="get"><label class="sr-only" for="dc-q">Search codes</label><input id="dc-q" name="q" value="{{ q }}" type="search" class="input" placeholder="Search by code or title"></form>
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th scope="col">Code</th><th scope="col">Title</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+        <tbody>
+          {% for c in codes %}
+          <tr>
+            <td class="font-mono">{{ c.code }}</td><td>{{ c.title }}</td>
+            <td>{% if c.is_active %}{% status_chip "active" %}{% else %}{% status_chip "inactive" %}{% endif %}</td>
+            <td class="text-right"><form method="post" action="{% url 'encounters:diagnosis-code-toggle' c.pk %}">{% csrf_token %}{% if c.is_active %}<button class="btn btn-ghost btn-sm text-red">Deactivate</button>{% else %}<button class="btn btn-ghost btn-sm">Activate</button>{% endif %}</form></td>
+          </tr>
+          {% empty %}<tr><td colspan="4" class="text-label text-muted">No codes match.</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  <section class="card h-fit">
+    <h2 class="section-title mb-4">Add a code</h2>
+    <form method="post" class="space-y-3">{% csrf_token %}
+      <div class="field"><label class="field-label" for="dc-code">Code</label><input id="dc-code" name="code" class="input font-mono" maxlength="10" required placeholder="e.g. A01.0"></div>
+      <div class="field"><label class="field-label" for="dc-title">Title</label><input id="dc-title" name="title" class="input" maxlength="200" required placeholder="e.g. Typhoid fever"></div>
+      <button class="btn btn-primary">Add code</button>
+    </form>
+  </section>
+</div>
+{% endblock %}

@@ -1,0 +1,76 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}{{ doctor }}{% endblock %}
+{% block page_title %}{{ doctor }} · {{ doctor.department }}{% endblock %}
+{% block page_subtitle %}{% if doctor.specialty %}{{ doctor.specialty }} · {% endif %}Consultation {{ organization.currency }} {{ doctor.consultation_fee|floatformat:"0g" }} · {{ doctor.slot_minutes }}-minute slots · {% if doctor.is_active %}Accepting appointments{% else %}Not accepting appointments{% endif %}{% endblock %}
+{% block page_actions %}
+  <a href="{% url 'masterdata:doctor-edit' doctor.pk %}" class="btn btn-secondary">Edit profile</a>
+  <form method="post" action="{% url 'masterdata:doctor-toggle' doctor.pk %}">{% csrf_token %}
+    {% if doctor.is_active %}<button class="btn btn-danger" data-confirm="No new appointments can be booked. Existing appointments are kept." data-confirm-title="Stop accepting appointments?" data-confirm-action="Stop" data-confirm-danger="true">Stop bookings</button>{% else %}<button class="btn btn-primary">Accept bookings</button>{% endif %}
+  </form>
+{% endblock %}
+{% block content %}
+{% include "partials/settings_tabs.html" %}
+<div class="grid gap-6">
+  <form method="post" class="card" novalidate>
+    {% csrf_token %}
+    {{ formset.management_form }}
+    <div class="card-header">
+      <div>
+        <h2 class="section-title">Weekly schedule</h2>
+        <p class="text-label text-muted">Clinic hours in the selected branch. Changes do not move existing bookings.</p>
+      </div>
+      <div class="flex items-end gap-3">
+        <div class="field">
+          <label class="field-label" for="sched-branch">Branch</label>
+          <select id="sched-branch" class="select" onchange="location.search='?branch='+this.value">
+            {% for b in branches %}<option value="{{ b.pk }}" {% if b == schedule_branch %}selected{% endif %}>{{ b.name }}</option>{% endfor %}
+          </select>
+        </div>
+        <button class="btn btn-primary" name="save_schedule" value="1">Save schedule</button>
+      </div>
+    </div>
+    {% if formset.non_form_errors %}{% for e in formset.non_form_errors %}{% include "components/alert.html" with level="danger" message=e %}{% endfor %}{% endif %}
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th scope="col">Day</th><th scope="col">Works</th><th scope="col">Clinic hours</th><th scope="col">Break</th><th scope="col">Room</th></tr></thead>
+        <tbody>
+          {% for day, f in rows %}
+            <tr x-data="{ on: {{ f.enabled.value|yesno:'true,false' }} }">
+              <td class="font-medium">{{ day }}{{ f.weekday }}
+                {% for e in f.non_field_errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+              </td>
+              <td><input type="checkbox" class="checkbox" name="{{ f.enabled.html_name }}" x-model="on" {% if f.enabled.value %}checked{% endif %} aria-label="{{ day }} works"></td>
+              <td><div class="flex items-center gap-2" :class="!on && 'opacity-40'">{{ f.start_time }}<span class="text-muted">–</span>{{ f.end_time }}</div></td>
+              <td><div class="flex items-center gap-2" :class="!on && 'opacity-40'">{{ f.break_start }}<span class="text-muted">–</span>{{ f.break_end }}</div></td>
+              <td :class="!on && 'opacity-40'">{{ f.room }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </form>
+
+  <section class="card">
+    <h2 class="section-title mb-1">Leave &amp; unavailability</h2>
+    <p class="mb-4 text-label text-muted">No slots are offered on leave days. Existing appointments on those days are flagged for rescheduling.</p>
+    <form method="post" action="{% url 'masterdata:leave-add' doctor.pk %}" class="grid gap-3 md:grid-cols-[1fr_1fr_2fr_auto] md:items-end" novalidate>
+      {% csrf_token %}
+      {% include "components/field.html" with field=leave_form.start_date %}
+      {% include "components/field.html" with field=leave_form.end_date %}
+      {% include "components/field.html" with field=leave_form.reason %}
+      <button class="btn btn-secondary">{% icon "plus" "h-4 w-4" %} Add leave</button>
+    </form>
+    {% if leaves %}
+      <ul class="mt-5 divide-y divide-line">
+        {% for l in leaves %}
+          <li class="flex items-center justify-between gap-3 py-3">
+            <span><span class="font-medium">{{ l.start_date|date:"d M Y" }}{% if l.end_date != l.start_date %} – {{ l.end_date|date:"d M Y" }}{% endif %}</span> <span class="text-muted">{{ l.reason }}</span></span>
+            <form method="post" action="{% url 'masterdata:leave-remove' doctor.pk l.pk %}">{% csrf_token %}<button class="btn btn-ghost btn-sm text-red">Remove</button></form>
+          </li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

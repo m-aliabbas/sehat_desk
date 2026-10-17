@@ -1,0 +1,38 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}Search{% if q %} · {{ q }}{% endif %}{% endblock %}
+{% block page_title %}Search{% endblock %}
+{% block page_subtitle %}Patients, appointments, invoices, lab orders, medicines and staff you have access to in {{ current_branch.name }}.{% endblock %}
+{% block content %}
+<form method="get" role="search" class="card mb-6 flex flex-wrap items-end gap-3">
+  <div class="min-w-64 flex-1"><label class="field-label" for="s-q">Search for</label><input id="s-q" name="q" value="{{ q }}" class="input mt-1.5" type="search" autofocus placeholder="Name, MRN, phone, CNIC, invoice / appointment / lab number…"></div>
+  <div><label class="field-label" for="s-type">Type</label>
+    <select id="s-type" name="type" class="select mt-1.5"><option value="">Everything</option>{% for p in providers %}<option value="{{ p.key }}" {% if only == p.key %}selected{% endif %}>{{ p.label }}</option>{% endfor %}</select></div>
+  <button class="btn btn-primary">{% icon "search" "h-4 w-4" %} Search</button>
+</form>
+{% if groups %}
+<div class="grid gap-6 xl:grid-cols-2">
+  {% for g in groups %}
+  <section class="card" aria-labelledby="sg-{{ g.key }}">
+    <div class="card-header"><h2 id="sg-{{ g.key }}" class="section-title flex items-center gap-2">{% icon g.icon "h-4 w-4 text-muted" %} {{ g.label }}</h2>
+      {% if g.more and not only %}<a class="text-label font-medium text-teal-deep hover:underline" href="?q={{ q|urlencode }}&type={{ g.key }}">Show more →</a>{% endif %}</div>
+    {% include "search/_hits.html" %}
+  </section>
+  {% endfor %}
+</div>
+{% elif too_short %}
+  {% include "components/empty_state.html" with icon_name="search" title="Type a little more" message="Searches need at least 2 characters." %}
+{% elif q %}
+  {% include "components/empty_state.html" with icon_name="search" title="No matches" message="Try the MRN, a phone number, or fewer words of the name." %}
+{% else %}
+  {% if recent %}
+  <section class="card">
+    <div class="card-header"><h2 class="section-title">Recent searches</h2>
+      <form method="post" action="{% url 'search:recent-clear' %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="text-label text-teal-deep hover:underline">Clear</button></form></div>
+    <div class="flex flex-wrap gap-2">{% for r in recent %}<a class="chip chip-neutral hover:ring-2 hover:ring-teal/20" href="?q={{ r|urlencode }}">{{ r }}</a>{% endfor %}</div>
+  </section>
+  {% else %}
+  {% include "components/empty_state.html" with icon_name="search" title="Search everything" message="Tip: press / or Ctrl+K anywhere to jump to search." %}
+  {% endif %}
+{% endif %}
+{% endblock %}

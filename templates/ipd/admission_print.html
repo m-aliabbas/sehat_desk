@@ -1,0 +1,21 @@
+{% extends "print/a4.html" %}
+{% block title %}Admission form {{ admission.number }}{% endblock %}
+{% block print_label %}Print admission form{% endblock %}
+{% block document %}
+    {% include "print/_letterhead.html" with org=request.organization branch=admission.branch unit="Inpatient department" doc_title="Admission form" doc_number=admission.number doc_date=admission.admitted_at %}
+    <dl class="mt-5 grid grid-cols-2 gap-x-8 gap-y-3 text-body">
+      <div><dt class="text-label text-muted">Patient</dt><dd class="font-semibold">{{ patient.full_name }}</dd></div>
+      <div><dt class="text-label text-muted">MRN / age / gender</dt><dd>{{ patient.mrn }} · {{ patient.age_label }} · {{ patient.get_gender_display }}</dd></div>
+      <div><dt class="text-label text-muted">Admitted</dt><dd>{{ admission.admitted_at|date:"d M Y, H:i" }}</dd></div>
+      <div><dt class="text-label text-muted">Bed</dt><dd>{{ admission.current_bed.label|default:"—" }}</dd></div>
+      <div><dt class="text-label text-muted">Admitting doctor</dt><dd>{{ admission.admitting_doctor }}</dd></div>
+      <div><dt class="text-label text-muted">Department</dt><dd>{{ admission.department }}</dd></div>
+      <div class="col-span-2"><dt class="text-label text-muted">Reason for admission</dt><dd>{{ admission.admission_reason }}</dd></div>
+      <div class="col-span-2"><dt class="text-label text-muted">Admission diagnosis</dt><dd>{{ admission.admission_diagnosis|default:"—"|linebreaksbr }}</dd></div>
+      <div class="col-span-2"><dt class="text-label text-muted">Allergies</dt><dd>{% for a in allergies %}{{ a.substance }}{% if not forloop.last %}, {% endif %}{% empty %}{% if patient.allergy_status == "none" %}No known allergies{% else %}Not recorded{% endif %}{% endfor %}</dd></div>
+      <div><dt class="text-label text-muted">Attendant</dt><dd>{{ admission.attendant_name|default:"—" }}{% if admission.attendant_relation %} ({{ admission.attendant_relation }}){% endif %}</dd></div>
+      <div><dt class="text-label text-muted">Attendant phone</dt><dd>{{ admission.attendant_phone|default:"—" }}</dd></div>
+      <div class="col-span-2"><dt class="text-label text-muted">Deposits</dt><dd>{% for d in deposits %}{{ d.number }} · {{ request.organization.currency }} {{ d.amount|floatformat:"2g" }} ({{ d.method }}){% if not forloop.last %}; {% endif %}{% empty %}None{% endfor %}</dd></div>
+    </dl>
+    <footer class="mt-16 grid grid-cols-2 gap-8 text-label text-muted"><span>Attendant's signature ____________________</span><span class="text-right">Admitting staff ____________________</span></footer>
+{% endblock %}

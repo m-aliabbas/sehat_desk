@@ -1,0 +1,41 @@
+{% extends "layouts/app.html" %}
+{% load ui vitals %}
+{% block title %}Vitals station{% endblock %}
+{% block page_title %}Vitals station{% endblock %}
+{% block page_subtitle %}{{ current_branch.name }} · today's patients in the queue. Record vitals before the consultation.{% endblock %}
+{% block content %}
+<div class="mb-6 grid gap-4 md:grid-cols-3">
+  <div class="stat-card bg-amber-soft"><p class="text-body text-ink">Vitals pending</p><p class="mt-2 text-[32px] font-bold text-ink">{{ pending }}</p><p class="text-label text-muted">Open tokens without vitals today</p></div>
+  <div class="stat-card bg-mint"><p class="text-body text-ink">Recorded</p><p class="mt-2 text-[32px] font-bold text-ink">{{ done }}</p><p class="text-label text-muted">Patients with vitals today</p></div>
+  <div class="stat-card bg-blue-soft"><p class="text-body text-ink">Flags</p><p class="mt-2 text-body text-ink">Amber = outside the usual adult range. Red = critical, tell the doctor now.</p></div>
+</div>
+<section class="card" hx-get="{{ request.path }}" hx-trigger="every 30s [document.visibilityState === 'visible']" hx-select="#station-table" hx-target="#station-table" hx-swap="outerHTML">
+  <div id="station-table">
+  {% if rows %}
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th scope="col">Token</th><th scope="col">Patient</th><th scope="col">Doctor</th><th scope="col">Vitals today</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+      <tbody>
+        {% for r in rows %}
+        <tr>
+          <td class="whitespace-nowrap"><span class="font-mono font-bold">{{ r.token.label }}</span>{% if r.token.priority != "normal" %} <span class="chip {% if r.token.priority == 'emergency' %}chip-danger{% else %}chip-warning{% endif %}">{{ r.token.get_priority_display }}</span>{% endif %}<p class="text-label text-muted">{{ r.token.get_status_display }}</p></td>
+          <td><a href="{% url 'patients:detail' r.token.patient_id %}" class="font-medium hover:underline">{{ r.token.patient.full_name }}</a><p class="text-label text-muted">{{ r.token.patient.age_label }} · <span class="font-mono">{{ r.token.patient.mrn }}</span></p></td>
+          <td>{{ r.token.doctor|default:"Any doctor" }}<p class="text-label text-muted">{{ r.token.department }}</p></td>
+          <td>
+            {% if r.vitals %}
+              <div class="flex flex-wrap gap-1">{% for row in r.summary %}{% vital_chip row %}{% endfor %}</div>
+              <p class="mt-1 text-label text-muted">{{ r.vitals.recorded_at|time:"H:i" }} by {{ r.vitals.recorded_by }}</p>
+            {% else %}<span class="chip chip-warning">Not recorded</span>{% endif %}
+          </td>
+          <td class="text-right whitespace-nowrap"><a href="{% url 'vitals:record' %}?token={{ r.token.pk }}" class="btn {% if r.vitals %}btn-secondary{% else %}btn-primary{% endif %} btn-sm">{% if r.vitals %}Record again{% else %}Record vitals{% endif %}</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+    {% include "components/empty_state.html" with icon_name="heart-pulse" title="No patients in the queue" message="Patients appear here after reception issues a token." %}
+  {% endif %}
+  </div>
+</section>
+{% endblock %}

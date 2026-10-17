@@ -1,0 +1,20 @@
+{% load static %}<!doctype html>
+{# Standalone so it still renders on 500, when context processors and the shell may be unavailable. #}
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Error{% endblock %} · SehatDesk</title>
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+</head>
+<body>
+  <main class="flex min-h-screen items-center justify-center p-4">
+    <div class="card max-w-lg p-10 text-center">
+      <p class="text-[48px] font-bold text-teal">{% block error_code %}{% endblock %}</p>
+      <h1 class="section-title mt-2">{% block error_title %}{% endblock %}</h1>
+      <p class="mt-2 text-body text-muted">{% block error_message %}{% endblock %}</p>
+      <a href="/" class="btn btn-primary mt-6">Go to dashboard</a>
+    </div>
+  </main>
+</body>
+</html>

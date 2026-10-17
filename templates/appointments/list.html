@@ -1,0 +1,56 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}Appointments list{% endblock %}
+{% block page_title %}{% if day == today %}Today's appointments{% else %}Appointments · {{ day|date:"j M Y" }}{% endif %}{% endblock %}
+{% block page_subtitle %}Check in arrivals, confirm, or mark no-shows.{% endblock %}
+{% block page_actions %}
+  <a href="{% url 'appointments:calendar' %}?date={{ day|date:'Y-m-d' }}" class="btn btn-secondary">Calendar</a>
+  {% if can_manage %}<a href="{% url 'appointments:book' %}?date={{ day|date:'Y-m-d' }}" class="btn btn-primary">{% icon "plus" "h-4 w-4" %} Book appointment</a>{% endif %}
+{% endblock %}
+{% block content %}
+<section class="card">
+  <form method="get" class="mb-5 grid gap-3 md:grid-cols-[auto_1fr_auto]" x-data @change="$el.submit()">
+    <input type="date" name="date" value="{{ day|date:'Y-m-d' }}" class="input" aria-label="Date">
+    <input type="search" name="q" value="{{ q }}" class="input" placeholder="Patient name or MRN" aria-label="Search">
+    <select name="status" class="select" aria-label="Status">
+      <option value="">All statuses</option>
+      {% for v, l in statuses %}<option value="{{ v }}" {% if status == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
+    </select>
+  </form>
+  {% if appointments %}
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th scope="col">Time</th><th scope="col">Patient</th><th scope="col">Doctor</th><th scope="col">Type</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+      <tbody>
+        {% for a in appointments %}
+          <tr>
+            <td class="font-medium">{{ a.start_time|time:"H:i" }}</td>
+            <td><a href="{% url 'appointments:detail' a.pk %}" class="font-medium hover:underline">{{ a.patient.full_name }}</a><p class="font-mono text-label text-muted">{{ a.patient.mrn }}</p></td>
+            <td>{{ a.doctor }}<p class="text-label text-muted">{{ a.department }}</p></td>
+            <td>{{ a.get_visit_type_display }}</td>
+            <td>{% status_chip a.status a.get_status_display %}</td>
+            <td class="text-right whitespace-nowrap">
+              {% if can_manage %}
+                {% if a.status == "scheduled" or a.status == "confirmed" %}
+                  {% if a.date == today %}
+                  <form method="post" action="{% url 'appointments:check-in' a.pk %}" class="inline">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="btn btn-primary btn-sm">Check in</button></form>
+                  {% endif %}
+                  {% if a.is_past_start %}
+                  <form method="post" action="{% url 'appointments:no-show' a.pk %}" class="inline">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="btn btn-ghost btn-sm" data-confirm="Mark {{ a.patient.full_name }} as a no-show? The slot is released." data-confirm-title="Mark no-show?" data-confirm-action="Mark no-show">No-show</button></form>
+                  {% endif %}
+                {% endif %}
+              {% endif %}
+              <a href="{% url 'appointments:detail' a.pk %}" class="btn btn-ghost btn-sm">Open</a>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% elif q or status %}
+    {% include "components/empty_state.html" with icon_name="search" title="No appointments match" message="Clear the filters or try another day." %}
+  {% else %}
+    {% include "components/empty_state.html" with icon_name="calendar" title="No appointments on this day" %}
+  {% endif %}
+</section>
+{% endblock %}

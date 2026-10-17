@@ -1,0 +1,62 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}Admit {{ patient.full_name }}{% endblock %}
+{% block page_title %}Admission{% endblock %}
+{% block page_subtitle %}Admitting doctor, bed, diagnosis, attendant and deposit.{% endblock %}
+{% block content %}
+<section class="card mb-6">{% include "ipd/_patient_header.html" %}</section>
+<form method="post" class="grid gap-6 xl:grid-cols-[2fr_1fr]" novalidate>
+  {% csrf_token %}
+  <input type="hidden" name="patient" value="{{ patient.pk }}">
+  <div class="space-y-6">
+    {% if form.non_field_errors %}{% include "components/alert.html" with level="danger" message=form.non_field_errors|join:" " %}{% endif %}
+    <section class="card">
+      <h2 class="section-title mb-4">Clinical</h2>
+      <div class="grid gap-4 md:grid-cols-2">
+        {% include "components/field.html" with field=form.doctor %}
+        {% include "components/field.html" with field=form.department %}
+        {% include "components/field.html" with field=form.admission_reason wide=True %}
+        {% include "components/field.html" with field=form.admission_diagnosis wide=True %}
+        {% include "components/field.html" with field=form.notes wide=True %}
+      </div>
+    </section>
+    <section class="card">
+      <h2 class="section-title mb-4">Ward / room / bed</h2>
+      {% if form.bed.field.queryset %}
+        {% include "components/field.html" with field=form.bed %}
+        <p class="field-help mt-2">Only available and reserved beds are listed. The bed is locked to this patient the moment you admit.</p>
+      {% else %}
+        {% include "components/empty_state.html" with icon_name="bed" title="No free beds" message="Every bed is occupied, being cleaned or out of service. Free a bed on the bed board first." compact=True %}
+      {% endif %}
+    </section>
+    <section class="card">
+      <h2 class="section-title mb-4">Attendant</h2>
+      <div class="grid gap-4 md:grid-cols-3">
+        {% include "components/field.html" with field=form.attendant_name %}
+        {% include "components/field.html" with field=form.attendant_relation %}
+        {% include "components/field.html" with field=form.attendant_phone %}
+      </div>
+    </section>
+  </div>
+  <aside class="space-y-6">
+    {% if form.can_take_deposit %}
+    <section class="card">
+      <h2 class="section-title mb-1">Advance deposit</h2>
+      <p class="mb-4 text-label text-muted">Optional. Applied to the final bill at discharge.</p>
+      <div class="space-y-4">
+        {% include "components/field.html" with field=form.deposit_amount %}
+        {% include "components/field.html" with field=form.deposit_method %}
+        {% include "components/field.html" with field=form.deposit_reference %}
+      </div>
+    </section>
+    {% endif %}
+    <section class="card">
+      <p class="text-body">An admission number is given on saving, a running inpatient bill is opened, and the bed shows as occupied on the bed board.</p>
+      <div class="mt-4 flex gap-3">
+        <button class="btn btn-primary" {% if not form.bed.field.queryset %}disabled{% endif %}>{% icon "bed" "h-4 w-4" %} Admit patient</button>
+        <a href="{% url 'ipd:board' %}" class="btn btn-ghost">Cancel</a>
+      </div>
+    </section>
+  </aside>
+</form>
+{% endblock %}

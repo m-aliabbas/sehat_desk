@@ -1,0 +1,85 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}Book an appointment{% endblock %}
+{% block page_title %}Book an appointment{% endblock %}
+{% block page_subtitle %}Reserve a clinic slot for a new or existing patient.{% endblock %}
+{% block content %}
+<form method="post" class="grid gap-6 xl:grid-cols-3" novalidate
+      x-data="{ patientId: '{{ form.patient.value|default:'' }}', patientLabel: '{% if patient %}{{ patient.full_name|escapejs }} · {{ patient.mrn }}{% endif %}', time: '{{ form.time.value|default:''|slice:':5' }}', visitType: '{{ form.visit_type.value|default:'new' }}', search: '' }"
+      @patient-picked="patientId = $event.detail.id; patientLabel = $event.detail.label; search = ''"
+      @slot-picked.window="time = $event.detail"
+      @visit-suggested.window="if (!['walk_in','emergency'].includes(visitType)) visitType = $event.detail">
+  {% csrf_token %}
+  <input type="hidden" name="patient" :value="patientId">
+  <input type="hidden" name="time" :value="time">
+  <div class="space-y-6 xl:col-span-2">
+    {% for e in form.non_field_errors %}{% include "components/alert.html" with level="danger" title="Could not book" message=e %}{% endfor %}
+    <section class="card">
+      <h2 class="section-title mb-4">Patient</h2>
+      <template x-if="patientId">
+        <div class="flex items-center justify-between rounded-control border border-teal/30 bg-mint/40 p-3">
+          <span class="font-medium" x-text="patientLabel"></span>
+          <button type="button" class="btn btn-ghost btn-sm" @click="patientId = ''; patientLabel = ''">Change</button>
+        </div>
+      </template>
+      <div x-show="!patientId" class="relative">
+        <label class="field-label" for="patient-search">Find patient</label>
+        <input id="patient-search" type="search" class="input mt-1.5" placeholder="MRN, mobile, CNIC or name" autocomplete="off" x-model="search"
+               name="q" hx-get="{% url 'patients:lookup' %}" hx-trigger="input changed delay:250ms" hx-target="#patient-results">
+        <div id="patient-results" class="absolute z-20 mt-1 w-full" x-show="search.length >= 2"></div>
+      </div>
+      {% for e in form.patient.errors %}<p class="field-error mt-2">Choose a patient.</p>{% endfor %}
+    </section>
+
+    <section class="card">
+      <h2 class="section-title mb-4">Doctor &amp; time</h2>
+      <div class="grid gap-5 md:grid-cols-3">
+        <div class="field">
+          <label class="field-label" for="id_department">Department</label>
+          <select id="id_department" name="department" class="select" hx-get="{% url 'appointments:doctor-options' %}" hx-target="#id_doctor">
+            <option value="">All departments</option>
+            {% for d in form.fields.department.queryset %}<option value="{{ d.pk }}" {% if form.department.value|stringformat:"s" == d.pk|stringformat:"s" %}selected{% endif %}>{{ d.name }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="field">
+          <label class="field-label" for="id_doctor">Doctor <span class="text-red">*</span></label>
+          <select id="id_doctor" name="doctor" class="select" {% if form.doctor.errors %}aria-invalid="true"{% endif %}>
+            <option value="">Choose a doctor</option>
+            {% for d in form.fields.doctor.queryset %}<option value="{{ d.pk }}" {% if form.doctor.value|stringformat:"s" == d.pk|stringformat:"s" %}selected{% endif %}>{{ d.display_name }} · {{ d.department }}</option>{% endfor %}
+          </select>
+          {% for e in form.doctor.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+        </div>
+        {% include "components/field.html" with field=form.date %}
+      </div>
+      <div id="slot-panel" class="mt-5"
+           hx-get="{% url 'appointments:slots' %}" hx-trigger="load, change from:#id_doctor, change from:#id_date, patient-picked from:body delay:100ms"
+           hx-include="#id_doctor, #id_date, [name=patient], [name=time]">
+        <p class="text-body text-muted">Loading slots…</p>
+      </div>
+      {% for e in form.time.errors %}<p class="field-error mt-2">{{ e }}</p>{% endfor %}
+    </section>
+  </div>
+
+  <aside class="space-y-6">
+    <section class="card">
+      <h2 class="section-title mb-4">Visit details</h2>
+      <div class="space-y-5">
+        {% include "components/field.html" with field=form.visit_type %}
+        <p class="field-help -mt-3" x-show="['walk_in','emergency'].includes(visitType)">Walk-in and emergency visits can be booked outside normal slots.</p>
+        {% include "components/field.html" with field=form.source %}
+        {% include "components/field.html" with field=form.reason %}
+        {% include "components/field.html" with field=form.notes %}
+      </div>
+    </section>
+    <section class="card text-body">
+      <h2 class="section-title mb-3">Summary</h2>
+      <p class="text-muted">Time: <span class="font-medium text-ink" x-text="time || 'not chosen'"></span></p>
+      <p class="mt-1 text-muted">Status after saving: Scheduled. Token is issued at check-in.</p>
+      <div class="mt-5 flex gap-3">
+        <button type="submit" class="btn btn-primary flex-1" :disabled="!patientId || !time">Confirm appointment</button>
+        <a href="{% url 'appointments:calendar' %}" class="btn btn-secondary">Cancel</a>
+      </div>
+    </section>
+  </aside>
+</form>
+{% endblock %}

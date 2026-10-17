@@ -1,0 +1,51 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}Permission matrix{% endblock %}
+{% block page_title %}Roles &amp; permissions{% endblock %}
+{% block page_subtitle %}Control access by role, branch and assigned care responsibilities.{% endblock %}
+{% block content %}
+{% include "partials/settings_tabs.html" %}
+<form method="post" class="card" x-data="{ dirty: false }" @change="dirty = true">
+  {% csrf_token %}
+  <div class="card-header">
+    <div>
+      <h2 class="section-title">Role permission matrix</h2>
+      <p class="text-label text-muted">Active roles only. Super admin always has everything. Greyed boxes are permissions you do not hold.</p>
+    </div>
+    <button type="submit" class="btn btn-primary" :disabled="!dirty">Save permissions</button>
+  </div>
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th scope="col" class="min-w-60">Capability</th>
+          {% for r in roles %}<th scope="col" class="text-center">{{ r.name }}</th>{% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for module, rows in groups %}
+          <tr><td colspan="{{ roles|length|add:1 }}" class="bg-page/60 py-2 text-label font-semibold tracking-wide text-muted uppercase">{{ module }}</td></tr>
+          {% for row in rows %}
+            <tr>
+              <td><span class="font-medium">{{ row.perm.label }}</span><span class="block font-mono text-[11px] text-muted">{{ row.perm.code }}</span></td>
+              {% for cell in row.cells %}
+                <td class="text-center">
+                  {% if cell.role.is_locked %}
+                    <span class="text-teal" title="Always granted">{% icon "check-circle" "mx-auto h-4 w-4" %}</span>
+                  {% else %}
+                    <input type="checkbox" class="checkbox" name="role_{{ cell.role.pk }}" value="{{ row.perm.code }}"
+                           aria-label="{{ cell.role.name }}: {{ row.perm.label }}"
+                           {% if cell.checked %}checked{% endif %} {% if not row.editable %}disabled{% endif %}>
+                    {% if not row.editable and cell.checked %}<input type="hidden" name="role_{{ cell.role.pk }}" value="{{ row.perm.code }}">{% endif %}
+                  {% endif %}
+                </td>
+              {% endfor %}
+            </tr>
+          {% endfor %}
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="mt-4 text-label text-muted">Scoped permissions depend on branch and explicit role assignments; admin is not automatic clinical access.</p>
+</form>
+{% endblock %}

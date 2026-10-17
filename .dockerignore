@@ -1,0 +1,14 @@
+.git
+.github
+.env
+deploy/*.env
+data/
+data-staging/
+staticfiles/
+dist/
+build/
+ui_design_reference/
+**/__pycache__
+.pytest_cache
+.ruff_cache
+.claude

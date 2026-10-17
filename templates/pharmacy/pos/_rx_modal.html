@@ -1,0 +1,26 @@
+{% extends "components/modal_base.html" %}
+{% block modal_size %}max-w-2xl{% endblock %}
+{% block modal_title %}Attach prescription{% endblock %}
+{% block modal_body %}
+<p class="text-label text-muted">Signed prescriptions waiting at this pharmacy{% if cart.patient %} for {{ cart.patient.full_name }}{% endif %}. To choose products and quantities line by line, open the prescription.</p>
+<form class="mt-3" hx-get="{% url 'pharmacy:pos-prescription' %}" hx-target="#overlay-root" hx-trigger="input changed delay:300ms from:#rx-search, submit">
+  <label class="sr-only" for="rx-search">Search prescriptions</label>
+  <input id="rx-search" name="q" type="search" value="{{ q }}" class="input" placeholder="Prescription number, MRN or patient name">
+</form>
+<ul class="mt-3 max-h-96 divide-y divide-line overflow-y-auto">
+  {% for rx in prescriptions %}
+  <li class="flex flex-wrap items-center justify-between gap-3 py-3">
+    <div>
+      <p><span class="font-mono font-medium">{{ rx.number }}</span> · {{ rx.patient.full_name }} <span class="font-mono text-label text-muted">{{ rx.patient.mrn }}</span></p>
+      <p class="text-label text-muted">{{ rx.doctor }} · sent {{ rx.sent_to_pharmacy_at|date:"d M, H:i" }} · {{ rx.get_dispense_status_display }}</p>
+    </div>
+    <div class="flex gap-2">
+      <a href="{% url 'pharmacy:rx-detail' rx.pk %}" class="btn btn-secondary btn-sm">Open</a>
+      <button type="button" class="btn btn-primary btn-sm" hx-post="{% url 'pharmacy:pos-prescription' %}" hx-vals='{"rx": "{{ rx.pk }}"}' hx-target="#pos-cart" hx-swap="outerHTML" @click="open = false">Attach</button>
+    </div>
+  </li>
+  {% empty %}
+  <li class="py-6 text-center text-label text-muted">No prescriptions waiting{% if cart.patient %} for this patient{% endif %}.</li>
+  {% endfor %}
+</ul>
+{% endblock %}

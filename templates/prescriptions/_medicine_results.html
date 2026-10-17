@@ -1,0 +1,12 @@
+{# Medicine search results. Clicking one fills the add form (handled by Alpine in _panel.html). #}
+{% if q|length >= 2 %}
+<ul class="max-h-64 divide-y divide-line overflow-y-auto rounded-control border border-line bg-white shadow-sm" role="listbox" aria-label="Medicines">
+  {% for m in results %}
+    <li><button type="button" class="w-full px-3 py-2 text-left hover:bg-mint" role="option" data-med-id="{{ m.pk }}" data-med-name="{{ m.display_name }}" data-med-generic="{{ m.generic_name }}" data-med-route="{{ m.route }}">
+      <span class="font-medium">{{ m.display_name }}</span> <span class="text-label text-muted">{{ m.generic_name }} · {{ m.get_form_display }}{% if m.manufacturer %} · {{ m.manufacturer }}{% endif %}</span>
+    </button></li>
+  {% empty %}
+    <li class="px-3 py-2 text-label text-muted">No medicine matches “{{ q }}”. You can still add it as free text.</li>
+  {% endfor %}
+</ul>
+{% endif %}

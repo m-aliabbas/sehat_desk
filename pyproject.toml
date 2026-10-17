@@ -1,0 +1,20 @@
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = ["ui_design_reference", "staticfiles", "data"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "DJ"]
+
+[tool.ruff.lint.per-file-ignores]
+"*/migrations/*" = ["E501"]
+"apps/core/icons.py" = ["E501"]  # SVG path data
+"*/tests/*" = ["F811"]  # pytest fixtures imported from another test module
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings"
+python_files = ["test_*.py"]
+testpaths = ["apps"]
+addopts = "-ra"
+# WhiteNoise warns that STATIC_ROOT is missing until collectstatic runs; irrelevant in tests.
+filterwarnings = ["ignore:No directory at:UserWarning"]

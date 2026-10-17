@@ -1,0 +1,32 @@
+{% extends "layouts/app.html" %}
+{% block title %}Return · {{ sale.number }}{% endblock %}
+{% block page_title %}Return items · {{ sale.number }}{% endblock %}
+{% block page_subtitle %}{{ sale.bill_to }} · sold {{ sale.completed_at|date:"d M Y, H:i" }}. Returned units go back to their batch; the money is refunded from the original payment.{% endblock %}
+{% block content %}
+{% if error %}{% include "components/alert.html" with level="danger" title="Return not recorded" message=error %}{% endif %}
+<form method="post" class="card mt-2 max-w-4xl" x-data>
+  {% csrf_token %}
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th scope="col">Item</th><th scope="col">Batch</th><th scope="col" class="text-right">Sold</th><th scope="col" class="text-right">Can return</th><th scope="col" class="w-28">Return qty</th></tr></thead>
+      <tbody>
+        {% for i in items %}
+        <tr>
+          <td>{{ i.product.display_name }}<p class="text-label text-muted">{{ i.unit_price|floatformat:"2g" }} each</p></td>
+          <td class="font-mono text-label">{{ i.batch.batch_number }}</td>
+          <td class="text-right">{{ i.quantity }}</td>
+          <td class="text-right">{{ i.returnable }}</td>
+          <td>{% if i.returnable %}<label class="sr-only" for="qty_{{ i.pk }}">Return quantity</label><input id="qty_{{ i.pk }}" name="qty_{{ i.pk }}" type="number" min="0" max="{{ i.returnable }}" class="input w-24" value="{{ i.posted }}">{% else %}<span class="text-label text-muted">—</span>{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="field mt-5"><label class="field-label" for="ret-reason">Reason <span class="text-red" aria-hidden="true">*</span></label><input id="ret-reason" name="reason" required maxlength="200" class="input" value="{{ post.reason }}" placeholder="e.g. Doctor changed the medicine, unopened strip"></div>
+  <p class="mt-3 text-label text-muted">The refund is worked out from the price paid, including any sale discount. Check returned medicine before it goes back on the shelf; write off damaged packs from Inventory.</p>
+  <div class="mt-6 flex gap-3">
+    <button class="btn btn-danger" data-confirm="Stock goes back to its batch and the money is refunded. This cannot be undone." data-confirm-title="Process return?" data-confirm-action="Return and refund" data-confirm-danger="true">Return and refund</button>
+    <a href="{% url 'pharmacy:sale-detail' sale.pk %}" class="btn btn-ghost">Cancel</a>
+  </div>
+</form>
+{% endblock %}

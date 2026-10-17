@@ -1,0 +1,21 @@
+{# Sub-navigation for Settings pages. Context: settings_tab #}
+<nav class="tabs mb-6 overflow-x-auto" aria-label="Settings sections">
+  {% if "admin.organization.manage" in sd_perms %}<a class="tab" href="{% url 'organizations:hospital' %}" {% if settings_tab == "hospital" %}aria-selected="true"{% endif %}>Hospital</a>{% endif %}
+  {% if "admin.organization.manage" in sd_perms %}<a class="tab" href="{% url 'billing:settings' %}" {% if settings_tab == "billing" %}aria-selected="true"{% endif %}>Billing</a>{% endif %}
+  {% if "admin.organization.manage" in sd_perms %}<a class="tab" href="{% url 'organizations:preferences' %}" {% if settings_tab == "preferences" %}aria-selected="true"{% endif %}>Preferences</a>{% endif %}
+  {% if "admin.organization.manage" in sd_perms %}<a class="tab" href="{% url 'notifications:messages' %}" {% if settings_tab == "messages" %}aria-selected="true"{% endif %}>Patient messages</a>{% endif %}
+  {% if "admin.branches.manage" in sd_perms %}<a class="tab" href="{% url 'organizations:branch-list' %}" {% if settings_tab == "branches" %}aria-selected="true"{% endif %}>Branches</a>{% endif %}
+  {% if "admin.masterdata.manage" in sd_perms %}
+    <a class="tab" href="{% url 'masterdata:department-list' %}" {% if settings_tab == "departments" %}aria-selected="true"{% endif %}>Departments</a>
+    <a class="tab" href="{% url 'masterdata:doctor-list' %}" {% if settings_tab == "doctors" %}aria-selected="true"{% endif %}>Doctors</a>
+    <a class="tab" href="{% url 'masterdata:service-list' %}" {% if settings_tab == "services" %}aria-selected="true"{% endif %}>Services</a>
+    <a class="tab" href="{% url 'encounters:diagnosis-code-list' %}" {% if settings_tab == "diagnoses" %}aria-selected="true"{% endif %}>Diagnosis codes</a>
+    <a class="tab" href="{% url 'prescriptions:medicine-list' %}" {% if settings_tab == "medicines" %}aria-selected="true"{% endif %}>Medicines</a>
+  {% endif %}
+  {% if "admin.roles.manage" in sd_perms %}
+    <a class="tab" href="{% url 'accounts:role-list' %}" {% if settings_tab == "roles" %}aria-selected="true"{% endif %}>Roles</a>
+    <a class="tab" href="{% url 'accounts:permission-matrix' %}" {% if settings_tab == "matrix" %}aria-selected="true"{% endif %}>Permission matrix</a>
+  {% endif %}
+  {% if "admin.audit.view" in sd_perms %}<a class="tab" href="{% url 'audit:log' %}" {% if settings_tab == "audit" %}aria-selected="true"{% endif %}>Audit trail</a>{% endif %}
+  {% if "admin.system.view" in sd_perms %}<a class="tab" href="{% url 'core:system' %}" {% if settings_tab == "system" %}aria-selected="true"{% endif %}>System</a>{% endif %}
+</nav>

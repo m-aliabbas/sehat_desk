@@ -1,0 +1,24 @@
+{% load ui %}
+{# Global confirmation dialog. Used automatically by every hx-confirm (see static/js/app.js). #}
+<div x-data x-cloak x-show="$store.confirm.open"
+     class="fixed inset-0 z-[60] flex items-center justify-center p-4"
+     @keydown.escape.window="$store.confirm.open && $store.confirm.answer(false)">
+  <div class="overlay" x-show="$store.confirm.open" x-transition.opacity @click="$store.confirm.answer(false)"></div>
+  <div class="modal-panel z-50" x-show="$store.confirm.open" x-transition
+       role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-message">
+    <div class="flex gap-4">
+      <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
+            :class="$store.confirm.danger ? 'bg-red-soft text-red' : 'bg-mint text-teal'">{% icon "alert-triangle" %}</span>
+      <div>
+        <h2 id="confirm-title" class="section-title" x-text="$store.confirm.title"></h2>
+        <p id="confirm-message" class="mt-2 text-body text-muted" x-text="$store.confirm.message"></p>
+      </div>
+    </div>
+    <div class="mt-6 flex justify-end gap-3">
+      <button type="button" class="btn btn-secondary" @click="$store.confirm.answer(false)">Cancel</button>
+      <button type="button" class="btn" :class="$store.confirm.danger ? 'btn-danger' : 'btn-primary'"
+              x-text="$store.confirm.actionLabel" @click="$store.confirm.answer(true)"
+              x-effect="$store.confirm.open && $nextTick(() => $el.focus())"></button>
+    </div>
+  </div>
+</div>

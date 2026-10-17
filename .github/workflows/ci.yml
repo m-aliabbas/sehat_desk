@@ -1,0 +1,139 @@
+# SehatDesk CI: lint, tests on every installer OS, and a staging/production config smoke test.
+# Uses a conda env named agent_dev311, the same as local development (CLAUDE.md).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash -el {0}  # login shell so the conda env is active in every step
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: conda-incubator/setup-miniconda@v3
+        with:
+          activate-environment: agent_dev311
+          python-version: "3.11"
+          auto-update-conda: false
+      - run: pip install -r requirements-dev.txt
+      - name: Pre-commit hooks (ruff, Django check, migrations, forbidden files)
+        run: pre-commit run --all-files --show-diff-on-failure
+      - name: Committed Tailwind CSS is up to date
+        run: |
+          python manage.py tailwind build
+          git diff --exit-code -- static/css/app.css \
+            || { echo "Run 'python manage.py tailwind build' and commit static/css/app.css"; exit 1; }
+
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        # Installers ship for Windows and macOS (docs/PROJECT_NOTES.md §3).
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: conda-incubator/setup-miniconda@v3
+        with:
+          activate-environment: agent_dev311
+          python-version: "3.11"
+          auto-update-conda: false
+      - run: pip install -r requirements-dev.txt
+      - run: pytest -q
+
+  test-postgres:
+    # SQLite hides some locking and type rules; keep the ORM code portable (CLAUDE.md).
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: sehatdesk
+          POSTGRES_USER: sehatdesk
+          POSTGRES_PASSWORD: sehatdesk
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U sehatdesk" --health-interval 5s
+          --health-timeout 3s --health-retries 10
+    env:
+      SEHATDESK_DATABASE_URL: postgres://sehatdesk:sehatdesk@localhost:5432/sehatdesk
+    steps:
+      - uses: actions/checkout@v4
+      - uses: conda-incubator/setup-miniconda@v3
+        with:
+          activate-environment: agent_dev311
+          python-version: "3.11"
+          auto-update-conda: false
+      - run: pip install -r requirements-dev.txt -r requirements-postgres.txt
+      - run: pytest -q
+
+  dependency-audit:
+    # Known vulnerabilities in pinned dependency ranges (Phase 26).
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: conda-incubator/setup-miniconda@v3
+        with:
+          activate-environment: agent_dev311
+          python-version: "3.11"
+          auto-update-conda: false
+      - run: pip install pip-audit
+      - run: pip-audit -r requirements-postgres.txt -r requirements-dev.txt --progress-spinner off
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Image builds and serves with PostgreSQL
+        run: |
+          docker compose up -d --build app
+          for i in $(seq 1 60); do curl -fsS http://localhost:8001/health/ready/ && exit 0; sleep 2; done
+          docker compose logs app; exit 1
+
+  deploy-config:
+    # Boots the release configuration the way a customer machine runs it.
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        environment: [staging, production]
+    env:
+      SEHATDESK_ENV: ${{ matrix.environment }}
+      DJANGO_DEBUG: "false"
+      SEHATDESK_DATA_DIR: ${{ github.workspace }}/ci-data
+      SEHATDESK_PORT: "8000"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: conda-incubator/setup-miniconda@v3
+        with:
+          activate-environment: agent_dev311
+          python-version: "3.11"
+          auto-update-conda: false
+      - run: pip install -r requirements.txt
+      - run: python manage.py check --deploy --fail-level WARNING
+      - run: python manage.py migrate --noinput
+      - run: python manage.py collectstatic --noinput
+      - name: Server starts and answers health checks
+        run: |
+          python serve.py --host 127.0.0.1 --port 8000 &
+          for i in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:8000/health/ready/ && break
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:8000/health/ready/
+          curl -fsS -o /dev/null http://127.0.0.1:8000/static/css/app.css
+          test -f "$SEHATDESK_DATA_DIR/logs/sehatdesk.log"
+          test -f "$SEHATDESK_DATA_DIR/secret.key"  # generated on first start

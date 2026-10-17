@@ -1,0 +1,134 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}{{ order.number }} · Lab order{% endblock %}
+{% block page_title %}Lab order <span class="font-mono">{{ order.number }}</span>{% endblock %}
+{% block page_subtitle %}{{ order.patient.full_name }} · {{ order.patient.age_label }} · {{ order.patient.get_gender_display }} · <span class="font-mono">{{ order.patient.mrn }}</span>{% endblock %}
+{% block page_actions %}
+  {% status_chip order.status order.get_status_display %}
+  {% if order.priority != "routine" %}<span class="chip chip-danger">{{ order.get_priority_display }}</span>{% endif %}
+  {% if order.status == "released" or "lab.result.enter" in sd_perms or "lab.result.verify" in sd_perms %}<a href="{% url 'lab:report' order.pk %}" target="_blank" class="btn btn-secondary">{% if order.status == "released" %}Report{% else %}Preview report{% endif %}</a>{% endif %}
+  <a href="{% url 'lab:order-print' order.pk %}" target="_blank" class="btn btn-secondary">Print order</a>
+  {% if can_enter and is_lab_branch %}<a href="{% url 'lab:results' order.pk %}" class="btn btn-primary">Enter results</a>{% endif %}
+{% endblock %}
+{% block content %}
+{% if order.has_critical %}
+  <div class="mb-6 rounded-card border border-red bg-red-soft p-4 text-red" role="alert">
+    <p class="font-semibold">{% icon "alert-triangle" "inline h-5 w-5" %} This order has a critical result. Inform {{ order.doctor|default:"the treating clinician" }} immediately.</p>
+  </div>
+{% endif %}
+{% if order.status == "cancelled" %}{% include "components/alert.html" with level="danger" message="Cancelled: "|add:order.cancel_reason %}{% endif %}
+
+<div class="mt-2 grid gap-6 xl:grid-cols-[1fr_340px]">
+  <div class="space-y-6">
+    <section class="card">
+      <h2 class="section-title mb-4">Samples</h2>
+      <ul class="divide-y divide-line">
+        {% for s in samples %}
+        <li class="flex flex-wrap items-start justify-between gap-3 py-3 {% if s.status == 'rejected' %}opacity-70{% endif %}">
+          <div>
+            <p><span class="font-mono font-semibold">{{ s.accession }}</span> · {{ s.get_sample_type_display }} {% status_chip s.status s.get_status_display %}</p>
+            <p class="text-label text-muted">{% for i in s.items.all %}{{ i.test_name }}{% if not forloop.last %}, {% endif %}{% endfor %}</p>
+            {% if s.collected_at %}<p class="text-label text-muted">Collected {{ s.collected_at|date:"d M, H:i" }} by {{ s.collected_by }}</p>{% endif %}
+            {% if s.status == "rejected" %}<p class="text-label text-red">Rejected {{ s.rejected_at|date:"d M, H:i" }} by {{ s.rejected_by }}: {{ s.rejection_reason }}</p>{% endif %}
+          </div>
+          <div class="flex flex-wrap items-start gap-2">
+            <a href="{% url 'lab:sample-label' s.pk %}" target="_blank" class="btn btn-ghost btn-sm">Label</a>
+            {% if can_collect and is_lab_branch and s.status == "pending" %}
+              <form method="post" action="{% url 'lab:sample-collect' s.pk %}" class="flex flex-wrap items-center gap-2">{% csrf_token %}
+                {% if not order.is_paid and order.priority == "routine" %}<input name="unpaid_reason" class="input h-9" maxlength="120" placeholder="Reason to collect before payment" aria-label="Reason to collect before payment">{% endif %}
+                <button class="btn btn-primary btn-sm">Mark collected</button>
+              </form>
+            {% endif %}
+            {% if can_collect and is_lab_branch and s.status != "rejected" %}
+              <details>
+                <summary class="btn btn-ghost btn-sm cursor-pointer text-red">Reject / recollect</summary>
+                <form method="post" action="{% url 'lab:sample-reject' s.pk %}" class="mt-2 flex gap-2">{% csrf_token %}
+                  <input name="reason" class="input h-9" required maxlength="200" placeholder="e.g. Haemolysed" aria-label="Rejection reason"><button class="btn btn-danger btn-sm">Reject</button>
+                </form>
+              </details>
+            {% endif %}
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+    </section>
+
+    <section class="card" id="verify">
+      <div class="card-header"><h2 class="section-title">Tests &amp; results</h2>
+        {% if can_enter and is_lab_branch and order.status == "sample_collected" %}<form method="post" action="{% url 'lab:order-start' order.pk %}">{% csrf_token %}<button class="btn btn-secondary btn-sm">Start processing</button></form>{% endif %}
+      </div>
+      <form method="post" action="{% url 'lab:verify' order.pk %}">{% csrf_token %}
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr>{% if can_verify %}<th scope="col"><span class="sr-only">Select</span></th>{% endif %}<th scope="col">Test</th><th scope="col">Result</th><th scope="col">Reference</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+          <tbody>
+            {% for i in items %}{% with r=i.current_result %}
+            <tr class="{% if r.is_critical %}bg-red-soft{% endif %}">
+              {% if can_verify %}<td>{% if i.status == "result_entered" %}<input type="checkbox" name="items" value="{{ i.pk }}" class="checkbox" checked aria-label="Verify {{ i.test_name }}">{% endif %}</td>{% endif %}
+              <td><p class="font-medium">{{ i.test_name }}</p><p class="text-label text-muted"><span class="font-mono">{{ i.test.code }}</span>{% if i.panel %} · {{ i.panel.name }}{% endif %}</p></td>
+              <td>
+                {% if r %}
+                  <p class="font-semibold {% if r.is_critical %}text-red{% elif r.is_abnormal %}text-amber{% endif %}">{{ r.display_value }} {{ r.unit }}{% if r.flag and r.flag != "normal" %} <span class="chip {% if r.is_critical %}chip-danger{% else %}chip-warning{% endif %}">{{ r.get_flag_display }}</span>{% endif %}</p>
+                  {% if r.interpretation %}<p class="text-label whitespace-pre-line">{{ r.interpretation }}</p>{% endif %}
+                  <p class="text-label text-muted">by {{ r.entered_by }} {{ r.entered_at|date:"d M H:i" }}{% if r.verified_by %} · verified by {{ r.verified_by }}{% endif %}{% if r.version > 1 %} · <span class="text-amber">amended v{{ r.version }}: {{ r.amendment_reason }}</span>{% endif %}</p>
+                  {% if r.is_critical %}{% if r.critical_acknowledged_at %}<p class="text-label text-muted">Acknowledged by {{ r.critical_acknowledged_by }} {{ r.critical_acknowledged_at|date:"d M H:i" }}</p>{% elif "consultation.view" in sd_perms or can_verify %}<button form="ack-{{ r.pk }}" class="btn btn-danger btn-sm mt-1">Acknowledge critical</button>{% endif %}{% endif %}
+                {% else %}<span class="text-muted">—</span>{% endif %}
+                {% for a in i.attachments.all %}<p class="text-label"><a class="text-teal-deep underline" href="{% url 'lab:attachment' a.pk %}" target="_blank">{% icon "inbox" "inline h-3 w-3" %} {{ a.original_name }}</a></p>{% endfor %}
+              </td>
+              <td class="text-label">{{ r.reference_text|default:"—" }}</td>
+              <td>{% status_chip i.status i.get_status_display %}</td>
+              <td class="text-right">{% if can_verify and i.status == "verified" and order.status != "cancelled" %}<a href="{% url 'lab:amend' i.pk %}" class="btn btn-ghost btn-sm">Amend</a>{% endif %}</td>
+            </tr>
+            {% endwith %}{% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% if can_verify and is_lab_branch %}{% if order.status == "result_entered" or order.status == "processing" %}
+        <div class="mt-4 flex flex-wrap gap-3">
+          <button class="btn btn-secondary" data-confirm="Verifying records you as the reviewer. Verified results are locked; changes need an amendment with a reason." data-confirm-title="Verify selected results?">Verify selected</button>
+          <button name="release" value="1" class="btn btn-primary" data-confirm="All results must be verified. The report becomes visible to doctors and printable for the patient." data-confirm-title="Verify and release report?">Verify &amp; release</button>
+        </div>
+      {% endif %}{% endif %}
+      </form>
+      {% for i in items %}{% with r=i.current_result %}{% if r.is_critical and not r.critical_acknowledged_at %}<form id="ack-{{ r.pk }}" method="post" action="{% url 'lab:acknowledge' r.pk %}">{% csrf_token %}</form>{% endif %}{% endwith %}{% endfor %}
+      {% if can_verify and is_lab_branch and order.status == "verified" %}
+        <form method="post" action="{% url 'lab:release' order.pk %}" class="mt-4">{% csrf_token %}<button class="btn btn-primary" data-confirm="The report becomes visible to doctors and printable for the patient." data-confirm-title="Release report {{ order.number }}?">Release report</button></form>
+      {% endif %}
+    </section>
+  </div>
+
+  <aside class="space-y-6">
+    <section class="card">
+      <h2 class="section-title mb-3">Order</h2>
+      <dl class="space-y-2 text-body">
+        <div><dt class="text-label text-muted">Ordered</dt><dd>{{ order.created_at|date:"d M Y, H:i" }} by {{ order.created_by }} · {{ order.get_source_display }}</dd></div>
+        <div><dt class="text-label text-muted">Ordering doctor</dt><dd>{{ order.doctor|default:"—" }}</dd></div>
+        {% if order.encounter %}<div><dt class="text-label text-muted">Consultation</dt><dd><a class="hover:underline" href="{% url 'encounters:detail' order.encounter_id %}">{{ order.encounter.number }}</a></dd></div>{% endif %}
+        {% if order.clinical_notes %}<div><dt class="text-label text-muted">Clinical notes</dt><dd>{{ order.clinical_notes }}</dd></div>{% endif %}
+        {% if order.released_at %}<div><dt class="text-label text-muted">Released</dt><dd>{{ order.released_at|date:"d M Y, H:i" }} by {{ order.released_by }}</dd></div>{% endif %}
+        {% if order.amendment_count %}<div><dt class="text-label text-muted">Amendments</dt><dd>{{ order.amendment_count }}</dd></div>{% endif %}
+      </dl>
+    </section>
+    <section class="card">
+      <h2 class="section-title mb-3">Payment</h2>
+      {% if order.invoice %}
+        <p class="flex items-center justify-between gap-2"><span class="font-mono">{{ order.invoice.number }}</span>{% status_chip order.invoice.status order.invoice.get_status_display %}</p>
+        <p class="mt-1 text-body">{{ organization.currency }} {{ order.invoice.grand_total|floatformat:"2g" }} · balance {{ order.invoice.balance_due|floatformat:"2g" }}</p>
+        {% if "billing.view" in sd_perms and order.invoice.branch_id == request.branch.pk %}<a href="{% url 'billing:invoice-detail' order.invoice_id %}" class="btn btn-secondary btn-sm mt-3">Open invoice</a>{% endif %}
+      {% else %}<p class="text-label text-muted">Not billed (no priced tests).</p>{% endif %}
+    </section>
+    {% if doc_can_view %}<section class="card">{% include "documents/_panel.html" with compact=True %}</section>{% endif %}
+    {% if can_cancel and is_lab_branch %}
+    <section class="card">
+      <details>
+        <summary class="cursor-pointer text-body font-medium text-red">Cancel order</summary>
+        <form method="post" action="{% url 'lab:order-cancel' order.pk %}" class="mt-3 space-y-2">{% csrf_token %}
+          <input name="reason" class="input" required maxlength="200" placeholder="Reason" aria-label="Reason for cancelling">
+          <button class="btn btn-danger btn-sm" data-confirm="Unpaid invoices are cancelled too. Paid ones must be refunded in Billing first." data-confirm-title="Cancel {{ order.number }}?" data-confirm-danger="true">Cancel order</button>
+        </form>
+      </details>
+    </section>
+    {% endif %}
+  </aside>
+</div>
+{% endblock %}

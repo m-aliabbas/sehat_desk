@@ -1,0 +1,17 @@
+# Developer tools. Install with: conda activate agent_dev311 && pip install -r requirements-dev.txt
+-r requirements.txt
+ruff>=0.6,<1.0
+
+# Testing
+pytest>=9.0.3,<10.0
+pytest-django>=4.11,<5.0
+factory-boy>=3.3,<4.0
+
+# Dependency vulnerability scan (also runs in CI)
+pip-audit>=2.7,<3.0
+
+# Git hooks (.pre-commit-config.yaml): pre-commit install
+pre-commit>=4.0,<5.0
+
+# Tailwind standalone CLI wrapper (builds static/css/app.css, no Node.js)
+pytailwindcss>=0.4,<1.0

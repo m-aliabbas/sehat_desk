@@ -1,0 +1,119 @@
+{% load ui %}
+<div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+  <div class="stat-card bg-mint"><p class="text-body">Waiting</p><p class="mt-2 text-[32px] font-bold">{{ stats.waiting }}</p><p class="text-label text-muted">Across {{ stats.active_clinics }} active clinic{{ stats.active_clinics|pluralize }}</p></div>
+  <div class="stat-card bg-blue-soft"><p class="text-body">In consultation</p><p class="mt-2 text-[32px] font-bold">{{ stats.in_consultation }}</p><p class="text-label text-muted">{{ stats.called }} being called now</p></div>
+  <div class="stat-card bg-violet-soft"><p class="text-body">Average wait</p><p class="mt-2 text-[32px] font-bold">{% if stats.avg_wait_minutes is not None %}{{ stats.avg_wait_minutes }} min{% else %}—{% endif %}</p><p class="text-label text-muted">Token issued to called</p></div>
+  <div class="stat-card bg-amber-soft"><p class="text-body">Issued today</p><p class="mt-2 text-[32px] font-bold">{{ stats.issued }}</p><p class="text-label text-muted">{{ stats.completed }} completed · {{ stats.skipped }} skipped</p></div>
+</div>
+
+<div class="mt-6 grid gap-6 xl:grid-cols-3">
+  <section class="card xl:col-span-2">
+    <div class="card-header">
+      <div>
+        <h2 class="section-title">Today's queue</h2>
+        <p class="text-label text-muted">{% if selected_doctor %}{{ selected_doctor.department }} · {{ selected_doctor }}{% else %}All clinics · ordered by priority, then arrival{% endif %}</p>
+      </div>
+    </div>
+    {% if open_tokens %}
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th scope="col">Token</th><th scope="col">Patient</th><th scope="col">Clinic</th><th scope="col">Arrival</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+        <tbody>
+          {% for t in open_tokens %}
+            <tr>
+              <td class="whitespace-nowrap"><span class="font-mono text-section-title font-bold">{{ t.label }}</span>{% if t.priority != "normal" %}<span class="ml-2 chip {% if t.priority == 'emergency' %}chip-danger{% else %}chip-warning{% endif %}">{{ t.get_priority_display }}</span>{% endif %}</td>
+              <td><a href="{% url 'patients:detail' t.patient_id %}" class="font-medium hover:underline">{{ t.patient.full_name }}</a><p class="font-mono text-label text-muted">{{ t.patient.mrn }}</p></td>
+              <td>{{ t.doctor|default:"Any doctor" }}<p class="text-label text-muted">{{ t.department }}{% if t.room %} · {{ t.room }}{% endif %}</p></td>
+              <td>{{ t.created_at|time:"H:i" }}<p class="text-label text-muted">{% if t.status == "waiting" %}waiting {{ t.wait_minutes }} min{% elif t.called_at %}called {{ t.called_at|time:"H:i" }}{% endif %}</p></td>
+              <td>{% status_chip t.status t.get_status_display %}</td>
+              <td class="text-right whitespace-nowrap">
+                <form method="post" class="inline-flex gap-1">
+                  {% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}">
+                  {% if t.status == "waiting" and t.doctor_id %}<button formaction="{% url 'queue:call' t.pk %}" class="btn btn-secondary btn-sm">Call</button>{% endif %}
+                  {% if t.status == "called" %}<button formaction="{% url 'queue:recall' t.pk %}" class="btn btn-secondary btn-sm">Recall</button><button formaction="{% url 'queue:skip' t.pk %}" class="btn btn-ghost btn-sm">Skip</button>{% endif %}
+                  {% if t.status == "skipped" %}<button formaction="{% url 'queue:requeue' t.pk %}" class="btn btn-secondary btn-sm">Back in line</button>{% endif %}
+                  <a href="{% url 'queue:slip' t.pk %}" target="_blank" class="btn btn-ghost btn-sm">Slip</a>
+                  {% if "vitals.record" in sd_perms and t.status != "completed" and t.status != "cancelled" %}<a href="{% url 'vitals:record' %}?token={{ t.pk }}&next={% url 'queue:desk' %}" class="btn btn-ghost btn-sm">Vitals</a>{% endif %}
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      {% include "components/empty_state.html" with icon_name="ticket" title="No one in the queue" message="Check in today's appointments or issue a walk-in token." %}
+    {% endif %}
+    {% if closed_tokens %}
+      <details class="mt-4">
+        <summary class="cursor-pointer text-label font-medium text-muted">Recently completed or cancelled ({{ closed_tokens|length }})</summary>
+        <ul class="mt-2 divide-y divide-line text-body">
+          {% for t in closed_tokens %}<li class="flex justify-between py-2"><span><span class="font-mono font-semibold">{{ t.label }}</span> {{ t.patient.full_name }}</span>{% status_chip t.status t.get_status_display %}</li>{% endfor %}
+        </ul>
+      </details>
+    {% endif %}
+  </section>
+
+  <div class="space-y-6">
+    <section class="card">
+      <h2 class="section-title mb-4">Calling now</h2>
+      {% if selected_doctor %}
+        {% if current %}
+          <div class="rounded-card bg-mint p-5">
+            <p class="text-label font-medium tracking-wide text-teal-deep uppercase">{{ current.room|default:"Room" }} · {{ current.department }}</p>
+            <p class="mt-2 font-mono text-[48px] leading-none font-bold text-teal">{{ current.label }}</p>
+            <p class="mt-2 text-section-title">{{ current.patient.full_name }}</p>
+            <p class="text-label text-muted">{{ current.get_status_display }}{% if current.call_count > 1 %} · called {{ current.call_count }}×{% endif %}</p>
+          </div>
+          <form method="post" class="mt-4 grid grid-cols-2 gap-2">
+            {% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}">
+            {% if current.status == "called" %}
+              <button formaction="{% url 'queue:recall' current.pk %}" class="btn btn-secondary">Recall</button>
+              <button formaction="{% url 'queue:skip' current.pk %}" class="btn btn-secondary">Mark no-show</button>
+            {% endif %}
+          </form>
+        {% else %}
+          <p class="text-body text-muted">No one called for {{ selected_doctor }}.</p>
+          <form method="post" action="{% url 'queue:call-next' %}" class="mt-4">
+            {% csrf_token %}<input type="hidden" name="doctor" value="{{ selected_doctor.pk }}"><input type="hidden" name="next" value="{{ request.get_full_path }}">
+            <button class="btn btn-primary w-full">Call next patient</button>
+          </form>
+        {% endif %}
+      {% else %}
+        <p class="text-body text-muted">Choose a doctor in the clinic filter to call patients from here.</p>
+      {% endif %}
+    </section>
+
+    <section class="card">
+      <h2 class="section-title mb-3">Doctors today</h2>
+      <ul class="space-y-3">
+        {% for row in doctors_today %}
+          <li class="flex items-center justify-between gap-3">
+            <a href="?clinic=doc-{{ row.doctor.pk }}" class="hover:underline"><span class="font-medium">{{ row.doctor }}</span><span class="block text-label text-muted">{{ row.doctor.department }}</span></a>
+            <span class="text-right">
+              {% if row.on_leave %}<span class="chip chip-neutral">On leave</span>
+              {% elif row.current %}<span class="chip chip-info">{{ row.current.label }}</span>
+              {% else %}<span class="chip chip-success">Available</span>{% endif %}
+              <span class="block text-label text-muted">{{ row.waiting }} waiting</span>
+            </span>
+          </li>
+        {% empty %}<li class="text-label text-muted">No doctors scheduled in this branch today.</li>{% endfor %}
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2 class="section-title mb-3">Upcoming appointments</h2>
+      <ul class="space-y-3">
+        {% for a in upcoming %}
+          <li class="flex items-center justify-between gap-3">
+            <span><span class="font-medium">{{ a.start_time|time:"H:i" }}</span> {{ a.patient.full_name }}<span class="block text-label text-muted">{{ a.doctor }}</span></span>
+            {% if can_book %}
+            <form method="post" action="{% url 'appointments:check-in' a.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="btn btn-secondary btn-sm">Check in</button></form>
+            {% endif %}
+          </li>
+        {% empty %}<li class="text-label text-muted">No more appointments today.</li>{% endfor %}
+      </ul>
+      {% if collection %}<a href="{% url 'billing:payment-list' %}" class="mt-4 block rounded-full bg-mint px-3 py-1 text-label text-teal-deep hover:underline">Today's collection: {{ organization.currency }} {{ collection.net|floatformat:"0g" }} · {{ collection.count }} payment{{ collection.count|pluralize }}{% if collection.deposits.received_count %} · {{ collection.deposits.received_count }} deposit{{ collection.deposits.received_count|pluralize }}{% endif %}</a>{% endif %}
+    </section>
+  </div>
+</div>

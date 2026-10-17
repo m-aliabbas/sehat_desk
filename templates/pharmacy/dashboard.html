@@ -1,0 +1,51 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}Inventory{% endblock %}
+{% block page_title %}Pharmacy inventory{% endblock %}
+{% block page_subtitle %}{{ current_branch.name }} · stock, batches, expiry and reorder alerts.{% endblock %}
+{% block page_actions %}
+  <a href="{% url 'pharmacy:product-list' %}" class="btn btn-secondary">Products</a>
+  <a href="{% url 'pharmacy:ledger' %}" class="btn btn-secondary">Stock ledger</a>
+  {% if can_manage %}
+    <a href="{% url 'pharmacy:vendor-list' %}" class="btn btn-secondary">Suppliers</a>
+    <a href="{% url 'pharmacy:purchase-list' %}" class="btn btn-secondary">Purchases</a>
+    <a href="{% url 'pharmacy:receive' %}" class="btn btn-primary">{% icon "plus" "h-4 w-4" %} Receive stock</a>
+  {% endif %}
+{% endblock %}
+{% block content %}
+<div class="mb-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+  <a href="{% url 'pharmacy:product-list' %}" class="stat-card bg-mint hover:ring-2 hover:ring-teal/20"><p class="text-body text-ink">Stock value (cost)</p><p class="mt-2 text-[28px] font-bold text-ink">{{ organization.currency }} {{ value.cost|floatformat:"0g" }}</p><p class="text-label text-muted">{{ product_count }} active products · retail {{ value.retail|floatformat:"0g" }}</p></a>
+  <a href="{% url 'pharmacy:product-list' %}?filter=low" class="stat-card bg-amber-soft hover:ring-2 hover:ring-amber/20"><p class="text-body text-ink">Low stock</p><p class="mt-2 text-[28px] font-bold text-ink">{{ low_count }}</p><p class="text-label text-muted">At or below reorder level</p></a>
+  <a href="#near-expiry" class="stat-card bg-blue-soft hover:ring-2 hover:ring-blue/20"><p class="text-body text-ink">Near expiry</p><p class="mt-2 text-[28px] font-bold text-ink">{{ near_count }}</p><p class="text-label text-muted">Batches expiring within {{ near_days }} days</p></a>
+  <a href="#expired" class="stat-card bg-red-soft hover:ring-2 hover:ring-red/20"><p class="text-body text-ink">Expired in stock</p><p class="mt-2 text-[28px] font-bold text-red">{{ expired_count }}</p><p class="text-label text-muted">Batches to write off — never sold</p></a>
+</div>
+
+<div class="grid gap-6 xl:grid-cols-3">
+  <section class="card">
+    <h2 class="section-title mb-3">Low stock</h2>
+    <ul class="divide-y divide-line">
+      {% for p in low %}<li class="flex items-center justify-between gap-2 py-2"><a href="{% url 'pharmacy:product-detail' p.pk %}" class="font-medium hover:underline">{{ p.display_name }}</a><span class="chip {% if p.stock == 0 %}chip-danger{% else %}chip-warning{% endif %}">{{ p.stock }} / {{ p.reorder_level }}</span></li>
+      {% empty %}<li class="py-2 text-label text-muted">Nothing below its reorder level.</li>{% endfor %}
+    </ul>
+  </section>
+  <section class="card" id="near-expiry">
+    <h2 class="section-title mb-3">Near expiry</h2>
+    <ul class="divide-y divide-line">
+      {% for b in near %}<li class="py-2"><a href="{% url 'pharmacy:product-detail' b.product_id %}" class="font-medium hover:underline">{{ b.product.display_name }}</a><p class="text-label text-muted">Batch {{ b.batch_number }} · {{ b.quantity_available }} units · <span class="{% if b.days_to_expiry <= 30 %}font-semibold text-red{% else %}text-amber{% endif %}">expires {{ b.expiry_date|date:"d M Y" }} ({{ b.days_to_expiry }} d)</span></p></li>
+      {% empty %}<li class="py-2 text-label text-muted">No batches expiring soon.</li>{% endfor %}
+    </ul>
+  </section>
+  <section class="card" id="expired">
+    <h2 class="section-title mb-3">Expired stock</h2>
+    <ul class="divide-y divide-line">
+      {% for b in expired %}<li class="py-2"><a href="{% url 'pharmacy:product-detail' b.product_id %}" class="font-medium hover:underline">{{ b.product.display_name }}</a><p class="text-label text-red">Batch {{ b.batch_number }} · {{ b.quantity_available }} units · expired {{ b.expiry_date|date:"d M Y" }}</p></li>
+      {% empty %}<li class="py-2 text-label text-muted">No expired stock on the shelf.</li>{% endfor %}
+    </ul>
+  </section>
+</div>
+
+<section class="card mt-6">
+  <div class="card-header"><h2 class="section-title">Recent stock movements</h2><a href="{% url 'pharmacy:ledger' %}" class="text-label font-medium text-teal-deep hover:underline">Full ledger →</a></div>
+  {% include "pharmacy/_ledger_table.html" with transactions=recent %}
+</section>
+{% endblock %}

@@ -1,0 +1,66 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}System · Settings{% endblock %}
+{% block page_title %}System health{% endblock %}
+{% block page_subtitle %}Server status, request metrics since the last restart, recent errors and backups. No patient data is shown or stored here.{% endblock %}
+{% block content %}
+{% include "partials/settings_tabs.html" %}
+<section class="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Server status">
+  <div class="card"><p class="text-label text-muted">Environment</p><p class="mt-1 text-section-title font-semibold">{{ env|capfirst }}</p><p class="text-label text-muted">Database: {{ db_vendor }} · {% if https %}HTTPS{% else %}HTTP (LAN){% endif %}</p></div>
+  <div class="card"><p class="text-label text-muted">Requests since {{ snap.started_at|date:"d M, H:i" }}</p><p class="mt-1 text-section-title font-semibold">{{ total_requests }}</p><p class="text-label text-muted">Average {{ avg_ms|floatformat:0 }} ms</p></div>
+  <div class="card"><p class="text-label text-muted">Server errors (5xx)</p><p class="mt-1 text-section-title font-semibold {% if server_errors %}text-red{% endif %}">{{ server_errors }}</p><p class="text-label text-muted">{{ snap.exceptions }} unexpected exception{{ snap.exceptions|pluralize }}</p></div>
+  <div class="card"><p class="text-label text-muted">Browser errors</p><p class="mt-1 text-section-title font-semibold">{{ snap.client_errors }}</p><p class="text-label text-muted">Reported by staff screens</p></div>
+</section>
+
+{% if backups is not None %}
+<section class="card mb-6" aria-label="Backups">
+  <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+    <div>
+      <h2 class="text-section-title font-semibold">Backups</h2>
+      <p class="text-label text-muted">Folder: <span class="font-mono">{{ backup_dir }}</span> · {% if backup_hours %}automatic every {{ backup_hours|floatformat:"0" }} h{% else %}automatic backups off{% endif %} · {% if backup_encrypted %}encrypted{% else %}not encrypted{% endif %}</p>
+    </div>
+    <form method="post" action="{% url 'core:backup-now' %}">{% csrf_token %}<button class="btn btn-secondary">Back up now</button></form>
+  </div>
+  {% if backup_overdue %}{% include "components/alert.html" with level="warning" message="No recent backup. Check that the server is running and the backup folder is writable, or press Back up now." %}{% endif %}
+  {% if not backup_encrypted %}<p class="mb-3 text-label text-amber">Backups are not encrypted. Set SEHATDESK_BACKUP_KEY before copying them to USB or cloud storage.</p>{% endif %}
+  {% if backups %}
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th scope="col">Created</th><th scope="col">File</th><th scope="col">Size</th><th scope="col">Encrypted</th></tr></thead>
+    <tbody>{% for b in backups %}<tr><td class="whitespace-nowrap">{{ b.created|date:"d M Y, H:i" }}</td><td class="font-mono text-label">{{ b.name }}</td><td>{{ b.size|filesizeformat }}</td><td>{% if b.encrypted %}{% status_chip "active" "Yes" %}{% else %}{% status_chip "pending" "No" %}{% endif %}</td></tr>{% endfor %}</tbody>
+  </table></div>
+  {% else %}
+    {% include "components/empty_state.html" with title="No backups yet" message="Backups run automatically while the server is up, or with: python manage.py backup" %}
+  {% endif %}
+</section>
+{% endif %}
+
+<section class="card" aria-label="Recent errors">
+  <form method="get" class="mb-4 flex flex-wrap items-end gap-3">
+    <div><label class="field-label" for="s-source">Source</label>
+      <select id="s-source" name="source" class="select mt-1.5"><option value="">All</option><option value="server" {% if source == "server" %}selected{% endif %}>Server</option><option value="browser" {% if source == "browser" %}selected{% endif %}>Browser</option></select></div>
+    <div><label class="field-label" for="s-rid">Request ID</label><input id="s-rid" name="request_id" value="{{ request_id }}" class="input mt-1.5 font-mono" placeholder="From the error page"></div>
+    <button class="btn btn-primary">Filter</button>
+  </form>
+  {% if page_obj.object_list %}
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th scope="col">Time</th><th scope="col">Source</th><th scope="col">Error</th><th scope="col">Where</th><th scope="col">Staff</th><th scope="col">Request ID</th></tr></thead>
+    <tbody>
+      {% for e in page_obj %}
+      <tr>
+        <td class="whitespace-nowrap">{{ e.occurred_at|date:"d M Y" }}<span class="block text-label text-muted">{{ e.occurred_at|date:"H:i:s" }}</span></td>
+        <td>{% if e.source == "server" %}{% status_chip "cancelled" "Server" %}{% else %}{% status_chip "pending" "Browser" %}{% endif %}</td>
+        <td><span class="font-medium">{{ e.error_type }}</span>{% if e.message %}<span class="block text-label text-muted">{{ e.message }}</span>{% endif %}
+          {% if e.stack %}<details class="mt-1"><summary class="cursor-pointer text-label text-teal">Stack</summary><pre class="mt-1 max-w-xl overflow-x-auto text-[11px] whitespace-pre-wrap">{{ e.stack }}</pre></details>{% endif %}</td>
+        <td><span class="font-mono text-label">{{ e.method }} {{ e.path }}</span>{% if e.view_name %}<span class="block text-label text-muted">{{ e.view_name }}</span>{% endif %}</td>
+        <td>{% if e.user %}{{ e.user.get_full_name|default:e.user.username }}{% else %}—{% endif %}{% if e.branch %}<span class="block text-label text-muted">{{ e.branch.name }}</span>{% endif %}</td>
+        <td class="font-mono text-label">{{ e.request_id|truncatechars:14 }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+  {% include "components/pagination.html" %}
+  {% else %}
+    {% include "components/empty_state.html" with title="No errors recorded" message="Unexpected server and browser errors appear here for 90 days." %}
+  {% endif %}
+</section>
+{% endblock %}

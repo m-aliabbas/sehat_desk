@@ -1,0 +1,137 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000">
+<title>02 reception token desk</title>
+<rect x="0" y="0" width="1600" height="1000" rx="0" fill="#F3F8FB"/>
+<rect x="0" y="0" width="246" height="1000" rx="0" fill="#F8FCFE"/>
+<rect x="246" y="0" width="1354" height="76" rx="0" fill="white"/>
+<path d="M36 34 C23 17 4 37 18 50 L36 67 L54 50 C68 37 49 17 36 34Z" fill="#17B99F" transform="translate(13 -3)"/>
+<path d="M32 42 H41 L45 34 L50 51 L54 42 H68" stroke="white" fill="none" stroke-width="2"/>
+<text x="78" y="43" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="25" font-weight="700">SehatDesk</text>
+<text x="124" y="62" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="11" font-weight="400">by Vibe.Exe</text>
+<path d="M1 8 L9 1 L17 8 V18 H11 V12 H7 V18 H1Z" transform="translate(33 98)" fill="none" stroke="#34516F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="64" y="115" fill="#34516F" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">Dashboard</text>
+<rect x="17" y="143" width="211" height="44" rx="10" fill="#086C70"/>
+<path d="M1 4 H17 V8 Q12 10 17 12 V16 H1 V12 Q6 10 1 8Z" transform="translate(33 153)" fill="none" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="64" y="170" fill="white" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="500">Reception &amp; tokens</text>
+<path d="M2 4 H16 V18 H2Z M5 1 V7 M13 1 V7 M2 9 H16" transform="translate(33 208)" fill="none" stroke="#34516F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="64" y="225" fill="#34516F" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">Appointments</text>
+<path d="M5 5 A4 4 0 1 0 13 5 A4 4 0 1 0 5 5 M1 19 V16 Q9 9 17 16 V19" transform="translate(33 263)" fill="none" stroke="#34516F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="64" y="280" fill="#34516F" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">Patients</text>
+<path d="M3 1 V7 Q3 13 9 13 Q15 13 15 7 V1 M9 13 V16 Q9 21 17 18 V14" transform="translate(33 318)" fill="none" stroke="#34516F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="64" y="335" fill="#34516F" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">Doctor workspace</text>
+<path d="M1 3 V18 M1 12 H18 V18 M4 7 H8 V12 M9 6 H16 V12" transform="translate(33 373)" fill="none" stroke="#34516F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="64" y="390" fill="#34516F" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">IPD &amp; wards</text>
+<path d="M6 1 H12 M7 1 V7 L1 17 Q0 19 3 19 H15 Q18 19 17 17 L11 7 V1 M4 12 H14" transform="translate(33 428)" fill="none" stroke="#34516F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="64" y="445" fill="#34516F" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">Laboratory</text>
+<path d="M4 3 Q8 -1 12 3 L17 8 Q21 12 17 16 Q13 20 9 16 L4 11 Q0 7 4 3 M7 13 L14 6" transform="translate(33 483)" fill="none" stroke="#34516F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="64" y="500" fill="#34516F" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">Pharmacy</text>
+<path d="M1 4 H18 V17 H1Z M1 8 H18 M4 13 H8" transform="translate(33 538)" fill="none" stroke="#34516F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="64" y="555" fill="#34516F" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">Billing &amp; payments</text>
+<path d="M2 18 V10 H5 V18 M8 18 V3 H11 V18 M14 18 V7 H17 V18" transform="translate(33 593)" fill="none" stroke="#34516F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="64" y="610" fill="#34516F" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">Reports</text>
+<path d="M1 4 H18 M1 10 H18 M1 16 H18 M6 1 V7 M13 7 V13 M7 13 V19" transform="translate(33 648)" fill="none" stroke="#34516F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="64" y="665" fill="#34516F" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">Settings</text>
+<rect x="18" y="814" width="211" height="150" rx="15" fill="#E3F6F4"/>
+<text x="36" y="845" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="18" font-weight="600">Connected care.</text>
+<text x="36" y="870" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="18" font-weight="600">Better together.</text>
+<text x="36" y="900" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="12" font-weight="400">Sehat Medical Centre</text>
+<text x="36" y="921" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="12" font-weight="400">Main branch · Islamabad</text>
+<rect x="274" y="17" width="536" height="42" rx="10" fill="#F5F9FC" stroke="#E5EDF3"/>
+<text x="293" y="43" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="14" font-weight="400">⌕   Search patients, visits, orders...</text>
+<rect x="1190" y="24" width="120" height="27" rx="13" fill="#EDF2F7"/>
+<text x="1201" y="42" fill="#687D96" font-family="Inter, DejaVu Sans, sans-serif" font-size="12" font-weight="500">Demo workspace</text>
+<circle cx="1385" cy="38" r="18" fill="#DDF5EF"/>
+<text x="1374.2" y="43" fill="#008E81" font-family="Inter, DejaVu Sans, sans-serif" font-size="12" font-weight="600">R</text>
+<text x="1415" y="34" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="14" font-weight="600">Reception</text>
+<text x="1415" y="55" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="11" font-weight="400">Sehat Medical Centre</text>
+<text x="278" y="125" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="28" font-weight="700">Reception &amp; token desk</text>
+<text x="278" y="152" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="14" font-weight="400">Register arrivals, issue tokens, and keep every clinic moving.</text>
+<rect x="1350" y="111" width="214" height="40" rx="8" fill="#008E81"/>
+<text x="1365" y="136" fill="white" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="500">+ Register patient</text>
+<text x="278" y="977" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="10" font-weight="400">SEHATDESK  /  DESKTOP CONCEPT  /  FICTIONAL DATA</text>
+<text x="1397" y="977" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="10" font-weight="400">1600 × 1000 desktop</text>
+<rect x="278" y="181" width="310" height="111" rx="15" fill="#E5F8F2"/>
+<text x="299" y="210" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">Waiting</text>
+<text x="299" y="251" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="31" font-weight="700">18</text>
+<text x="299" y="275" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="12" font-weight="400">Across 3 active clinics</text>
+<rect x="604" y="181" width="310" height="111" rx="15" fill="#E9F4FF"/>
+<text x="625" y="210" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">In consultation</text>
+<text x="625" y="251" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="31" font-weight="700">3</text>
+<text x="625" y="275" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="12" font-weight="400">Patients currently with doctors</text>
+<rect x="930" y="181" width="310" height="111" rx="15" fill="#F0EDFF"/>
+<text x="951" y="210" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">Average wait</text>
+<text x="951" y="251" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="31" font-weight="700">14 min</text>
+<text x="951" y="275" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="12" font-weight="400">Arrival to consultation</text>
+<rect x="1256" y="181" width="310" height="111" rx="15" fill="#FFF5E7"/>
+<text x="1277" y="210" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">Issued today</text>
+<text x="1277" y="251" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="31" font-weight="700">86</text>
+<text x="1277" y="275" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="12" font-weight="400">Walk-ins and appointments</text>
+<rect x="278" y="313" width="862" height="631" rx="16" fill="white" stroke="#E5EDF3"/>
+<text x="300" y="345" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="18" font-weight="600">Today’s queue</text>
+<text x="300" y="368" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="12" font-weight="400">General medicine · Dr. Zain Ali</text>
+<rect x="919" y="335" width="110.3" height="40" rx="8" fill="white" stroke="#E5EDF3"/>
+<text x="934" y="360" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="500">All clinics</text>
+<rect x="298" y="394" width="822" height="36" rx="7" fill="#F0F5F9"/>
+<text x="312" y="418" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="12" font-weight="500">Token</text>
+<text x="427.08000000000004" y="418" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="12" font-weight="500">Patient</text>
+<text x="714.78" y="418" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="12" font-weight="500">Arrival</text>
+<text x="879.18" y="418" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="12" font-weight="500">Status</text>
+<path d="M298 495H1120" fill="none" stroke="#E5EDF3"/>
+<text x="312" y="464" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="500">A-024</text>
+<text x="427.08000000000004" y="464" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">Ayesha Khan</text>
+<text x="714.78" y="464" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">10:12 AM</text>
+<rect x="877.18" y="445" width="127" height="27" rx="13" fill="#E7F2FF"/>
+<text x="888.18" y="463" fill="#1879D8" font-family="Inter, DejaVu Sans, sans-serif" font-size="12" font-weight="500">In consultation</text>
+<path d="M298 560H1120" fill="none" stroke="#E5EDF3"/>
+<text x="312" y="529" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="500">A-025</text>
+<text x="427.08000000000004" y="529" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">Ahmed Raza</text>
+<text x="714.78" y="529" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">10:16 AM</text>
+<rect x="877.18" y="510" width="120" height="27" rx="13" fill="#FFF2DB"/>
+<text x="888.18" y="528" fill="#A45F0F" font-family="Inter, DejaVu Sans, sans-serif" font-size="12" font-weight="500">Vitals pending</text>
+<path d="M298 625H1120" fill="none" stroke="#E5EDF3"/>
+<text x="312" y="594" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="500">A-026</text>
+<text x="427.08000000000004" y="594" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">Fatima Noor</text>
+<text x="714.78" y="594" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">10:22 AM</text>
+<rect x="877.18" y="575" width="71" height="27" rx="13" fill="#EDF2F7"/>
+<text x="888.18" y="593" fill="#687D96" font-family="Inter, DejaVu Sans, sans-serif" font-size="12" font-weight="500">Waiting</text>
+<path d="M298 690H1120" fill="none" stroke="#E5EDF3"/>
+<text x="312" y="659" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="500">A-027</text>
+<text x="427.08000000000004" y="659" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">Bilal Hussain</text>
+<text x="714.78" y="659" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">10:25 AM</text>
+<rect x="877.18" y="640" width="71" height="27" rx="13" fill="#EDF2F7"/>
+<text x="888.18" y="658" fill="#687D96" font-family="Inter, DejaVu Sans, sans-serif" font-size="12" font-weight="500">Waiting</text>
+<path d="M298 755H1120" fill="none" stroke="#E5EDF3"/>
+<text x="312" y="724" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="500">A-028</text>
+<text x="427.08000000000004" y="724" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">Hina Siddiqui</text>
+<text x="714.78" y="724" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">10:31 AM</text>
+<rect x="877.18" y="705" width="71" height="27" rx="13" fill="#EDF2F7"/>
+<text x="888.18" y="723" fill="#687D96" font-family="Inter, DejaVu Sans, sans-serif" font-size="12" font-weight="500">Waiting</text>
+<path d="M298 820H1120" fill="none" stroke="#E5EDF3"/>
+<text x="312" y="789" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="500">A-029</text>
+<text x="427.08000000000004" y="789" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">Omar Farooq</text>
+<text x="714.78" y="789" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">10:35 AM</text>
+<rect x="877.18" y="770" width="71" height="27" rx="13" fill="#EDF2F7"/>
+<text x="888.18" y="788" fill="#687D96" font-family="Inter, DejaVu Sans, sans-serif" font-size="12" font-weight="500">Waiting</text>
+<rect x="299" y="876" width="110.3" height="40" rx="8" fill="white" stroke="#E5EDF3"/>
+<text x="314" y="901" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="500">Print token</text>
+<rect x="433" y="876" width="117.6" height="40" rx="8" fill="white" stroke="#E5EDF3"/>
+<text x="448" y="901" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="500">Open patient</text>
+<rect x="1156" y="313" width="426" height="332" rx="16" fill="white" stroke="#E5EDF3"/>
+<text x="1178" y="345" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="18" font-weight="600">Calling now</text>
+<rect x="1178" y="377" width="382" height="145" rx="13" fill="#E5F8F2"/>
+<text x="1198" y="407" fill="#008E81" font-family="Inter, DejaVu Sans, sans-serif" font-size="12" font-weight="400">ROOM 03 · GENERAL MEDICINE</text>
+<text x="1198" y="465" fill="#008E81" font-family="Inter, DejaVu Sans, sans-serif" font-size="48" font-weight="700">A-024</text>
+<text x="1198" y="498" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="17" font-weight="400">Ayesha Khan</text>
+<rect x="1178" y="540" width="382" height="40" rx="8" fill="#008E81"/>
+<text x="1193" y="565" fill="white" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="500">Call next patient</text>
+<rect x="1178" y="594" width="180" height="40" rx="8" fill="white" stroke="#E5EDF3"/>
+<text x="1193" y="619" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="500">Recall</text>
+<rect x="1370" y="594" width="190" height="40" rx="8" fill="white" stroke="#E5EDF3"/>
+<text x="1385" y="619" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="500">Mark no-show</text>
+<rect x="1156" y="662" width="426" height="282" rx="16" fill="white" stroke="#E5EDF3"/>
+<text x="1178" y="694" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="18" font-weight="600">Upcoming appointments</text>
+<text x="1178" y="728" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="15" font-weight="400">11:00 AM   Maryam Ali</text>
+<text x="1178" y="776" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="15" font-weight="400">11:30 AM   Usman Khalid</text>
+<text x="1178" y="824" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="15" font-weight="400">12:00 PM   Zainab Shah</text>
+<rect x="1178" y="886" width="281" height="27" rx="13" fill="#EDF2F7"/>
+<text x="1189" y="904" fill="#687D96" font-family="Inter, DejaVu Sans, sans-serif" font-size="12" font-weight="500">Priority changes require staff review</text>
+</svg>

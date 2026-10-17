@@ -1,0 +1,29 @@
+{% extends "layouts/app.html" %}
+{% block title %}{% if creating %}New service{% else %}Edit {{ service.name }}{% endif %}{% endblock %}
+{% block page_title %}{% if creating %}New service{% else %}Edit {{ service.name }}{% endif %}{% endblock %}
+{% block page_subtitle %}Price changes apply to new invoices only. Existing invoices keep their prices.{% endblock %}
+{% block content %}
+{% include "partials/settings_tabs.html" %}
+<form method="post" class="grid gap-6 xl:grid-cols-3" novalidate>
+  {% csrf_token %}
+  <section class="card xl:col-span-2">
+    <h2 class="section-title mb-4">Service</h2>
+    {% for e in form.non_field_errors %}{% include "components/alert.html" with level="danger" message=e %}{% endfor %}
+    <div class="grid gap-5 md:grid-cols-2">
+      {% include "components/field.html" with field=form.name %}
+      {% include "components/field.html" with field=form.code %}
+      {% include "components/field.html" with field=form.category %}
+      {% include "components/field.html" with field=form.department %}
+      {% include "components/field.html" with field=form.price %}
+    </div>
+  </section>
+  <section class="card">
+    <h2 class="section-title mb-4">Branch prices</h2>
+    <div class="space-y-5">{% for f in form.branch_price_fields %}{% include "components/field.html" with field=f %}{% endfor %}</div>
+  </section>
+  <div class="flex gap-3 xl:col-span-3">
+    <button type="submit" class="btn btn-primary">Save service</button>
+    <a href="{% url 'masterdata:service-list' %}" class="btn btn-secondary">Cancel</a>
+  </div>
+</form>
+{% endblock %}

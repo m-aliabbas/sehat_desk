@@ -1,0 +1,86 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}Counters &amp; token queues{% endblock %}
+{% block page_title %}Counters &amp; token queues{% endblock %}
+{% block page_subtitle %}Reception desks and clinic tokens are managed separately.{% endblock %}
+{% block page_actions %}<a href="{% url 'queue:desk' %}" class="btn btn-secondary">Back to desk</a>{% endblock %}
+{% block content %}
+<div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+  <div class="stat-card bg-mint"><p class="text-body">Reception counters</p><p class="mt-2 text-[32px] font-bold">{{ counters|length }}</p><p class="text-label text-muted">In {{ current_branch.name }}</p></div>
+  <div class="stat-card bg-blue-soft"><p class="text-body">Open counters</p><p class="mt-2 text-[32px] font-bold">{{ open_count }}</p><p class="text-label text-muted">{{ counters|length }} total</p></div>
+  <div class="stat-card bg-violet-soft"><p class="text-body">Patients waiting</p><p class="mt-2 text-[32px] font-bold">{{ stats.waiting }}</p><p class="text-label text-muted">Across clinics</p></div>
+  <div class="stat-card bg-amber-soft"><p class="text-body">In consultation</p><p class="mt-2 text-[32px] font-bold">{{ stats.in_consultation }}</p><p class="text-label text-muted">One active visit per doctor</p></div>
+</div>
+<div class="mt-6 grid gap-6 xl:grid-cols-3">
+  <div class="space-y-6 xl:col-span-2">
+    <section class="card">
+      <h2 class="section-title mb-4">Reception counters</h2>
+      {% if counters %}
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th scope="col">Counter</th><th scope="col">Assigned staff</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Action</span></th></tr></thead>
+          <tbody>
+            {% for c in counters %}
+              <tr>
+                <td class="font-medium">{{ c.code }} · {{ c.name }}</td>
+                <td>{{ c.assigned_staff|default:"Unassigned" }}</td>
+                <td>{% if c.is_open %}{% status_chip "open" "Open" %}{% else %}{% status_chip "closed" "Closed" %}{% endif %}</td>
+                <td class="text-right"><form method="post" action="{% url 'queue:counter-toggle' c.pk %}">{% csrf_token %}<button class="btn btn-secondary btn-sm">{% if c.is_open %}Close{% else %}Open{% endif %}</button></form></td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+        {% include "components/empty_state.html" with icon_name="ticket" title="No counters yet" message="Add reception desks such as 01 · Main reception." compact=True %}
+      {% endif %}
+      {% if form %}
+      <form method="post" class="mt-5 grid gap-3 border-t border-line pt-5 md:grid-cols-[1fr_2fr_2fr_auto] md:items-end" novalidate>
+        {% csrf_token %}
+        {% include "components/field.html" with field=form.code %}
+        {% include "components/field.html" with field=form.name %}
+        {% include "components/field.html" with field=form.assigned_staff %}
+        <button class="btn btn-primary">{% icon "plus" "h-4 w-4" %} Add counter</button>
+      </form>
+      {% endif %}
+    </section>
+    <section class="card">
+      <h2 class="section-title mb-4">Clinic queues today</h2>
+      {% if clinics %}
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th scope="col">Clinic</th><th scope="col">Token prefix</th><th scope="col">Current token</th><th scope="col">Waiting</th></tr></thead>
+          <tbody>
+            {% for c in clinics %}<tr><td>{{ c.department }}</td><td class="font-mono">{{ c.department.token_letters }}</td><td class="font-mono font-bold">{{ c.current.label|default:"—" }}</td><td>{{ c.waiting }}</td></tr>{% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+        <p class="text-body text-muted">No tokens issued yet today.</p>
+      {% endif %}
+    </section>
+  </div>
+  <section class="card h-fit">
+    <h2 class="section-title mb-3">Token configuration</h2>
+    <ul class="space-y-2 text-body text-muted">
+      <li>Numbering: per department, per branch</li>
+      <li>Reset: daily</li>
+      <li>Priority: emergency › special › urgent › normal</li>
+      <li>Prefixes: set on each department (Settings → Departments)</li>
+    </ul>
+    <h3 class="mt-6 mb-2 text-body font-semibold">Waiting-room display</h3>
+    {% if display_url %}
+      <p class="text-label text-muted">Open this link full-screen on the waiting-room TV. It shows token numbers and rooms only, no patient names. Anyone with the link can view it, so keep it on hospital screens.</p>
+      <input readonly class="input mt-2 font-mono text-label" value="{{ display_url }}" onclick="this.select()" aria-label="Display link">
+      <a href="{{ display_url }}" target="_blank" class="btn btn-secondary btn-sm mt-2">Open display</a>
+    {% else %}
+      <p class="text-label text-muted">No display link yet for {{ current_branch.name }}.</p>
+    {% endif %}
+    {% if can_manage_display %}
+      <form method="post" action="{% url 'queue:display-key' %}" class="mt-3">{% csrf_token %}
+        <button class="btn btn-secondary btn-sm" {% if display_url %}data-confirm="Screens using the current link will stop updating until you open the new link on them." data-confirm-title="Create a new display link?" data-confirm-action="Create new link"{% endif %}>{% if display_url %}Create new link{% else %}Create display link{% endif %}</button>
+      </form>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

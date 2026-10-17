@@ -1,0 +1,39 @@
+{% extends "print/thermal.html" %}
+{% block title %}Receipt {{ sale.number }}{% endblock %}
+{% block print_label %}Print receipt{% endblock %}
+{% block document %}
+    {% include "print/_thermal_header.html" with org=request.organization branch=sale.branch unit="Pharmacy" doc_title="Sale receipt" %}
+    <dl class="space-y-1 text-label">
+      <div class="flex justify-between"><dt>Sale</dt><dd class="font-mono">{{ sale.number }}</dd></div>
+      <div class="flex justify-between"><dt>Invoice</dt><dd class="font-mono">{{ sale.invoice.number }}</dd></div>
+      <div class="flex justify-between"><dt>Date</dt><dd>{{ sale.completed_at|date:"d M Y, H:i" }}</dd></div>
+      <div class="flex justify-between"><dt>{% if sale.patient %}Patient{% else %}Customer{% endif %}</dt><dd>{{ sale.bill_to }}</dd></div>
+      {% if sale.patient %}<div class="flex justify-between"><dt>MRN</dt><dd class="font-mono">{{ sale.patient.mrn }}</dd></div>{% endif %}
+      {% if sale.prescription %}<div class="flex justify-between"><dt>Prescription</dt><dd class="font-mono">{{ sale.prescription.number }}</dd></div>{% endif %}
+    </dl>
+    <hr class="my-3 border-dashed border-line">
+    <table class="w-full text-label">
+      <thead><tr><th class="text-left font-semibold">Item</th><th class="text-right font-semibold">Qty</th><th class="text-right font-semibold">Amount</th></tr></thead>
+      <tbody>
+        {% for i in items %}
+        <tr class="align-top">
+          <td class="pt-1">{{ i.product.display_name }}<br><span class="text-[10px] text-muted">B {{ i.batch.batch_number }} · exp {{ i.batch.expiry_date|date:"m/Y" }} · {{ i.unit_price|floatformat:"2g" }}</span></td>
+          <td class="pt-1 text-right">{{ i.quantity }}</td>
+          <td class="pt-1 text-right">{{ i.line_total|floatformat:"2g" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <hr class="my-3 border-dashed border-line">
+    <dl class="space-y-1 text-label">
+      <div class="flex justify-between"><dt>Subtotal</dt><dd>{{ sale.invoice.subtotal|floatformat:"2g" }}</dd></div>
+      {% if sale.invoice.tax_total %}<div class="flex justify-between"><dt>{{ billing_settings.tax_label }}</dt><dd>{{ sale.invoice.tax_total|floatformat:"2g" }}</dd></div>{% endif %}
+      {% if sale.invoice.invoice_discount %}<div class="flex justify-between"><dt>Discount</dt><dd>−{{ sale.invoice.invoice_discount|floatformat:"2g" }}</dd></div>{% endif %}
+    </dl>
+    <div class="mt-2 flex justify-between font-bold"><span>Total</span><span>{{ request.organization.currency }} {{ sale.grand_total|floatformat:"2g" }}</span></div>
+    {% for p in payments %}<div class="flex justify-between text-label"><span>{{ p.method }}{% if p.reference %} ({{ p.reference }}){% endif %}</span><span>{{ p.amount|floatformat:"2g" }}</span></div>{% endfor %}
+    {% if sale.invoice.amount_refunded %}<div class="flex justify-between text-label"><span>Refunded</span><span>−{{ sale.invoice.amount_refunded|floatformat:"2g" }}</span></div>{% endif %}
+    <hr class="my-3 border-dashed border-line">
+    <p class="text-center text-label">Served by {{ sale.cashier }}</p>
+    {% include "print/_thermal_footer.html" with org=request.organization terms=True message="Check your medicines before leaving. Keep this receipt for returns." %}
+{% endblock %}

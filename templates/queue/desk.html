@@ -1,0 +1,34 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}Reception &amp; tokens{% endblock %}
+{% block page_title %}Reception &amp; token desk{% endblock %}
+{% block page_subtitle %}Register arrivals, issue tokens, and keep every clinic moving.{% endblock %}
+{% block page_actions %}
+  <a href="{% url 'queue:counters' %}" class="btn btn-secondary">Counters &amp; display</a>
+  {% if "patient.create" in sd_perms %}<a href="{% url 'patients:register' %}?mode=quick" class="btn btn-secondary">{% icon "plus" "h-4 w-4" %} Register patient</a>{% endif %}
+  <a href="{% url 'queue:walk-in' %}" class="btn btn-primary">{% icon "ticket" "h-4 w-4" %} Walk-in token</a>
+{% endblock %}
+{% block content %}
+{% if request.GET.issued %}
+  <div class="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-card border border-teal/30 bg-mint/60 p-4">
+    <p class="font-medium">Token issued. Print the slip for the patient.</p>
+    <a href="{% url 'queue:slip' request.GET.issued %}" target="_blank" class="btn btn-primary btn-sm">Print token slip</a>
+  </div>
+{% endif %}
+<form method="get" class="mb-4 flex flex-wrap items-center gap-3" x-data @change="$el.submit()">
+  <label class="field-label" for="clinic">Clinic</label>
+  <select id="clinic" name="clinic" class="select h-10 w-72">
+    <option value="">All clinics</option>
+    <optgroup label="Doctors">
+      {% for value, label in doctor_options %}<option value="{{ value }}" {% if clinic == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+    </optgroup>
+    <optgroup label="Departments">
+      {% for value, label in department_options %}<option value="{{ value }}" {% if clinic == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+    </optgroup>
+  </select>
+  <span class="text-label text-muted">Updates every 5 seconds.</span>
+</form>
+<div id="desk-live" hx-get="{{ request.get_full_path }}" hx-trigger="every 5s [document.visibilityState === 'visible']" hx-swap="innerHTML">
+  {% include "queue/_desk_live.html" %}
+</div>
+{% endblock %}

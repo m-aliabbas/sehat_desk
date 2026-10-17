@@ -1,0 +1,41 @@
+{% load static %}<!doctype html>
+{% comment %}
+  Shared print engine (Phase 24). Documents extend a paper layout, not this file:
+    print/a4.html       invoices, lab reports, admission forms, discharge summaries
+    print/a5.html       prescriptions, registration and appointment slips, lab orders
+    print/thermal.html  80 mm receipt printers: tokens, payment and pharmacy receipts
+  Blocks: title, print_label, toolbar_extra, before_sheet, document.
+  Branding comes from print/_letterhead.html / _thermal_header.html and the footers, which
+  read the hospital settings (logo, name, address, phone, header, footer, terms).
+{% endcomment %}
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Print{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+  <style>
+    @page { size: {% block page_size %}A4{% endblock %}; margin: {% block page_margin %}12mm{% endblock %}; }
+    @media print {
+      .no-print { display: none !important; }
+      body { background: white; }
+      .sheet { box-shadow: none !important; {% block print_sheet_css %}padding: 0 !important; max-width: none !important;{% endblock %} }
+      tr, li { break-inside: avoid; }
+    }
+  </style>
+</head>
+<body class="bg-page">
+  {% block toolbar %}
+  <div class="no-print flex flex-wrap items-center justify-center gap-3 p-4">
+    <button class="btn btn-primary" onclick="window.print()">{% block print_label %}Print{% endblock %}</button>
+    {% block toolbar_extra %}{% endblock %}
+    {% block close_button %}<button class="btn btn-secondary" onclick="window.close()">Close</button>{% endblock %}
+  </div>
+  {% endblock %}
+  {% block before_sheet %}{% endblock %}
+  <main class="sheet relative mx-auto bg-white text-ink shadow {% block sheet_class %}max-w-[210mm] p-10{% endblock %}">
+    {% if workspace_env == "staging" %}<p class="mb-2 text-center text-label font-bold text-amber uppercase">Staging test print · not a valid document</p>{% endif %}
+    {% block document %}{% endblock %}
+  </main>
+</body>
+</html>

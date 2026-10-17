@@ -1,0 +1,33 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}Held sales{% endblock %}
+{% block page_title %}Held sales{% endblock %}
+{% block page_subtitle %}Sales parked at any till in {{ current_branch.name }}. Resuming one brings it to your till; a cart you have in progress is held first.{% endblock %}
+{% block content %}
+{% include "pharmacy/pos/_tabs.html" with active="held" %}
+<section class="card">
+  {% if sales %}
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th scope="col">Sale</th><th scope="col">Customer</th><th scope="col">Items</th><th scope="col">Held by</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+      <tbody>
+      {% for s in sales %}
+        <tr>
+          <td><span class="font-mono font-medium">{{ s.number }}</span><p class="text-label text-muted">held {{ s.held_at|date:"d M, H:i" }}</p>{% if s.hold_note %}<p class="text-label">{{ s.hold_note }}</p>{% endif %}</td>
+          <td>{{ s.bill_to }}{% if s.prescription %}<p class="text-label text-muted">Rx {{ s.prescription.number }}</p>{% endif %}</td>
+          <td>{{ s.lines }} line{{ s.lines|pluralize }} · {{ s.units|default:0 }} units</td>
+          <td>{{ s.cashier }}</td>
+          <td class="whitespace-nowrap text-right">
+            <form method="post" action="{% url 'pharmacy:pos-resume' s.pk %}" class="inline">{% csrf_token %}<button class="btn btn-primary btn-sm">Resume</button></form>
+            <form method="post" action="{% url 'pharmacy:pos-held-clear' s.pk %}" class="inline">{% csrf_token %}<button class="btn btn-ghost btn-sm" data-confirm="Discard {{ s.number }}? Nothing was charged." data-confirm-title="Clear held sale?" data-confirm-action="Clear" data-confirm-danger="true">Clear</button></form>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+    {% include "components/empty_state.html" with icon_name="inbox" title="No held sales" message="Press Hold sale (F4) on the till to park a sale while the customer is away." %}
+  {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,64 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}Hospital settings{% endblock %}
+{% block page_title %}Hospital &amp; branch settings{% endblock %}
+{% block page_subtitle %}Branding, contact details, defaults and localization.{% endblock %}
+{% block content %}
+{% include "partials/settings_tabs.html" %}
+<form method="post" enctype="multipart/form-data" class="grid gap-6 xl:grid-cols-3" novalidate>
+  {% csrf_token %}
+  <div class="space-y-6 xl:col-span-2">
+    <section class="card">
+      <h2 class="section-title mb-4">Details</h2>
+      <div class="grid gap-5 md:grid-cols-2">
+        {% include "components/field.html" with field=form.name %}
+        {% include "components/field.html" with field=form.registration_number %}
+        {% include "components/field.html" with field=form.phone %}
+        {% include "components/field.html" with field=form.email %}
+        {% include "components/field.html" with field=form.address wide=True %}
+      </div>
+    </section>
+    <section class="card">
+      <h2 class="section-title mb-4">Defaults &amp; localization</h2>
+      <div class="grid gap-5 md:grid-cols-2">
+        {% include "components/field.html" with field=form.timezone %}
+        {% include "components/field.html" with field=form.currency %}
+        {% include "components/field.html" with field=form.language %}
+        {% include "components/field.html" with field=form.patient_id_prefix %}
+        {% include "components/field.html" with field=form.receipt_prefix %}
+      </div>
+    </section>
+    <section class="card">
+      <h2 class="section-title mb-4">Receipts &amp; reports</h2>
+      <div class="grid gap-5">
+        <div class="field">
+          <span class="field-label">Logo</span>
+          <div class="flex items-center gap-4">
+            {% if form.instance.logo %}<img src="{{ form.instance.logo.url }}" alt="Current logo" class="h-16 w-16 rounded-control border border-line object-contain p-1">{% endif %}
+            {{ form.logo }}
+          </div>
+          <p class="field-help">PNG, JPG or WebP, up to 2 MB.</p>
+          {% for e in form.logo.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+        </div>
+        {% include "components/field.html" with field=form.report_header %}
+        {% include "components/field.html" with field=form.report_footer %}
+        {% include "components/field.html" with field=form.print_terms %}
+      </div>
+    </section>
+    <div class="flex gap-3">
+      <button type="submit" class="btn btn-primary">Save settings</button>
+      <a href="{% url 'organizations:hospital' %}" class="btn btn-secondary">Cancel</a>
+    </div>
+  </div>
+  <aside class="card h-fit">
+    <h2 class="section-title mb-3">Configuration notes</h2>
+    <ul class="space-y-2 text-body text-muted">
+      <li>Changes apply to the whole hospital, every branch.</li>
+      <li>Existing record IDs stay unchanged when prefixes change.</li>
+      <li>Historical invoices retain their details.</li>
+      <li>Urdu layout is a future localized variant.</li>
+      <li>Every change is recorded in the audit log.</li>
+    </ul>
+  </aside>
+</form>
+{% endblock %}

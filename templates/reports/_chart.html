@@ -1,0 +1,14 @@
+{% load reports %}
+{# Horizontal bar chart (no chart library). Context: chart, chart_kind, chart_title #}
+<section class="card" aria-label="{{ chart_title|default:'Chart' }}">
+  <h2 class="section-title">{{ chart_title }}</h2>
+  <ul class="mt-4 space-y-3">
+    {% for d in chart %}
+    <li class="grid grid-cols-[minmax(0,10rem)_1fr_auto] items-center gap-3 text-body sm:grid-cols-[minmax(0,14rem)_1fr_auto]">
+      <span class="truncate" title="{{ d.label }}">{{ d.label }}</span>
+      <span class="h-3 rounded-full bg-page" aria-hidden="true"><span class="block h-3 rounded-full bg-teal" style="width: {% bar_width d.value chart %}%"></span></span>
+      <span class="text-right font-medium whitespace-nowrap">{% if chart_kind == "money" %}{{ organization.currency }} {% endif %}{{ d.value|fmt:chart_kind }}</span>
+    </li>
+    {% endfor %}
+  </ul>
+</section>

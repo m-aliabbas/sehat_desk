@@ -1,0 +1,7 @@
+{# Pharmacy sub-navigation. Context: active ("pos" | "rx" | "held" | "sales") #}
+<nav class="tabs mb-6 overflow-x-auto" aria-label="Pharmacy sections">
+  <a class="tab whitespace-nowrap" href="{% url 'pharmacy:pos' %}" {% if active == "pos" %}aria-selected="true"{% endif %}>Point of sale</a>
+  <a class="tab whitespace-nowrap" href="{% url 'pharmacy:rx-queue' %}" {% if active == "rx" %}aria-selected="true"{% endif %}>Prescriptions</a>
+  <a class="tab whitespace-nowrap" href="{% url 'pharmacy:pos-held' %}" {% if active == "held" %}aria-selected="true"{% endif %}>Held sales</a>
+  <a class="tab whitespace-nowrap" href="{% url 'pharmacy:sale-list' %}" {% if active == "sales" %}aria-selected="true"{% endif %}>Sales &amp; returns</a>
+</nav>

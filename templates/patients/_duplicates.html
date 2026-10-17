@@ -1,0 +1,21 @@
+{% load ui %}
+{% if matches %}
+  <div class="space-y-3">
+    {% if matches.0.strong %}<span class="chip chip-danger">Possible duplicate</span>{% else %}<span class="chip chip-warning">Similar records</span>{% endif %}
+    <ul class="space-y-2">
+      {% for m in matches %}
+        <li class="rounded-control border {% if m.strong %}border-red/30 bg-red-soft/40{% else %}border-line{% endif %} p-3">
+          <a href="{% url 'patients:detail' m.patient.pk %}" target="_blank" class="font-medium text-ink hover:underline">{{ m.patient.full_name }}</a>
+          <span class="font-mono text-label text-muted">{{ m.patient.mrn }}</span>
+          <p class="text-label text-muted">{{ m.patient.age_label }} · {{ m.patient.phone_display|default:"no phone" }}</p>
+          <p class="mt-1 text-label font-medium {% if m.strong %}text-red{% else %}text-amber{% endif %}">{{ m.reasons|join:" · " }}</p>
+        </li>
+      {% endfor %}
+    </ul>
+  </div>
+{% elif has_input %}
+  <span class="chip chip-success">No match found</span>
+{% else %}
+  <span class="chip chip-neutral">Waiting for details</span>
+{% endif %}
+<p class="mt-4 text-label text-muted">Checked by mobile number, CNIC, name and date of birth. Shared family numbers may return more than one patient.</p>

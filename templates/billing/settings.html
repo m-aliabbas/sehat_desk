@@ -1,0 +1,54 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}Billing settings{% endblock %}
+{% block page_title %}Billing settings{% endblock %}
+{% block page_subtitle %}Payment methods, tax, discount limit and receipts. The invoice number prefix and printed terms are set under Hospital.{% endblock %}
+{% block content %}
+{% include "partials/settings_tabs.html" %}
+<div class="grid gap-6 xl:grid-cols-3">
+  <section class="card xl:col-span-2">
+    <h2 class="section-title mb-4">Payment methods</h2>
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th scope="col">Method</th><th scope="col">Reference needed</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+        <tbody>
+          {% for m in methods %}
+            <tr>
+              <td class="font-medium">{{ m.name }}</td>
+              <td>{% if m.requires_reference %}Yes{% else %}No{% endif %}</td>
+              <td>{% if m.is_active %}{% status_chip "active" %}{% else %}{% status_chip "inactive" %}{% endif %}</td>
+              <td class="text-right">
+                <form method="post" action="{% url 'billing:method-toggle' m.pk %}">{% csrf_token %}
+                  {% if m.is_active %}<button class="btn btn-ghost btn-sm text-red">Disable</button>{% else %}<button class="btn btn-ghost btn-sm">Enable</button>{% endif %}
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <form method="post" class="mt-5 grid gap-3 md:grid-cols-[1fr_auto_auto] md:items-end" novalidate>
+      {% csrf_token %}<input type="hidden" name="form" value="method">
+      {% include "components/field.html" with field=method_form.name %}
+      {% include "components/field.html" with field=method_form.requires_reference %}
+      <button class="btn btn-secondary">Add method</button>
+    </form>
+    <p class="field-help mt-2">Disabled methods stay on old payments but cannot be chosen for new ones.</p>
+  </section>
+  <section class="card h-fit">
+    <h2 class="section-title mb-4">Tax</h2>
+    <form method="post" class="space-y-4" novalidate>
+      {% csrf_token %}<input type="hidden" name="form" value="settings">
+      {% include "components/field.html" with field=form.tax_label %}
+      {% include "components/field.html" with field=form.default_tax_percent %}
+      <h3 class="pt-2 text-body font-semibold">Discounts</h3>
+      {% include "components/field.html" with field=form.max_discount_percent %}
+      <h3 class="pt-2 text-body font-semibold">Receipts</h3>
+      {% include "components/field.html" with field=form.receipt_message %}
+      <button class="btn btn-primary">Save</button>
+    </form>
+    <h2 class="section-title mt-8 mb-2">Who can discount</h2>
+    <p class="text-body text-muted">Only roles with <span class="font-mono text-ink">billing.discount</span> can give line or invoice discounts, and every discount needs a reason. Refunds need <span class="font-mono text-ink">billing.refund</span>. Change this under Roles.</p>
+  </section>
+</div>
+{% endblock %}

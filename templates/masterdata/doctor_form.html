@@ -1,0 +1,35 @@
+{% extends "layouts/app.html" %}
+{% block title %}{% if creating %}Add doctor{% else %}Edit {{ doctor }}{% endif %}{% endblock %}
+{% block page_title %}{% if creating %}Add doctor{% else %}Edit {{ doctor }}{% endif %}{% endblock %}
+{% block page_subtitle %}Clinical profile and fees. Sign-in access comes from the staff account's roles.{% endblock %}
+{% block content %}
+{% include "partials/settings_tabs.html" %}
+<form method="post" class="grid gap-6 xl:grid-cols-3" novalidate>
+  {% csrf_token %}
+  <section class="card xl:col-span-2">
+    <h2 class="section-title mb-4">Profile</h2>
+    {% for e in form.non_field_errors %}{% include "components/alert.html" with level="danger" message=e %}{% endfor %}
+    <div class="grid gap-5 md:grid-cols-2">
+      {% if form.user %}{% include "components/field.html" with field=form.user wide=True %}{% endif %}
+      {% include "components/field.html" with field=form.department %}
+      {% include "components/field.html" with field=form.specialty %}
+      {% include "components/field.html" with field=form.registration_number %}
+      {% include "components/field.html" with field=form.qualifications %}
+    </div>
+  </section>
+  <section class="card">
+    <h2 class="section-title mb-4">Fees &amp; booking</h2>
+    <div class="space-y-5">
+      {% include "components/field.html" with field=form.consultation_fee %}
+      {% include "components/field.html" with field=form.follow_up_fee %}
+      {% include "components/field.html" with field=form.follow_up_days %}
+      {% include "components/field.html" with field=form.slot_minutes %}
+      {% include "components/field.html" with field=form.allow_overbooking %}
+    </div>
+  </section>
+  <div class="flex gap-3 xl:col-span-3">
+    <button type="submit" class="btn btn-primary">{% if creating %}Add doctor{% else %}Save changes{% endif %}</button>
+    <a href="{% if doctor.pk %}{% url 'masterdata:doctor-detail' doctor.pk %}{% else %}{% url 'masterdata:doctor-list' %}{% endif %}" class="btn btn-secondary">Cancel</a>
+  </div>
+</form>
+{% endblock %}

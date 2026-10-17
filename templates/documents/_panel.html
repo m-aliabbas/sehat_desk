@@ -1,0 +1,72 @@
+{% load ui %}
+{% comment %}
+  Documents for a patient, optionally limited to one consultation / admission / lab order.
+  Context from apps.documents.services.panel_context. Optional: compact=True (sidebars).
+  Links are signed for the signed-in user and expire, so they are never shared or bookmarked.
+{% endcomment %}
+{% if not doc_can_view %}
+  {% include "components/empty_state.html" with icon_name="lock" title="Documents are restricted" message="Your role cannot view patient documents." compact=compact %}
+{% else %}
+<div class="card-header">
+  <div>
+    <h2 class="section-title">{% if doc_show_archived %}Archived documents{% else %}Documents{% endif %}</h2>
+    <p class="text-label text-muted">PDF, PNG, JPEG or WebP, up to {{ doc_max_mb }} MB. Stored privately; links expire after a few minutes.</p>
+  </div>
+  {% if doc_can_archive %}
+    {% if doc_show_archived %}<a class="btn btn-ghost btn-sm" href="?{% if tab %}tab={{ tab }}{% endif %}">Show current</a>
+    {% else %}<a class="btn btn-ghost btn-sm" href="?{% if tab %}tab={{ tab }}&amp;{% endif %}archived=1">Archived</a>{% endif %}
+  {% endif %}
+</div>
+
+{% if doc_can_upload and not doc_show_archived %}
+<form method="post" enctype="multipart/form-data" action="{% url 'documents:upload' doc_patient.pk %}" class="mb-5 grid gap-3 rounded-card border border-dashed border-line bg-page p-4 {% if not compact %}md:grid-cols-[2fr_1.5fr_1fr_auto] md:items-end{% endif %}">
+  {% csrf_token %}
+  <input type="hidden" name="next" value="{{ request.get_full_path }}">
+  {% for key, value in doc_link.items %}{% if value %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endif %}{% endfor %}
+  <div class="field"><label class="field-label" for="doc-file">File <span class="text-red" aria-hidden="true">*</span></label><input id="doc-file" type="file" name="file" required accept="{{ doc_accept }}" class="block text-body file:btn file:btn-secondary file:mr-3"></div>
+  <div class="field"><label class="field-label" for="doc-title">Title</label><input id="doc-title" name="title" maxlength="160" class="input" placeholder="Defaults to the file name"></div>
+  <div class="field"><label class="field-label" for="doc-category">Type</label>{{ doc_form.category }}</div>
+  <button class="btn btn-primary">{% icon "upload" "h-4 w-4" %} Upload</button>
+</form>
+{% endif %}
+
+{% if documents %}
+<ul class="divide-y divide-line">
+  {% for d in documents %}
+  <li class="flex flex-wrap items-start justify-between gap-3 py-3">
+    <div class="flex min-w-0 items-start gap-3">
+      <span class="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-control bg-blue-soft text-blue">{% icon "file" "h-4 w-4" %}</span>
+      <div class="min-w-0">
+        <a href="{{ d.view_url }}" target="_blank" rel="noopener" class="font-medium hover:underline">{{ d.title }}</a>
+        <p class="text-label text-muted">{{ d.get_category_display }} · {{ d.size_label }} · {{ d.created_at|date:"d M Y, H:i" }} by {{ d.uploaded_by }}{% if not compact %} · {{ d.source_label }}{% endif %}</p>
+        {% if d.is_archived %}<p class="text-label text-red">Archived {{ d.archived_at|date:"d M Y" }} by {{ d.archived_by }}: {{ d.archive_reason }}</p>{% endif %}
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      <a href="{{ d.download_url }}" class="btn btn-ghost btn-sm">Download</a>
+      {% if doc_can_archive %}
+        {% if d.is_archived %}
+          <form method="post" action="{% url 'documents:restore' d.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="btn btn-secondary btn-sm">Restore</button></form>
+        {% else %}
+          <details class="relative">
+            <summary class="btn btn-ghost btn-sm cursor-pointer text-red">Archive</summary>
+            <form method="post" action="{% url 'documents:archive' d.pk %}" class="absolute right-0 z-20 mt-2 w-72 space-y-2 rounded-card border border-line bg-white p-3 shadow-lg">{% csrf_token %}
+              <input type="hidden" name="next" value="{{ request.get_full_path }}">
+              <input name="reason" class="input" required maxlength="200" placeholder="Reason (wrong patient, duplicate …)" aria-label="Reason for archiving">
+              <button class="btn btn-danger btn-sm">Archive document</button>
+            </form>
+          </details>
+        {% endif %}
+      {% endif %}
+    </div>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+  {% if doc_show_archived %}
+    {% include "components/empty_state.html" with icon_name="inbox" title="No archived documents" compact=compact %}
+  {% else %}
+    {% include "components/empty_state.html" with icon_name="inbox" title="No documents yet" message="Uploaded reports, scans and letters appear here." compact=compact %}
+  {% endif %}
+{% endif %}
+{% endif %}

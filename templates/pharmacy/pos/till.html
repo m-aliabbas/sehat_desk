@@ -1,0 +1,36 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}Point of sale{% endblock %}
+{% block page_title %}Pharmacy point of sale{% endblock %}
+{% block page_subtitle %}{{ current_branch.name }} · {{ request.user.get_full_name|default:request.user.username }} · today {{ today.n }} sale{{ today.n|pluralize }}, {{ organization.currency }} {{ today.total|default:0|floatformat:"2g" }}{% endblock %}
+{% block page_actions %}
+  <a href="{% url 'pharmacy:rx-queue' %}" class="btn btn-secondary">Prescriptions{% if rx_waiting %} <span class="chip chip-warning ml-1">{{ rx_waiting }}</span>{% endif %}</a>
+  <a href="{% url 'pharmacy:dashboard' %}" class="btn btn-ghost">Inventory</a>
+{% endblock %}
+{% block content %}
+{% include "pharmacy/pos/_tabs.html" with active="pos" %}
+<div x-data
+     @keydown.f2.window.prevent="$refs.search.focus()"
+     @keydown.f4.window.prevent="document.getElementById('pos-hold')?.click()"
+     @keydown.f8.window.prevent="document.getElementById('pos-pay')?.click()">
+  <section class="card mb-6" x-data="{ q: '' }" @click.outside="q = ''">
+    <form hx-post="{% url 'pharmacy:pos-add' %}" hx-target="#pos-cart" hx-swap="outerHTML" @htmx:after-request="if ($event.detail.successful) { q = ''; $refs.search.value = '' }" class="flex flex-wrap items-end gap-3">
+      {% csrf_token %}
+      <div class="relative min-w-[16rem] flex-1">
+        <label class="field-label" for="pos-search">Scan barcode / search product</label>
+        <input id="pos-search" x-ref="search" name="q" type="search" autocomplete="off" autofocus class="input mt-1.5"
+               placeholder="Scan or type medicine, generic, or SKU — Enter adds a scanned item"
+               x-model="q" hx-get="{% url 'pharmacy:pos-search' %}" hx-trigger="input changed delay:200ms" hx-target="#pos-results" hx-swap="innerHTML" hx-include="this">
+        <div id="pos-results" class="absolute z-20 mt-1 w-full" x-show="q.length >= 2"></div>
+      </div>
+      <div class="w-24">
+        <label class="field-label" for="pos-qty">Qty</label>
+        <input id="pos-qty" name="quantity" type="number" min="1" value="1" class="input mt-1.5">
+      </div>
+      <button class="btn btn-primary">{% icon "plus" "h-4 w-4" %} Add</button>
+    </form>
+  </section>
+  {% include "pharmacy/pos/_cart.html" %}
+  <p class="mt-4 text-label text-muted">Shortcuts: F2 search · F4 hold · F8 take payment. Availability is checked again when you take payment; expired batches are never sold.</p>
+</div>
+{% endblock %}

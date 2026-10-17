@@ -1,0 +1,26 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}Admit patient{% endblock %}
+{% block page_title %}Admit patient{% endblock %}
+{% block page_subtitle %}Find the registered patient first. New patients are registered at reception.{% endblock %}
+{% block content %}
+<section class="card max-w-3xl">
+  <form method="get" class="flex flex-wrap items-end gap-3" role="search">
+    <div class="field flex-1"><label class="field-label" for="q">Patient</label><input id="q" name="q" value="{{ q }}" class="input" placeholder="Name, MRN or mobile" autofocus minlength="2"></div>
+    {% if request.GET.bed %}<input type="hidden" name="bed" value="{{ request.GET.bed }}">{% endif %}
+    <button class="btn btn-primary">{% icon "search" "h-4 w-4" %} Search</button>
+  </form>
+  {% if q %}
+  <ul class="mt-5 divide-y divide-line">
+    {% for p in results %}
+    <li class="flex flex-wrap items-center justify-between gap-3 py-3">
+      <span><span class="font-medium">{{ p.full_name }}</span> <span class="text-label text-muted">· <span class="font-mono">{{ p.mrn }}</span> · {{ p.age_label }} · {{ p.get_gender_display }}{% if p.phone %} · {{ p.phone_display }}{% endif %}</span></span>
+      <a href="?patient={{ p.pk }}{% if request.GET.bed %}&amp;bed={{ request.GET.bed }}{% endif %}" class="btn btn-secondary btn-sm">Admit</a>
+    </li>
+    {% empty %}
+    <li class="py-4 text-body text-muted">No active patient matches “{{ q }}”.{% if "patient.create" in sd_perms %} <a class="text-teal-deep underline" href="{% url 'patients:register' %}">Register a new patient</a>.{% endif %}</li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+</section>
+{% endblock %}

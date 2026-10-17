@@ -1,0 +1,27 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}Transfer · {{ admission.number }}{% endblock %}
+{% block page_title %}Bed transfer{% endblock %}
+{% block page_subtitle %}{{ admission.patient.full_name }} · {{ admission.number }}{% endblock %}
+{% block content %}
+<div class="grid gap-6 xl:grid-cols-[1fr_2fr]">
+  <section class="card">
+    <p class="text-label font-semibold tracking-wide text-muted uppercase">Current bed</p>
+    <p class="mt-1 text-[26px] font-bold">{{ admission.current_bed.code|default:"—" }}</p>
+    {% if admission.current_bed %}<p class="text-body text-muted">{{ admission.current_bed.room.ward.name }} · room {{ admission.current_bed.room.name }}{% if admission.current_bed.room.daily_rate %} · {{ admission.current_bed.room.daily_rate|floatformat:"0g" }}/day{% endif %}</p>{% endif %}
+    <p class="mt-4 text-label text-muted">Bed charges are counted per bed from the occupancy history, so the stay is billed correctly across transfers. The old bed is set to cleaning.</p>
+  </section>
+  <section class="card">
+    <form method="post" class="space-y-4">{% csrf_token %}
+      {% if form.non_field_errors %}{% include "components/alert.html" with level="danger" message=form.non_field_errors|join:" " %}{% endif %}
+      {% if form.to_bed.field.queryset %}
+        {% include "components/field.html" with field=form.to_bed %}
+        {% include "components/field.html" with field=form.reason %}
+        <div class="flex gap-3"><button class="btn btn-primary">{% icon "arrow-right-left" "h-4 w-4" %} Transfer</button><a href="{% url 'ipd:admission-detail' admission.pk %}" class="btn btn-ghost">Cancel</a></div>
+      {% else %}
+        {% include "components/empty_state.html" with icon_name="bed" title="No free beds" message="Free or clean a bed on the bed board first." compact=True %}
+      {% endif %}
+    </form>
+  </section>
+</div>
+{% endblock %}

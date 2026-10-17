@@ -1,0 +1,103 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000">
+<title>11 reports analytics</title>
+<rect x="0" y="0" width="1600" height="1000" rx="0" fill="#F3F8FB"/>
+<rect x="0" y="0" width="246" height="1000" rx="0" fill="#F8FCFE"/>
+<rect x="246" y="0" width="1354" height="76" rx="0" fill="white"/>
+<path d="M36 34 C23 17 4 37 18 50 L36 67 L54 50 C68 37 49 17 36 34Z" fill="#17B99F" transform="translate(13 -3)"/>
+<path d="M32 42 H41 L45 34 L50 51 L54 42 H68" stroke="white" fill="none" stroke-width="2"/>
+<text x="78" y="43" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="25" font-weight="700">SehatDesk</text>
+<text x="124" y="62" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="11" font-weight="400">by Vibe.Exe</text>
+<path d="M1 8 L9 1 L17 8 V18 H11 V12 H7 V18 H1Z" transform="translate(33 98)" fill="none" stroke="#34516F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="64" y="115" fill="#34516F" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">Dashboard</text>
+<path d="M1 4 H17 V8 Q12 10 17 12 V16 H1 V12 Q6 10 1 8Z" transform="translate(33 153)" fill="none" stroke="#34516F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="64" y="170" fill="#34516F" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">Reception &amp; tokens</text>
+<path d="M2 4 H16 V18 H2Z M5 1 V7 M13 1 V7 M2 9 H16" transform="translate(33 208)" fill="none" stroke="#34516F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="64" y="225" fill="#34516F" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">Appointments</text>
+<path d="M5 5 A4 4 0 1 0 13 5 A4 4 0 1 0 5 5 M1 19 V16 Q9 9 17 16 V19" transform="translate(33 263)" fill="none" stroke="#34516F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="64" y="280" fill="#34516F" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">Patients</text>
+<path d="M3 1 V7 Q3 13 9 13 Q15 13 15 7 V1 M9 13 V16 Q9 21 17 18 V14" transform="translate(33 318)" fill="none" stroke="#34516F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="64" y="335" fill="#34516F" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">Doctor workspace</text>
+<path d="M1 3 V18 M1 12 H18 V18 M4 7 H8 V12 M9 6 H16 V12" transform="translate(33 373)" fill="none" stroke="#34516F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="64" y="390" fill="#34516F" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">IPD &amp; wards</text>
+<path d="M6 1 H12 M7 1 V7 L1 17 Q0 19 3 19 H15 Q18 19 17 17 L11 7 V1 M4 12 H14" transform="translate(33 428)" fill="none" stroke="#34516F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="64" y="445" fill="#34516F" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">Laboratory</text>
+<path d="M4 3 Q8 -1 12 3 L17 8 Q21 12 17 16 Q13 20 9 16 L4 11 Q0 7 4 3 M7 13 L14 6" transform="translate(33 483)" fill="none" stroke="#34516F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="64" y="500" fill="#34516F" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">Pharmacy</text>
+<path d="M1 4 H18 V17 H1Z M1 8 H18 M4 13 H8" transform="translate(33 538)" fill="none" stroke="#34516F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="64" y="555" fill="#34516F" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">Billing &amp; payments</text>
+<rect x="17" y="583" width="211" height="44" rx="10" fill="#086C70"/>
+<path d="M2 18 V10 H5 V18 M8 18 V3 H11 V18 M14 18 V7 H17 V18" transform="translate(33 593)" fill="none" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="64" y="610" fill="white" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="500">Reports</text>
+<path d="M1 4 H18 M1 10 H18 M1 16 H18 M6 1 V7 M13 7 V13 M7 13 V19" transform="translate(33 648)" fill="none" stroke="#34516F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="64" y="665" fill="#34516F" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">Settings</text>
+<rect x="18" y="814" width="211" height="150" rx="15" fill="#E3F6F4"/>
+<text x="36" y="845" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="18" font-weight="600">Connected care.</text>
+<text x="36" y="870" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="18" font-weight="600">Better together.</text>
+<text x="36" y="900" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="12" font-weight="400">Sehat Medical Centre</text>
+<text x="36" y="921" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="12" font-weight="400">Main branch · Islamabad</text>
+<rect x="274" y="17" width="536" height="42" rx="10" fill="#F5F9FC" stroke="#E5EDF3"/>
+<text x="293" y="43" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="14" font-weight="400">⌕   Search patients, visits, orders...</text>
+<rect x="1190" y="24" width="120" height="27" rx="13" fill="#EDF2F7"/>
+<text x="1201" y="42" fill="#687D96" font-family="Inter, DejaVu Sans, sans-serif" font-size="12" font-weight="500">Demo workspace</text>
+<circle cx="1385" cy="38" r="18" fill="#DDF5EF"/>
+<text x="1374.2" y="43" fill="#008E81" font-family="Inter, DejaVu Sans, sans-serif" font-size="12" font-weight="600">A</text>
+<text x="1415" y="34" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="14" font-weight="600">Admin</text>
+<text x="1415" y="55" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="11" font-weight="400">Sehat Medical Centre</text>
+<text x="278" y="125" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="28" font-weight="700">Operational reports</text>
+<text x="278" y="152" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="14" font-weight="400">Review hospital activity with clear date and department filters.</text>
+<rect x="1350" y="111" width="214" height="40" rx="8" fill="#008E81"/>
+<text x="1365" y="136" fill="white" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="500">Export report</text>
+<text x="278" y="977" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="10" font-weight="400">SEHATDESK  /  DESKTOP CONCEPT  /  FICTIONAL DATA</text>
+<text x="1397" y="977" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="10" font-weight="400">1600 × 1000 desktop</text>
+<rect x="278" y="181" width="1304" height="102" rx="16" fill="white" stroke="#E5EDF3"/>
+<text x="300" y="208" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="12" font-weight="500">Date range</text>
+<rect x="300" y="220" width="330" height="43" rx="8" fill="#FBFDFF" stroke="#E5EDF3"/>
+<text x="313" y="247" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="14" font-weight="400">01–11 October 2026</text>
+<text x="652" y="208" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="12" font-weight="500">Department</text>
+<rect x="652" y="220" width="330" height="43" rx="8" fill="#FBFDFF" stroke="#E5EDF3"/>
+<text x="665" y="247" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="14" font-weight="400">All departments</text>
+<text x="1004" y="208" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="12" font-weight="500">Report type</text>
+<rect x="1004" y="220" width="330" height="43" rx="8" fill="#FBFDFF" stroke="#E5EDF3"/>
+<text x="1017" y="247" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="14" font-weight="400">Collections by service</text>
+<rect x="1355" y="221" width="204" height="40" rx="8" fill="#008E81"/>
+<text x="1370" y="246" fill="white" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="500">Apply filters</text>
+<rect x="278" y="301" width="310" height="111" rx="15" fill="#E5F8F2"/>
+<text x="299" y="330" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">Collected</text>
+<text x="299" y="371" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="31" font-weight="700">Rs 684,500</text>
+<text x="299" y="395" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="12" font-weight="400">Cash, card, and bank transfer</text>
+<rect x="604" y="301" width="310" height="111" rx="15" fill="#E9F4FF"/>
+<text x="625" y="330" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">Outstanding</text>
+<text x="625" y="371" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="31" font-weight="700">Rs 42,800</text>
+<text x="625" y="395" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="12" font-weight="400">Unpaid invoice balance</text>
+<rect x="930" y="301" width="310" height="111" rx="15" fill="#F0EDFF"/>
+<text x="951" y="330" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">Completed visits</text>
+<text x="951" y="371" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="31" font-weight="700">742</text>
+<text x="951" y="395" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="12" font-weight="400">Across OPD departments</text>
+<rect x="1256" y="301" width="310" height="111" rx="15" fill="#FFF5E7"/>
+<text x="1277" y="330" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">Average wait</text>
+<text x="1277" y="371" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="31" font-weight="700">16 min</text>
+<text x="1277" y="395" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="12" font-weight="400">Arrival to consultation</text>
+<rect x="278" y="430" width="1304" height="360" rx="16" fill="white" stroke="#E5EDF3"/>
+<text x="300" y="462" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="18" font-weight="600">Collections by service</text>
+<text x="300" y="485" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="12" font-weight="400">Selected period · PKR</text>
+<text x="302" y="533" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="14" font-weight="400">Consultation</text>
+<rect x="475" y="515" width="856" height="22" rx="7" fill="#EDF4F7"/>
+<rect x="475" y="515" width="800.0" height="22" rx="7" fill="#12B499"/>
+<text x="1370" y="533" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="14" font-weight="400">Rs 320,000</text>
+<text x="302" y="591" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="14" font-weight="400">Laboratory</text>
+<rect x="475" y="573" width="856" height="22" rx="7" fill="#EDF4F7"/>
+<rect x="475" y="573" width="537.5" height="22" rx="7" fill="#12B499"/>
+<text x="1370" y="591" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="14" font-weight="400">Rs 215,000</text>
+<text x="302" y="649" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="14" font-weight="400">Pharmacy</text>
+<rect x="475" y="631" width="856" height="22" rx="7" fill="#EDF4F7"/>
+<rect x="475" y="631" width="273.75" height="22" rx="7" fill="#12B499"/>
+<text x="1370" y="649" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="14" font-weight="400">Rs 109,500</text>
+<text x="302" y="707" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="14" font-weight="400">IPD services</text>
+<rect x="475" y="689" width="856" height="22" rx="7" fill="#EDF4F7"/>
+<rect x="475" y="689" width="100.0" height="22" rx="7" fill="#12B499"/>
+<text x="1370" y="707" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="14" font-weight="400">Rs 40,000</text>
+<rect x="278" y="807" width="1304" height="137" rx="16" fill="white" stroke="#E5EDF3"/>
+<text x="300" y="839" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="18" font-weight="600">Report settings</text>
+<text x="300" y="868" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">Collection totals use recorded payments; billed revenue and outstanding invoices are reported separately.</text>
+<text x="300" y="891" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">Filter scope: All departments · Main branch · 01–11 October 2026</text>
+</svg>

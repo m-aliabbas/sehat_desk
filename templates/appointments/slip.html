@@ -1,0 +1,23 @@
+{% extends "print/a5.html" %}
+{% block title %}Appointment {{ appt.number }}{% endblock %}
+{% block print_label %}Print slip{% endblock %}
+{% block close_button %}<a class="btn btn-secondary" href="{% url 'appointments:detail' appt.pk %}">Back to appointment</a>{% endblock %}
+{% block document %}
+    {% include "print/_letterhead.html" with org=request.organization branch=appt.branch doc_title="Appointment slip" doc_number=appt.number doc_status=appt.get_status_display %}
+    <section class="py-5 text-center">
+      <p class="text-label text-muted uppercase">Appointment</p>
+      <p class="text-section-title font-bold">{{ appt.date|date:"l, j F Y" }}</p>
+      <p class="font-mono text-[28px] font-bold">{{ appt.start_time|time:"H:i" }}</p>
+      <p class="mt-1 font-semibold">{{ appt.doctor }}</p>
+      <p class="text-label text-muted">{{ appt.department }} · {{ appt.get_visit_type_display }}</p>
+    </section>
+    <dl class="grid grid-cols-2 gap-3 border-t border-line pt-4 text-body">
+      <div><dt class="text-label text-muted">Patient</dt><dd class="font-semibold">{{ appt.patient.full_name }}</dd></div>
+      <div><dt class="text-label text-muted">MRN</dt><dd class="font-mono">{{ appt.patient.mrn }}</dd></div>
+      <div><dt class="text-label text-muted">Expected fee</dt><dd>{{ request.organization.currency }} {{ appt.fee|floatformat:"0g" }}</dd></div>
+      <div><dt class="text-label text-muted">Branch</dt><dd>{{ appt.branch.name }}</dd></div>
+    </dl>
+    {% if appt.status == "cancelled" %}<p class="mt-4 text-center font-bold text-red uppercase">Cancelled</p>{% endif %}
+    <p class="mt-6 text-center text-body font-semibold">Please arrive 15 minutes early and bring this slip or your MRN.</p>
+    {% include "print/_footer.html" with org=request.organization %}
+{% endblock %}

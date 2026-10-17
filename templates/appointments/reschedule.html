@@ -1,0 +1,33 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}Reschedule {{ appt.number }}{% endblock %}
+{% block page_title %}Reschedule {{ appt.number }}{% endblock %}
+{% block page_subtitle %}{{ appt.patient.full_name }} · currently {{ appt.date|date:"D j M" }} at {{ appt.start_time|time:"H:i" }} with {{ appt.doctor }}{% endblock %}
+{% block content %}
+<form method="post" class="card max-w-4xl" x-data="{ time: '' }" @slot-picked.window="time = $event.detail" novalidate>
+  {% csrf_token %}
+  <input type="hidden" name="time" :value="time">
+  <input type="hidden" name="exclude" value="{{ appt.pk }}">
+  {% if error %}{% include "components/alert.html" with level="danger" title="Could not reschedule" message=error %}{% endif %}
+  <div class="mt-4 grid gap-5 md:grid-cols-2">
+    <div class="field">
+      <label class="field-label" for="id_doctor">Doctor</label>
+      <select id="id_doctor" name="doctor" class="select">
+        {% for d in doctors %}<option value="{{ d.pk }}" {% if d.pk == appt.doctor_id %}selected{% endif %}>{{ d.display_name }} · {{ d.department }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="field">
+      <label class="field-label" for="id_date">New date</label>
+      <input id="id_date" type="date" name="date" class="input" value="{{ default_date|date:'Y-m-d' }}">
+    </div>
+  </div>
+  <div class="mt-5" hx-get="{% url 'appointments:slots' %}" hx-trigger="load, change from:#id_doctor, change from:#id_date"
+       hx-include="#id_doctor, #id_date, [name=exclude]" hx-vals='{"patient": "{{ appt.patient_id }}"}'>
+    <p class="text-body text-muted">Loading slots…</p>
+  </div>
+  <div class="mt-6 flex gap-3">
+    <button type="submit" class="btn btn-primary" :disabled="!time">Move appointment</button>
+    <a href="{% url 'appointments:detail' appt.pk %}" class="btn btn-secondary">Back</a>
+  </div>
+</form>
+{% endblock %}

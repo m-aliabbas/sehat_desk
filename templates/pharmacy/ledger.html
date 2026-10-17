@@ -1,0 +1,13 @@
+{% extends "layouts/app.html" %}
+{% block title %}Stock ledger{% endblock %}
+{% block page_title %}Stock ledger{% endblock %}
+{% block page_subtitle %}Every stock change in {{ current_branch.name }}. Entries are never edited; corrections are new entries.{% endblock %}
+{% block content %}
+<section class="card">
+  <form method="get" class="mb-5 grid gap-3 md:grid-cols-[1fr_auto]" x-data @change="$el.submit()">
+    <input type="search" name="q" value="{{ q }}" class="input" placeholder="Search product, SKU or barcode" aria-label="Search">
+    <select name="kind" class="select" aria-label="Movement type"><option value="">All movements</option>{% for v, l in kinds %}<option value="{{ v }}" {% if kind == v %}selected{% endif %}>{{ l }}</option>{% endfor %}</select>
+  </form>
+  {% include "pharmacy/_ledger_table.html" %}
+</section>
+{% endblock %}

@@ -1,0 +1,44 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}Notifications{% endblock %}
+{% block page_title %}Notifications{% endblock %}
+{% block page_subtitle %}{{ unread }} unread · alerts for your role in this hospital.{% endblock %}
+{% block page_actions %}
+  {% if unread %}<form method="post" action="{% url 'notifications:read-all' %}">{% csrf_token %}<button class="btn btn-secondary">Mark all read</button></form>{% endif %}
+{% endblock %}
+{% block content %}
+<form method="get" class="mb-4 flex flex-wrap items-end gap-3">
+  <nav class="tabs mr-4" aria-label="Filter">
+    <a class="tab" href="?show=all{% if event %}&amp;event={{ event }}{% endif %}" {% if show != "unread" %}aria-selected="true"{% endif %}>All</a>
+    <a class="tab" href="?show=unread{% if event %}&amp;event={{ event }}{% endif %}" {% if show == "unread" %}aria-selected="true"{% endif %}>Unread</a>
+  </nav>
+  <input type="hidden" name="show" value="{{ show }}">
+  <div class="field"><label class="field-label" for="event">Type</label><select id="event" name="event" class="select"><option value="">All types</option>{% for v, l in events %}<option value="{{ v }}" {% if event == v %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+  <button class="btn btn-secondary">Filter</button>
+</form>
+<section class="card">
+  {% if page_obj.object_list %}
+  <ul class="divide-y divide-line">
+    {% for n in page_obj %}
+    <li class="flex flex-wrap items-start justify-between gap-3 py-3 {% if not n.is_read %}font-medium{% endif %}">
+      <div class="flex min-w-0 items-start gap-3">
+        <span class="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full {% if n.level == 'critical' %}bg-red-soft text-red{% elif n.level == 'warning' %}bg-amber-soft text-amber{% else %}bg-mint text-teal-deep{% endif %}">{% icon n.icon "h-4 w-4" %}</span>
+        <div class="min-w-0">
+          <p class="text-body">{% if not n.is_read %}<span class="sr-only">Unread: </span>{% endif %}{{ n.title }}{% if n.level == "critical" %} <span class="chip chip-danger">Critical</span>{% endif %}</p>
+          {% if n.body %}<p class="text-label font-normal text-muted">{{ n.body }}</p>{% endif %}
+          <p class="text-label font-normal text-muted">{{ n.get_event_display }} · {{ n.created_at|timesince }} ago</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        {% if n.url %}<form method="post" action="{% url 'notifications:open' n.pk %}">{% csrf_token %}<button class="btn btn-secondary btn-sm">Open</button></form>{% endif %}
+        {% if not n.is_read %}<form method="post" action="{% url 'notifications:read' n.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="btn btn-ghost btn-sm">Mark read</button></form>{% endif %}
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+  {% include "components/pagination.html" %}
+  {% else %}
+    {% include "components/empty_state.html" with icon_name="bell" title="You're all caught up" message="Alerts for appointments, lab results, stock and ward tasks appear here." %}
+  {% endif %}
+</section>
+{% endblock %}

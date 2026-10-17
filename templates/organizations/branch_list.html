@@ -1,0 +1,40 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}Branches{% endblock %}
+{% block page_title %}Branches{% endblock %}
+{% block page_subtitle %}Locations of this hospital. Staff access and records are scoped by branch.{% endblock %}
+{% block page_actions %}<a href="{% url 'organizations:branch-create' %}" class="btn btn-primary">{% icon "plus" "h-4 w-4" %} New branch</a>{% endblock %}
+{% block content %}
+{% include "partials/settings_tabs.html" %}
+<section class="card">
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th scope="col">Branch</th><th scope="col">Code</th><th scope="col">City</th><th scope="col">Phone</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+      <tbody>
+        {% for b in branches %}
+          <tr>
+            <td class="font-medium">{{ b.name }}{% if b.is_main %} <span class="chip chip-info">Main</span>{% endif %}</td>
+            <td class="font-mono text-label">{{ b.code }}</td>
+            <td>{{ b.city|default:"—" }}</td>
+            <td>{{ b.phone|default:"—" }}</td>
+            <td>{% if b.is_active %}{% status_chip "active" %}{% else %}{% status_chip "inactive" %}{% endif %}</td>
+            <td class="text-right whitespace-nowrap">
+              <a href="{% url 'organizations:branch-edit' b.pk %}" class="btn btn-ghost btn-sm">Edit</a>
+              {% if not b.is_main %}
+              <form method="post" action="{% url 'organizations:branch-toggle-active' b.pk %}" class="inline">
+                {% csrf_token %}
+                {% if b.is_active %}
+                  <button class="btn btn-ghost btn-sm text-red" data-confirm="Staff assigned only to {{ b.name }} will lose access until it is reactivated. Its records are kept." data-confirm-title="Deactivate {{ b.name }}?" data-confirm-action="Deactivate" data-confirm-danger="true">Deactivate</button>
+                {% else %}
+                  <button class="btn btn-ghost btn-sm">Activate</button>
+                {% endif %}
+              </form>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

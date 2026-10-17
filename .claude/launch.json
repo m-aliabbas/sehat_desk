@@ -1,0 +1,25 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "sehatdesk",
+      "runtimeExecutable": "/opt/miniconda3/envs/agent_dev311/bin/python",
+      "runtimeArgs": [
+        "manage.py",
+        "runserver",
+        "8000"
+      ],
+      "port": 8000
+    },
+    {
+      "name": "sehatdesk-alt",
+      "runtimeExecutable": "/opt/miniconda3/envs/agent_dev311/bin/python",
+      "runtimeArgs": [
+        "manage.py",
+        "runserver",
+        "8011"
+      ],
+      "port": 8011
+    }
+  ]
+}

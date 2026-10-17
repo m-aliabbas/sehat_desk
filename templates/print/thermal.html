@@ -1,0 +1,6 @@
+{% extends "print/base.html" %}
+{# 80 mm thermal receipt printers; the page grows with the content. #}
+{% block page_size %}80mm auto{% endblock %}
+{% block page_margin %}4mm{% endblock %}
+{% block print_sheet_css %}{% endblock %}
+{% block sheet_class %}w-[80mm] p-5{% endblock %}

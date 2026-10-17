@@ -1,0 +1,43 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}Inpatients{% endblock %}
+{% block page_title %}Inpatients{% endblock %}
+{% block page_subtitle %}{{ current_branch.name }} · current and past admissions.{% endblock %}
+{% block page_actions %}{% if "ipd.manage" in sd_perms %}<a href="{% url 'ipd:admit' %}" class="btn btn-primary">{% icon "plus" "h-4 w-4" %} Admit patient</a>{% endif %}{% endblock %}
+{% block content %}
+<nav class="tabs mb-4" aria-label="Admission status">
+  <a class="tab" href="?state=current" {% if state == "current" %}aria-selected="true"{% endif %}>Current</a>
+  <a class="tab" href="?state=discharged" {% if state == "discharged" %}aria-selected="true"{% endif %}>Discharged</a>
+  <a class="tab" href="?state=all" {% if state == "all" %}aria-selected="true"{% endif %}>All</a>
+</nav>
+<form method="get" class="mb-4 flex flex-wrap items-end gap-3" role="search">
+  <input type="hidden" name="state" value="{{ state }}">
+  <div class="field min-w-48 flex-1"><label class="field-label" for="q">Search</label><input id="q" name="q" value="{{ q }}" class="input" placeholder="Name, MRN or admission number"></div>
+  <div class="field"><label class="field-label" for="ward">Ward</label><select id="ward" name="ward" class="select"><option value="">All wards</option>{% for w in wards %}<option value="{{ w.pk }}" {% if ward == w.pk|stringformat:"s" %}selected{% endif %}>{{ w.name }}</option>{% endfor %}</select></div>
+  <button class="btn btn-secondary">Search</button>
+</form>
+<section class="card">
+  {% if admissions %}
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th scope="col">Admission</th><th scope="col">Patient</th><th scope="col">Bed</th><th scope="col">Doctor</th><th scope="col">Stay</th><th scope="col">Status</th></tr></thead>
+      <tbody>
+        {% for a in admissions %}
+        <tr>
+          <td><a href="{% url 'ipd:admission-detail' a.pk %}" class="font-mono font-medium hover:underline">{{ a.number }}</a><p class="text-label text-muted">{{ a.admitted_at|date:"d M Y, H:i" }}</p></td>
+          <td>{{ a.patient.full_name }}<p class="text-label text-muted"><span class="font-mono">{{ a.patient.mrn }}</span> · {{ a.patient.age_label }}</p></td>
+          <td>{% if a.current_bed and a.is_active %}{{ a.current_bed.code }}<p class="text-label text-muted">{{ a.current_bed.room.ward.name }}</p>{% else %}—{% endif %}</td>
+          <td>{{ a.admitting_doctor }}<p class="text-label text-muted">{{ a.department }}</p></td>
+          <td>Day {{ a.length_of_stay_days }}{% if a.discharged_at %}<p class="text-label text-muted">Out {{ a.discharged_at|date:"d M" }}</p>{% endif %}</td>
+          <td>{% status_chip a.status a.get_status_display %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% include "components/pagination.html" %}
+  {% else %}
+    {% include "components/empty_state.html" with icon_name="bed" title="No admissions" message="Admitted patients in this branch appear here." %}
+  {% endif %}
+</section>
+{% endblock %}

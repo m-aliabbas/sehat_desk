@@ -1,0 +1,18 @@
+{# Patient picker results. Clicking a row dispatches "patient-picked" with the patient's details. #}
+{% if results %}
+  <ul class="divide-y divide-line overflow-hidden rounded-card border border-line bg-white shadow-lg" role="listbox">
+    {% for p in results %}
+      <li role="option">
+        <button type="button" class="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-mint/50"
+                @click="$dispatch('patient-picked', { id: {{ p.pk }}, label: '{{ p.full_name|escapejs }} · {{ p.mrn|escapejs }}' })">
+          <span><span class="font-medium">{{ p.full_name }}</span><span class="block text-label text-muted">{{ p.age_label }} · {{ p.get_gender_display }} · {{ p.phone_display }}</span></span>
+          <span class="font-mono text-label text-muted">{{ p.mrn }}</span>
+        </button>
+      </li>
+    {% endfor %}
+  </ul>
+{% elif q|length >= 2 %}
+  <div class="rounded-card border border-line bg-white p-4 text-body text-muted shadow-lg">
+    No patient found. {% if "patient.create" in sd_perms %}<a class="font-medium text-teal-deep underline" href="{% url 'patients:register' %}?mode=quick">Register a new patient</a>.{% endif %}
+  </div>
+{% endif %}

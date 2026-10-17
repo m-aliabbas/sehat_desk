@@ -1,0 +1,26 @@
+{% load ui %}
+{% if state == "error" %}
+  {% url 'core:design-system-table' as retry_url %}
+  {% include "components/error_state.html" with title="Could not load appointments" retry_url=retry_url retry_target="#demo-table" %}
+{% elif not page_obj.object_list %}
+  {% include "components/empty_state.html" with icon_name="calendar" title="No appointments found" message="Try a different date or clear the filters." %}
+{% else %}
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr><th scope="col">MRN</th><th scope="col">Patient</th><th scope="col">Time</th><th scope="col">Status</th></tr>
+      </thead>
+      <tbody>
+        {% for row in page_obj %}
+          <tr>
+            <td class="font-mono text-label text-muted">{{ row.mrn }}</td>
+            <td class="font-medium">{{ row.name }}</td>
+            <td>{{ row.time }}</td>
+            <td>{% status_chip row.status %}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% include "components/pagination.html" with page_obj=page_obj hx_target="#demo-table" %}
+{% endif %}

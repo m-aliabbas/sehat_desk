@@ -1,0 +1,25 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}Choose your workspace{% endblock %}
+{% block page_title %}Choose your workspace{% endblock %}
+{% block page_subtitle %}Continue in a branch assigned to your account. You can switch later from the top bar.{% endblock %}
+{% block content %}
+<div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+  {% for row in rows %}
+    <form method="post" action="{% url 'accounts:switch-branch' %}">
+      {% csrf_token %}
+      <input type="hidden" name="branch" value="{{ row.branch.id }}">
+      <button type="submit" class="card block h-full w-full text-left transition hover:border-teal {% if row.current %}border-teal bg-mint/40{% endif %}">
+        <span class="flex h-12 w-12 items-center justify-center rounded-full bg-mint text-teal-deep">{% icon "building" %}</span>
+        <span class="section-title mt-4 block">{{ row.branch.name }}</span>
+        <span class="mt-1 block text-body text-muted">{{ row.branch.city|default:row.branch.code }}</span>
+        <span class="mt-4 flex flex-wrap gap-2">
+          {% for role in row.roles %}<span class="chip chip-success">{{ role }}</span>{% endfor %}
+          {% if row.current %}<span class="chip chip-info">Current</span>{% endif %}
+        </span>
+      </button>
+    </form>
+  {% endfor %}
+</div>
+<p class="mt-6 text-label text-muted">Only assigned branches are shown. Additional access requires administrator approval.</p>
+{% endblock %}

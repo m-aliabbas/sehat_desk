@@ -1,0 +1,53 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}Products{% endblock %}
+{% block page_title %}Medicine &amp; product catalogue{% endblock %}
+{% block page_subtitle %}Stock shown for {{ current_branch.name }} (saleable, unexpired batches).{% endblock %}
+{% block page_actions %}{% if can_manage %}<a href="{% url 'pharmacy:receive' %}" class="btn btn-secondary">Receive stock</a><a href="{% url 'pharmacy:product-create' %}" class="btn btn-primary">{% icon "plus" "h-4 w-4" %} New product</a>{% endif %}{% endblock %}
+{% block content %}
+<div class="grid gap-6 xl:grid-cols-[1fr_280px]">
+<section class="card">
+  <nav class="tabs mb-4" aria-label="Product filters">
+    <a class="tab" href="?" {% if not filter %}aria-selected="true"{% endif %}>All</a>
+    <a class="tab" href="?filter=low" {% if filter == "low" %}aria-selected="true"{% endif %}>Low stock</a>
+    <a class="tab" href="?filter=out" {% if filter == "out" %}aria-selected="true"{% endif %}>Out of stock</a>
+    <a class="tab" href="?filter=inactive" {% if filter == "inactive" %}aria-selected="true"{% endif %}>Inactive</a>
+  </nav>
+  <form method="get" class="mb-4"><input type="hidden" name="filter" value="{{ filter }}"><label class="sr-only" for="p-q">Search</label><input id="p-q" type="search" name="q" value="{{ q }}" class="input" placeholder="Search brand, generic, SKU or scan a barcode" autofocus></form>
+  {% if products %}
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th scope="col">Product</th><th scope="col">Category</th><th scope="col" class="text-right">Price / unit</th><th scope="col" class="text-right">In stock</th><th scope="col">Status</th></tr></thead>
+      <tbody>
+        {% for p in products %}
+        <tr>
+          <td><a href="{% url 'pharmacy:product-detail' p.pk %}" class="font-medium hover:underline">{{ p.display_name }}</a><p class="text-label text-muted">{{ p.generic_name|default:"—" }} · <span class="font-mono">{{ p.sku }}</span>{% if p.requires_prescription %} · Rx only{% endif %}</p></td>
+          <td>{{ p.category|default:"—" }}</td>
+          <td class="text-right">{{ p.sale_price|floatformat:"2g" }}<p class="text-label text-muted">{{ p.get_unit_display|lower }}{% if p.pack_size > 1 %}, pack of {{ p.pack_size }}{% endif %}</p></td>
+          <td class="text-right font-semibold">{{ p.stock }}{% if p.expired_stock %}<p class="text-label font-normal text-red">+{{ p.expired_stock }} expired</p>{% endif %}</td>
+          <td>{% if not p.is_active %}{% status_chip "inactive" %}{% elif p.stock == 0 %}<span class="chip chip-danger">Out of stock</span>{% elif p.reorder_level and p.stock <= p.reorder_level %}<span class="chip chip-warning">Reorder</span>{% else %}<span class="chip chip-success">In stock</span>{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% include "components/pagination.html" %}
+  {% elif q or filter %}
+    {% include "components/empty_state.html" with icon_name="search" title="No products match" message="Try another name, or clear the filter." %}
+  {% else %}
+    {% url 'pharmacy:product-create' as create_url %}
+    {% include "components/empty_state.html" with icon_name="package" title="No products yet" message="Add the medicines and items your pharmacy stocks, then receive stock into batches." action_url=create_url action_label="New product" %}
+  {% endif %}
+</section>
+<section class="card h-fit">
+  <h2 class="section-title mb-3">Categories</h2>
+  <div class="flex flex-wrap gap-2">{% for c in categories %}<span class="chip chip-neutral">{{ c.name }}</span>{% empty %}<p class="text-label text-muted">None yet.</p>{% endfor %}</div>
+  {% if can_manage %}
+  <form method="post" action="{% url 'pharmacy:category-create' %}" class="mt-4 flex items-end gap-2">{% csrf_token %}
+    <div class="field flex-1"><label class="field-label" for="pc-name">Add category</label><input id="pc-name" name="name" class="input" required maxlength="80" placeholder="e.g. Antibiotics"></div>
+    <button class="btn btn-secondary">Add</button>
+  </form>
+  {% endif %}
+</section>
+</div>
+{% endblock %}

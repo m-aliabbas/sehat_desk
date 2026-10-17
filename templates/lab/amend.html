@@ -1,0 +1,34 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}Amend {{ item.test_name }}{% endblock %}
+{% block page_title %}Amend a verified result{% endblock %}
+{% block page_subtitle %}<span class="font-mono">{{ order.number }}</span> · {{ order.patient.full_name }} · {{ item.test_name }}{% endblock %}
+{% block content %}
+<div class="grid gap-6 xl:grid-cols-[1fr_380px]">
+  <form method="post" class="card" novalidate>
+    {% csrf_token %}
+    {% if error %}{% include "components/alert.html" with level="danger" message=error %}{% endif %}
+    <p class="mb-4 rounded-control bg-amber-soft p-3 text-body text-amber">The current result stays on record as version {{ current.version }}. The amendment becomes version {{ current.version|add:1 }}, must be verified again, and the report is re-released showing that it was amended.</p>
+    <div class="grid gap-5">
+      <div class="field"><label class="field-label" for="am-value">Corrected result {% if item.unit %}({{ item.unit }}){% endif %}</label>
+        {% if item.test.result_type == "numeric" %}<input id="am-value" name="value" class="input" inputmode="decimal" required value="{{ request.POST.value|default:current.display_value }}">
+        {% elif item.test.result_type == "text" %}<textarea id="am-value" name="value" class="input" rows="3" required>{{ request.POST.value|default:current.display_value }}</textarea>
+        {% else %}<select id="am-value" name="value" class="select">{% for o in item.test.option_list %}<option {% if o == current.display_value %}selected{% endif %}>{{ o }}</option>{% endfor %}</select>{% endif %}
+      </div>
+      <div class="field"><label class="field-label" for="am-interp">Interpretation</label><textarea id="am-interp" name="interpretation" rows="2" class="input">{{ request.POST.interpretation|default:current.interpretation }}</textarea></div>
+      <div class="field"><label class="field-label" for="am-reason">Reason for amendment <span class="text-red" aria-hidden="true">*</span></label><input id="am-reason" name="reason" class="input" required maxlength="300" value="{{ request.POST.reason }}" placeholder="e.g. Transcription error, rerun on second analyser"></div>
+    </div>
+    <div class="mt-6 flex gap-3"><button class="btn btn-primary">Save amendment</button><a href="{% url 'lab:order-detail' order.pk %}" class="btn btn-secondary">Cancel</a></div>
+  </form>
+  <section class="card">
+    <h2 class="section-title mb-3">Version history</h2>
+    <ol class="space-y-3">
+      {% for r in history %}
+      <li class="text-body"><p class="font-semibold">v{{ r.version }} · {{ r.display_value }} {{ r.unit }} {% if r.flag and r.flag != "normal" %}({{ r.get_flag_display }}){% endif %}{% if r.is_current %} <span class="chip chip-info">Current</span>{% endif %}</p>
+        <p class="text-label text-muted">Entered by {{ r.entered_by }} {{ r.entered_at|date:"d M Y H:i" }}{% if r.verified_by %} · verified by {{ r.verified_by }}{% endif %}</p>
+        {% if r.amendment_reason %}<p class="text-label text-amber">Reason: {{ r.amendment_reason }}</p>{% endif %}</li>
+      {% endfor %}
+    </ol>
+  </section>
+</div>
+{% endblock %}

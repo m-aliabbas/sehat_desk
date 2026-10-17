@@ -1,0 +1,129 @@
+{% load ui %}
+{# The till: cart lines and the sale summary. Every till action re-renders this block. #}
+<div id="pos-cart" class="grid gap-6 xl:grid-cols-3">
+  <section class="card xl:col-span-2">
+    <div class="card-header">
+      <h2 class="section-title">Current sale{% if cart %} · <span class="font-mono">{{ cart.number }}</span>{% endif %}</h2>
+      {% if cart and cart.prescription %}
+        <span class="chip chip-info">Rx {{ cart.prescription.number }}</span>
+      {% endif %}
+    </div>
+    {% if items %}
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th scope="col">Item</th><th scope="col">Batch</th><th scope="col" class="w-24">Qty</th><th scope="col" class="text-right">Price</th><th scope="col" class="text-right">Total</th><th scope="col"><span class="sr-only">Remove</span></th></tr></thead>
+        <tbody>
+          {% for i in items %}
+          <tr>
+            <td>
+              <p class="font-medium">{{ i.product.display_name }}{% if i.product.requires_prescription %} <span class="chip chip-warning">Rx only</span>{% endif %}</p>
+              <p class="text-label text-muted">{{ i.product.generic_name|default:"" }}{% if i.prescription_item %} · for {{ i.prescription_item.medicine_name }}{% endif %}</p>
+              {% if i.substituted %}<p class="text-label text-amber">Substitute — {{ i.substitution_reason }}</p>{% endif %}
+              <p class="mt-1 flex flex-wrap gap-1">
+                {% if i.near_expiry %}<span class="chip chip-warning">Expires {{ i.batch.expiry_date|date:"d M Y" }}</span>{% endif %}
+                {% if i.low_after %}<span class="chip chip-neutral">Low stock: {{ i.left_after }} left</span>{% endif %}
+              </p>
+            </td>
+            <td>
+              <label class="sr-only" for="batch-{{ i.pk }}">Batch for {{ i.product.display_name }}</label>
+              <select id="batch-{{ i.pk }}" name="batch" class="select min-w-[9rem]" hx-post="{% url 'pharmacy:pos-item' i.pk %}" hx-trigger="change" hx-target="#pos-cart" hx-swap="outerHTML">
+                {% for b in i.batch_options %}<option value="{{ b.pk }}" {% if b.pk == i.batch_id %}selected{% endif %}>{{ b.batch_number }} · exp {{ b.expiry_date|date:"m/y" }} · {{ b.quantity_available }}</option>{% endfor %}
+              </select>
+            </td>
+            <td>
+              <label class="sr-only" for="qty-{{ i.pk }}">Quantity of {{ i.product.display_name }}</label>
+              <input id="qty-{{ i.pk }}" name="quantity" type="number" min="0" value="{{ i.quantity }}" class="input w-20" hx-post="{% url 'pharmacy:pos-item' i.pk %}" hx-trigger="change" hx-target="#pos-cart" hx-swap="outerHTML">
+            </td>
+            <td class="text-right">{{ i.unit_price|floatformat:"2g" }}{% if i.tax_percent %}<p class="text-label text-muted">+{{ i.tax_percent|floatformat:"-2" }}% tax</p>{% endif %}</td>
+            <td class="text-right font-medium">{{ i.line_total|floatformat:"2g" }}</td>
+            <td class="text-right">
+              <button type="button" class="btn btn-ghost btn-icon btn-sm text-red" aria-label="Remove {{ i.product.display_name }}" hx-post="{% url 'pharmacy:pos-item' i.pk %}" hx-vals='{"action": "remove"}' hx-target="#pos-cart" hx-swap="outerHTML">{% icon "trash" "h-4 w-4" %}</button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="mt-4 flex flex-wrap gap-3">
+      <button id="pos-hold" type="button" class="btn btn-secondary" hx-post="{% url 'pharmacy:pos-hold' %}" hx-prompt="Note for this held sale (optional), e.g. customer name" hx-target="#pos-cart" hx-swap="outerHTML">Hold sale</button>
+      <button type="button" class="btn btn-ghost" hx-post="{% url 'pharmacy:pos-clear' %}" hx-target="#pos-cart" hx-swap="outerHTML"
+              hx-confirm="Remove every item from {{ cart.number }}? Nothing has been charged." data-confirm-title="Clear this sale?" data-confirm-action="Clear sale" data-confirm-danger="true">Clear cart</button>
+    </div>
+    {% else %}
+      {% include "components/empty_state.html" with icon_name="pill" title="No items yet" message="Scan a barcode or search for a medicine to start a sale. To fill a prescription, open it from Prescriptions." compact=True %}
+    {% endif %}
+  </section>
+
+  <section class="card" aria-label="Sale summary">
+    <h2 class="section-title">Sale summary</h2>
+    <div class="mt-4" x-data="{ editing: false, search: '' }" @patient-picked="$refs.pid.value = $event.detail.id; $refs.pform.requestSubmit()">
+      <p class="text-label text-muted">Customer</p>
+      {% if cart.patient %}
+        <p class="mt-1 text-[20px] font-bold">{{ cart.patient.full_name }}</p>
+        <p class="font-mono text-label text-muted">{{ cart.patient.mrn }}</p>
+      {% else %}
+        <p class="mt-1 text-[20px] font-bold">{{ cart.customer_name|default:"Walk-in customer" }}</p>
+      {% endif %}
+      <button type="button" class="btn btn-secondary btn-sm mt-3 w-full" @click="editing = !editing" x-text="editing ? 'Close' : 'Find / attach patient'">Find / attach patient</button>
+      <div x-show="editing" x-cloak class="mt-3 space-y-3">
+        <form x-ref="pform" hx-post="{% url 'pharmacy:pos-customer' %}" hx-target="#pos-cart" hx-swap="outerHTML">
+          {% csrf_token %}<input type="hidden" name="patient" x-ref="pid">
+          <div class="relative">
+            <label class="field-label" for="pos-patient">Patient (MRN, mobile, CNIC or name)</label>
+            <input id="pos-patient" type="search" name="q" class="input mt-1.5" autocomplete="off" x-model="search"
+                   hx-get="{% url 'patients:lookup' %}" hx-trigger="input changed delay:250ms" hx-target="#pos-patient-results" hx-swap="innerHTML" hx-include="this">
+            <div id="pos-patient-results" class="absolute z-20 mt-1 w-full" x-show="search.length >= 2"></div>
+          </div>
+        </form>
+        <form hx-post="{% url 'pharmacy:pos-customer' %}" hx-target="#pos-cart" hx-swap="outerHTML" class="flex items-end gap-2">
+          {% csrf_token %}
+          <div class="flex-1"><label class="field-label" for="pos-walkin">Or walk-in name</label><input id="pos-walkin" name="customer_name" class="input mt-1.5" maxlength="120" value="{{ cart.customer_name }}"></div>
+          <button class="btn btn-secondary">Save</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="mt-4 border-t border-line pt-4">
+      <p class="text-label text-muted">Prescription</p>
+      {% if cart.prescription %}
+        <div class="mt-1 flex items-center justify-between gap-2">
+          <a href="{% url 'pharmacy:rx-detail' cart.prescription.pk %}" class="font-mono font-medium hover:underline">{{ cart.prescription.number }}</a>
+          <button type="button" class="btn btn-ghost btn-sm" hx-post="{% url 'pharmacy:pos-prescription' %}" hx-vals='{"action": "detach"}' hx-target="#pos-cart" hx-swap="outerHTML">Remove</button>
+        </div>
+      {% else %}
+        <button type="button" class="btn btn-secondary btn-sm mt-2 w-full" hx-get="{% url 'pharmacy:pos-prescription' %}" hx-target="#overlay-root">Attach prescription</button>
+      {% endif %}
+    </div>
+
+    <dl class="mt-4 space-y-2 border-t border-line pt-4 text-body">
+      <div class="flex justify-between"><dt class="text-muted">Items / units</dt><dd>{{ totals.lines|default:0 }} / {{ totals.units|default:0 }}</dd></div>
+      <div class="flex justify-between"><dt class="text-muted">Subtotal</dt><dd>{{ organization.currency }} {{ totals.subtotal|default:0|floatformat:"2g" }}</dd></div>
+      {% if totals.tax %}<div class="flex justify-between"><dt class="text-muted">Tax</dt><dd>{{ organization.currency }} {{ totals.tax|floatformat:"2g" }}</dd></div>{% endif %}
+      <div class="flex justify-between"><dt class="text-muted">Discount</dt><dd>{% if totals.discount %}− {{ organization.currency }} {{ totals.discount|floatformat:"2g" }}{% else %}—{% endif %}</dd></div>
+      {% if cart.discount_reason %}<p class="text-label text-muted">{{ cart.discount_reason }}</p>{% endif %}
+    </dl>
+    <div class="mt-4 flex items-baseline justify-between border-t border-line pt-4">
+      <span class="text-label font-semibold uppercase text-muted">Total</span>
+      <span class="text-[32px] font-bold text-teal-deep">{{ organization.currency }} {{ totals.grand_total|default:0|floatformat:"2g" }}</span>
+    </div>
+
+    {% if problems %}
+      <ul class="mt-3 space-y-1 rounded-control bg-amber-soft p-3 text-label text-ink" role="status">
+        {% for p in problems %}<li class="flex gap-2">{% icon "alert-triangle" "h-4 w-4 shrink-0 text-amber" %} {{ p }}</li>{% endfor %}
+      </ul>
+    {% endif %}
+
+    <div class="mt-4 space-y-3">
+      {% if can_discount and items %}<button type="button" class="btn btn-secondary w-full" hx-get="{% url 'pharmacy:pos-discount' %}" hx-target="#overlay-root">Discount / price review</button>{% endif %}
+      {% if can_collect %}
+        <button id="pos-pay" type="button" class="btn btn-primary w-full" hx-get="{% url 'pharmacy:pos-pay' %}" hx-target="#overlay-root" {% if not items or problems %}disabled{% endif %}>Take payment</button>
+      {% else %}
+        <p class="text-label text-muted">You can build the sale; someone who can take payments completes it.</p>
+      {% endif %}
+      <div class="grid grid-cols-2 gap-3">
+        <a href="{% url 'pharmacy:pos-held' %}" class="btn btn-secondary">Recall held{% if held_count %} ({{ held_count }}){% endif %}</a>
+        <a href="{% url 'pharmacy:sale-list' %}" class="btn btn-secondary">Sales returns</a>
+      </div>
+    </div>
+  </section>
+</div>

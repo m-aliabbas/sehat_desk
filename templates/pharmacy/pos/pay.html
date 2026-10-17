@@ -1,0 +1,11 @@
+{% extends "layouts/app.html" %}
+{% block title %}Take payment{% endblock %}
+{% block page_title %}Take payment{% endblock %}
+{% block page_subtitle %}{{ cart.number }} · {{ cart.bill_to }}{% endblock %}
+{% block content %}
+<form method="post" class="card max-w-xl">
+  {% csrf_token %}
+  {% include "pharmacy/pos/_pay_form.html" %}
+  <div class="mt-6 flex gap-3"><button class="btn btn-primary" {% if problems %}disabled{% endif %}>Complete sale</button><a href="{% url 'pharmacy:pos' %}" class="btn btn-ghost">Back to sale</a></div>
+</form>
+{% endblock %}

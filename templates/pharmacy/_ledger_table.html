@@ -1,0 +1,21 @@
+{% if transactions %}
+<div class="table-wrap">
+  <table class="table">
+    <thead><tr><th scope="col">When</th><th scope="col">Product · batch</th><th scope="col">Movement</th><th scope="col" class="text-right">Qty</th><th scope="col" class="text-right">Balance</th><th scope="col">By · reference</th></tr></thead>
+    <tbody>
+      {% for t in transactions %}
+      <tr>
+        <td class="whitespace-nowrap">{{ t.created_at|date:"d M Y, H:i" }}</td>
+        <td><a href="{% url 'pharmacy:product-detail' t.product_id %}" class="hover:underline">{{ t.product.display_name }}</a><p class="font-mono text-label text-muted">{{ t.batch.batch_number }}</p></td>
+        <td>{{ t.get_kind_display }}{% if t.reason %}<p class="text-label text-muted">{{ t.reason }}</p>{% endif %}</td>
+        <td class="text-right font-semibold {% if t.quantity < 0 %}text-red{% else %}text-teal-deep{% endif %}">{% if t.quantity > 0 %}+{% endif %}{{ t.quantity }}</td>
+        <td class="text-right">{{ t.balance_after }}</td>
+        <td>{{ t.created_by }}{% if t.reference %}<p class="text-label text-muted">{{ t.reference }}</p>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+  {% include "components/empty_state.html" with icon_name="package" title="No stock movements yet" message="Receiving, selling, returning and adjusting stock all appear here." compact=True %}
+{% endif %}

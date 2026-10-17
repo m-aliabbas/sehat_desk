@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000">
+<title>26 discharge workspace</title>
+<rect x="0" y="0" width="1600" height="1000" rx="0" fill="#F3F8FB"/>
+<rect x="0" y="0" width="246" height="1000" rx="0" fill="#F8FCFE"/>
+<rect x="246" y="0" width="1354" height="76" rx="0" fill="white"/>
+<path d="M36 34 C23 17 4 37 18 50 L36 67 L54 50 C68 37 49 17 36 34Z" fill="#17B99F" transform="translate(13 -3)"/>
+<path d="M32 42 H41 L45 34 L50 51 L54 42 H68" stroke="white" fill="none" stroke-width="2"/>
+<text x="78" y="43" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="25" font-weight="700">SehatDesk</text>
+<text x="124" y="62" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="11" font-weight="400">by Vibe.Exe</text>
+<path d="M1 8 L9 1 L17 8 V18 H11 V12 H7 V18 H1Z" transform="translate(33 98)" fill="none" stroke="#34516F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="64" y="115" fill="#34516F" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">Dashboard</text>
+<path d="M1 4 H17 V8 Q12 10 17 12 V16 H1 V12 Q6 10 1 8Z" transform="translate(33 153)" fill="none" stroke="#34516F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="64" y="170" fill="#34516F" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">Reception &amp; tokens</text>
+<path d="M2 4 H16 V18 H2Z M5 1 V7 M13 1 V7 M2 9 H16" transform="translate(33 208)" fill="none" stroke="#34516F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="64" y="225" fill="#34516F" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">Appointments</text>
+<path d="M5 5 A4 4 0 1 0 13 5 A4 4 0 1 0 5 5 M1 19 V16 Q9 9 17 16 V19" transform="translate(33 263)" fill="none" stroke="#34516F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="64" y="280" fill="#34516F" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">Patients</text>
+<path d="M3 1 V7 Q3 13 9 13 Q15 13 15 7 V1 M9 13 V16 Q9 21 17 18 V14" transform="translate(33 318)" fill="none" stroke="#34516F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="64" y="335" fill="#34516F" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">Doctor workspace</text>
+<rect x="17" y="363" width="211" height="44" rx="10" fill="#086C70"/>
+<path d="M1 3 V18 M1 12 H18 V18 M4 7 H8 V12 M9 6 H16 V12" transform="translate(33 373)" fill="none" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="64" y="390" fill="white" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="500">IPD &amp; wards</text>
+<path d="M6 1 H12 M7 1 V7 L1 17 Q0 19 3 19 H15 Q18 19 17 17 L11 7 V1 M4 12 H14" transform="translate(33 428)" fill="none" stroke="#34516F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="64" y="445" fill="#34516F" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">Laboratory</text>
+<path d="M4 3 Q8 -1 12 3 L17 8 Q21 12 17 16 Q13 20 9 16 L4 11 Q0 7 4 3 M7 13 L14 6" transform="translate(33 483)" fill="none" stroke="#34516F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="64" y="500" fill="#34516F" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">Pharmacy</text>
+<path d="M1 4 H18 V17 H1Z M1 8 H18 M4 13 H8" transform="translate(33 538)" fill="none" stroke="#34516F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="64" y="555" fill="#34516F" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">Billing &amp; payments</text>
+<path d="M2 18 V10 H5 V18 M8 18 V3 H11 V18 M14 18 V7 H17 V18" transform="translate(33 593)" fill="none" stroke="#34516F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="64" y="610" fill="#34516F" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">Reports</text>
+<path d="M1 4 H18 M1 10 H18 M1 16 H18 M6 1 V7 M13 7 V13 M7 13 V19" transform="translate(33 648)" fill="none" stroke="#34516F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="64" y="665" fill="#34516F" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">Settings</text>
+<rect x="18" y="814" width="211" height="150" rx="15" fill="#E3F6F4"/>
+<text x="36" y="845" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="18" font-weight="600">Connected care.</text>
+<text x="36" y="870" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="18" font-weight="600">Better together.</text>
+<text x="36" y="900" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="12" font-weight="400">Sehat Medical Centre</text>
+<text x="36" y="921" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="12" font-weight="400">Main branch · Islamabad</text>
+<rect x="274" y="17" width="536" height="42" rx="10" fill="#F5F9FC" stroke="#E5EDF3"/>
+<text x="293" y="43" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="14" font-weight="400">⌕   Search patients, visits, orders...</text>
+<rect x="1190" y="24" width="120" height="27" rx="13" fill="#EDF2F7"/>
+<text x="1201" y="42" fill="#687D96" font-family="Inter, DejaVu Sans, sans-serif" font-size="12" font-weight="500">Demo workspace</text>
+<circle cx="1385" cy="38" r="18" fill="#DDF5EF"/>
+<text x="1374.2" y="43" fill="#008E81" font-family="Inter, DejaVu Sans, sans-serif" font-size="12" font-weight="600">Wm</text>
+<text x="1415" y="34" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="14" font-weight="600">Ward manager</text>
+<text x="1415" y="55" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="11" font-weight="400">Sehat Medical Centre</text>
+<text x="278" y="125" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="28" font-weight="700">Discharge workspace</text>
+<text x="278" y="152" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="14" font-weight="400">Amina Shah · G-03 · SD-002092 · Episode IPD-0412</text>
+<rect x="1350" y="111" width="214" height="40" rx="8" fill="#008E81"/>
+<text x="1365" y="136" fill="white" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="500">Save discharge draft</text>
+<text x="278" y="977" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="10" font-weight="400">SEHATDESK  /  DESKTOP CONCEPT  /  FICTIONAL DATA</text>
+<text x="1397" y="977" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="10" font-weight="400">1600 × 1000 desktop</text>
+<rect x="278" y="181" width="836" height="763" rx="16" fill="white" stroke="#E5EDF3"/>
+<text x="300" y="213" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="18" font-weight="600">Discharge summary</text>
+<text x="300" y="264" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="12" font-weight="500">Admission date</text>
+<rect x="300" y="276" width="385" height="43" rx="8" fill="#FBFDFF" stroke="#E5EDF3"/>
+<text x="313" y="303" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="14" font-weight="400">08 October 2026</text>
+<text x="707" y="264" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="12" font-weight="500">Planned discharge</text>
+<rect x="707" y="276" width="385" height="43" rx="8" fill="#FBFDFF" stroke="#E5EDF3"/>
+<text x="720" y="303" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="14" font-weight="400">11 October 2026</text>
+<text x="300" y="381" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="12" font-weight="500">Attending clinician</text>
+<rect x="300" y="393" width="385" height="43" rx="8" fill="#FBFDFF" stroke="#E5EDF3"/>
+<text x="313" y="420" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="14" font-weight="400">Dr. Zain Ali</text>
+<text x="707" y="381" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="12" font-weight="500">Clinical clearance</text>
+<rect x="707" y="393" width="385" height="43" rx="8" fill="#FBFDFF" stroke="#E5EDF3"/>
+<text x="720" y="420" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="14" font-weight="400">Pending signature</text>
+<text x="300" y="498" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="12" font-weight="500">Summary</text>
+<rect x="300" y="510" width="385" height="43" rx="8" fill="#FBFDFF" stroke="#E5EDF3"/>
+<text x="313" y="537" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="14" font-weight="400">Add signed clinical summary</text>
+<text x="707" y="498" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="12" font-weight="500">Medication handover</text>
+<rect x="707" y="510" width="385" height="43" rx="8" fill="#FBFDFF" stroke="#E5EDF3"/>
+<text x="720" y="537" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="14" font-weight="400">Pending pharmacy review</text>
+<text x="300" y="615" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="12" font-weight="500">Follow-up</text>
+<rect x="300" y="627" width="385" height="43" rx="8" fill="#FBFDFF" stroke="#E5EDF3"/>
+<text x="313" y="654" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="14" font-weight="400">To be confirmed</text>
+<text x="707" y="615" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="12" font-weight="500">Patient instructions</text>
+<rect x="707" y="627" width="385" height="43" rx="8" fill="#FBFDFF" stroke="#E5EDF3"/>
+<text x="720" y="654" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="14" font-weight="400">Review with patient / caregiver</text>
+<rect x="1130" y="181" width="452" height="440" rx="16" fill="white" stroke="#E5EDF3"/>
+<text x="1152" y="213" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="18" font-weight="600">Discharge checklist</text>
+<text x="1152" y="271" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">Doctor clearance</text>
+<rect x="1440" y="250" width="71" height="27" rx="13" fill="#FFF2DB"/>
+<text x="1451" y="268" fill="#A45F0F" font-family="Inter, DejaVu Sans, sans-serif" font-size="12" font-weight="500">Pending</text>
+<text x="1152" y="332" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">Nursing handover</text>
+<rect x="1440" y="311" width="78" height="27" rx="13" fill="#DDF7ED"/>
+<text x="1451" y="329" fill="#00836C" font-family="Inter, DejaVu Sans, sans-serif" font-size="12" font-weight="500">Complete</text>
+<text x="1152" y="393" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">Pharmacy reconciliation</text>
+<rect x="1440" y="372" width="71" height="27" rx="13" fill="#FFF2DB"/>
+<text x="1451" y="390" fill="#A45F0F" font-family="Inter, DejaVu Sans, sans-serif" font-size="12" font-weight="500">Pending</text>
+<text x="1152" y="454" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">Final bill</text>
+<rect x="1440" y="433" width="71" height="27" rx="13" fill="#FFF2DB"/>
+<text x="1451" y="451" fill="#A45F0F" font-family="Inter, DejaVu Sans, sans-serif" font-size="12" font-weight="500">Pending</text>
+<text x="1152" y="515" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">Patient documents</text>
+<rect x="1440" y="494" width="71" height="27" rx="13" fill="#FFF2DB"/>
+<text x="1451" y="512" fill="#A45F0F" font-family="Inter, DejaVu Sans, sans-serif" font-size="12" font-weight="500">Pending</text>
+<rect x="1130" y="641" width="452" height="165" rx="10" fill="#FFF4E1"/>
+<text x="1147" y="669" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="15" font-weight="600">Release not available</text>
+<text x="1147" y="695" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">Complete the required checks before</text>
+<text x="1147" y="717" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">closing the admission and releasing the bed.</text>
+<rect x="1152" y="857" width="408" height="40" rx="8" fill="white" stroke="#E5EDF3"/>
+<text x="1167" y="882" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="500">Review final bill</text>
+</svg>

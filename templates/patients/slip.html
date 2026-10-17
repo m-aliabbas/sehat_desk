@@ -1,0 +1,21 @@
+{% extends "print/a5.html" %}
+{% block title %}Registration slip · {{ patient.mrn }}{% endblock %}
+{% block print_label %}Print slip{% endblock %}
+{% block close_button %}<a class="btn btn-secondary" href="{% url 'patients:detail' patient.pk %}">Back to patient</a>{% endblock %}
+{% block document %}
+    {% include "print/_letterhead.html" with org=request.organization branch=request.branch doc_title="Registration slip" %}
+    <section class="py-6 text-center">
+      <p class="text-label text-muted">Patient ID (MRN)</p>
+      <p class="font-mono text-[32px] font-bold tracking-wider">{{ patient.mrn }}</p>
+      <p class="mt-2 text-section-title font-semibold">{{ patient.full_name }}</p>
+      <p class="text-body text-muted">{{ patient.age_label }} · {{ patient.get_gender_display }}</p>
+    </section>
+    <dl class="grid grid-cols-2 gap-3 border-t border-line pt-4 text-body">
+      <div><dt class="text-label text-muted">Mobile</dt><dd>{{ patient.phone_display|default:"—" }}</dd></div>
+      <div><dt class="text-label text-muted">CNIC</dt><dd>{{ patient.cnic_display|default:"—" }}</dd></div>
+      <div><dt class="text-label text-muted">Registered</dt><dd>{{ patient.created_at|date:"d M Y, H:i" }}</dd></div>
+      <div><dt class="text-label text-muted">Branch</dt><dd>{{ patient.registered_branch.name }}</dd></div>
+    </dl>
+    <p class="mt-6 text-center text-body font-semibold">Please bring this slip or your MRN on every visit.</p>
+    {% include "print/_footer.html" with org=request.organization %}
+{% endblock %}

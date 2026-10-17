@@ -1,0 +1,7 @@
+{# Inventory purchasing sub-navigation. Context: active ("purchases" | "suppliers" | "report") #}
+<nav class="tabs mb-6 overflow-x-auto" aria-label="Purchasing sections">
+  <a class="tab whitespace-nowrap" href="{% url 'pharmacy:dashboard' %}">Inventory</a>
+  <a class="tab whitespace-nowrap" href="{% url 'pharmacy:purchase-list' %}" {% if active == "purchases" %}aria-selected="true"{% endif %}>Purchases</a>
+  <a class="tab whitespace-nowrap" href="{% url 'pharmacy:vendor-list' %}" {% if active == "suppliers" %}aria-selected="true"{% endif %}>Suppliers</a>
+  <a class="tab whitespace-nowrap" href="{% url 'pharmacy:purchase-report' %}" {% if active == "report" %}aria-selected="true"{% endif %}>Purchase report</a>
+</nav>

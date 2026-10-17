@@ -1,0 +1,16 @@
+{% load ui %}
+{# Context: breadcrumbs = [{"label": ..., "url": ... or None}, ...]; the last entry is the current page #}
+<nav aria-label="Breadcrumb" class="mb-3">
+  <ol class="flex flex-wrap items-center gap-1 text-label text-muted">
+    {% for crumb in breadcrumbs %}
+      <li class="flex items-center gap-1">
+        {% if not forloop.last and crumb.url %}
+          <a href="{{ crumb.url }}" class="hover:text-teal-deep hover:underline">{{ crumb.label }}</a>
+        {% else %}
+          <span {% if forloop.last %}aria-current="page" class="text-ink"{% endif %}>{{ crumb.label }}</span>
+        {% endif %}
+        {% if not forloop.last %}{% icon "chevron-right" "h-3.5 w-3.5" %}{% endif %}
+      </li>
+    {% endfor %}
+  </ol>
+</nav>

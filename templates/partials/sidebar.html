@@ -1,0 +1,36 @@
+{% load ui %}
+{# Mobile/tablet backdrop #}
+<div x-cloak x-show="sidebarOpen" x-transition.opacity class="overlay lg:hidden" @click="sidebarOpen = false"></div>
+
+<aside
+  class="fixed inset-y-0 left-0 z-50 flex w-sidebar -translate-x-full flex-col border-r border-line bg-sidebar transition-transform lg:translate-x-0"
+  :class="sidebarOpen && 'translate-x-0'"
+  aria-label="Main navigation">
+  <div class="flex h-topbar items-center justify-between gap-2 px-6">
+    <a href="{% url 'core:dashboard' %}" class="flex items-center gap-2 text-ink">
+      {% if organization.logo %}<img src="{{ organization.logo.url }}" alt="" class="h-9 w-9 rounded-control object-contain">{% else %}<span class="text-teal">{% icon "heart-pulse" "h-9 w-9" %}</span>{% endif %}
+      <span class="text-[24px] font-bold tracking-tight">SehatDesk</span>
+    </a>
+    <button type="button" class="btn btn-ghost btn-icon lg:hidden" @click="sidebarOpen = false" aria-label="Close menu">
+      {% icon "x" %}
+    </button>
+  </div>
+
+  <nav class="flex-1 space-y-0.5 overflow-y-auto px-4 py-2">
+    {% for item in nav_items %}
+      <a href="{{ item.url }}"
+         class="nav-link {% if item.active %}nav-link-active{% endif %}"
+         {% if item.active %}aria-current="page"{% endif %}>
+        {% icon item.icon %}
+        <span class="flex-1 truncate">{{ item.label }}</span>
+        {% if item.coming_soon %}<span class="shrink-0 rounded-full bg-page px-1.5 py-0.5 text-[10px] font-medium text-muted {% if item.active %}bg-white/15 text-white{% endif %}">Soon</span>{% endif %}
+      </a>
+    {% endfor %}
+  </nav>
+
+  <div class="m-4 hidden rounded-card bg-mint p-5 [@media(min-height:900px)]:block">
+    <p class="text-section-title leading-snug font-bold text-ink">Connected care.<br>Better together.</p>
+    <p class="mt-3 text-label text-muted">{{ organization.name }}</p>
+    <p class="text-label text-muted">{{ current_branch }}</p>
+  </div>
+</aside>

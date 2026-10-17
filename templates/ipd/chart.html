@@ -1,0 +1,451 @@
+{% extends "layouts/app.html" %}
+{% load ui vitals %}
+{% block title %}{{ admission.number }} · {{ patient.full_name }}{% endblock %}
+{% block page_title %}Inpatient chart{% endblock %}
+{% block page_subtitle %}{{ admission.number }} · admitted {{ admission.admitted_at|date:"d M Y, H:i" }}{% endblock %}
+{% block page_actions %}
+  <a href="{% url 'ipd:admission-print' admission.pk %}" target="_blank" class="btn btn-secondary">Print admission form</a>
+  {% if admission.is_active %}
+    {% if "vitals.record" in sd_perms %}<a href="{% url 'vitals:record' %}?patient={{ patient.pk }}&amp;next={{ request.get_full_path|urlencode }}" class="btn btn-secondary">{% icon "heart-pulse" "h-4 w-4" %} Record vitals</a>{% endif %}
+    {% if can_manage %}<a href="{% url 'ipd:admission-transfer' admission.pk %}" class="btn btn-secondary">{% icon "arrow-right-left" "h-4 w-4" %} Transfer</a>{% endif %}
+    <a href="{% url 'ipd:discharge' admission.pk %}" class="btn btn-primary">Discharge</a>
+  {% elif admission.status == "discharged" %}
+    <a href="{% url 'ipd:summary' admission.pk %}" target="_blank" class="btn btn-primary">Discharge summary</a>
+  {% endif %}
+{% endblock %}
+{% block content %}
+<section class="card mb-6 grid gap-6 lg:grid-cols-[2fr_1fr_1fr]">
+  {% include "ipd/_patient_header.html" %}
+  <div>
+    <p class="text-label font-semibold tracking-wide text-muted uppercase">Current bed</p>
+    {% if admission.current_bed and admission.is_active %}
+      <p class="mt-1 text-section-title font-bold">{{ admission.current_bed.code }}</p>
+      <p class="text-label text-muted">{{ admission.current_bed.room.ward.name }} · room {{ admission.current_bed.room.name }}</p>
+    {% else %}<p class="mt-1 text-body text-muted">No bed (stay closed)</p>{% endif %}
+  </div>
+  <div>
+    <p class="text-label font-semibold tracking-wide text-muted uppercase">Stay</p>
+    <p class="mt-1 text-section-title font-bold">Day {{ admission.length_of_stay_days }}</p>
+    <p class="text-label text-muted">{{ admission.admitting_doctor }} · {{ admission.department }}</p>
+    <div class="mt-2">{% status_chip admission.status admission.get_status_display %}</div>
+  </div>
+</section>
+
+<nav class="tabs mb-6 overflow-x-auto" aria-label="Inpatient chart sections">
+  {% for key, label in tabs %}<a class="tab whitespace-nowrap" href="?tab={{ key }}" {% if tab == key %}aria-selected="true"{% endif %}>{{ label }}</a>{% endfor %}
+</nav>
+
+{% if tab == "overview" %}
+<div class="grid gap-6 xl:grid-cols-3">
+  <section class="card xl:col-span-2">
+    <div class="card-header"><h2 class="section-title">Latest vitals</h2>
+      {% if vitals_due %}<span class="chip {% if vitals_due < now %}chip-danger{% else %}chip-info{% endif %}">Next due {{ vitals_due|date:"d M, H:i" }}</span>{% endif %}</div>
+    {% if latest_vitals %}
+      <div class="flex flex-wrap gap-2">{% for row in latest_vitals_summary %}{% vital_chip row %}{% endfor %}</div>
+      <p class="mt-2 text-label text-muted">{{ latest_vitals.recorded_at|date:"d M, H:i" }} by {{ latest_vitals.recorded_by }}</p>
+    {% else %}<p class="text-body text-muted">No vitals recorded during this stay.</p>{% endif %}
+    <h3 class="mt-6 mb-2 text-body font-semibold">Admission</h3>
+    <dl class="grid gap-3 text-body md:grid-cols-2">
+      <div><dt class="text-label text-muted">Reason</dt><dd>{{ admission.admission_reason }}</dd></div>
+      <div><dt class="text-label text-muted">Admission diagnosis</dt><dd>{{ admission.admission_diagnosis|default:"—"|linebreaksbr }}</dd></div>
+      <div><dt class="text-label text-muted">Attendant</dt><dd>{% if admission.attendant_name %}{{ admission.attendant_name }}{% if admission.attendant_relation %} ({{ admission.attendant_relation }}){% endif %}{% if admission.attendant_phone %} · {{ admission.attendant_phone }}{% endif %}{% else %}—{% endif %}</dd></div>
+      <div><dt class="text-label text-muted">Nurses assigned</dt><dd>{% for a in nurses %}{{ a.nurse.get_full_name|default:a.nurse }}{% if not forloop.last %}, {% endif %}{% empty %}None yet{% endfor %}</dd></div>
+      {% if admission.notes %}<div class="md:col-span-2"><dt class="text-label text-muted">Notes</dt><dd>{{ admission.notes }}</dd></div>{% endif %}
+    </dl>
+  </section>
+  <section class="card">
+    <h2 class="section-title mb-3">Active medicines</h2>
+    <ul class="space-y-2 text-body">
+      {% for o in active_orders %}<li><span class="font-medium">{{ o.medicine_name }}</span> <span class="text-muted">{{ o.dose }} · {{ o.route_label }} · {{ o.frequency_label|lower }}</span></li>
+      {% empty %}<li class="text-label text-muted">No active medicine orders.</li>{% endfor %}
+    </ul>
+    <h3 class="mt-6 mb-2 text-body font-semibold">Fluid balance (24 h)</h3>
+    <p class="text-body">In {{ balance.intake }} ml · Out {{ balance.output }} ml · <span class="font-semibold">{% if balance.balance > 0 %}+{% endif %}{{ balance.balance }} ml</span></p>
+  </section>
+  <section class="card xl:col-span-2">
+    <div class="card-header"><h2 class="section-title">Recent rounds</h2><a href="?tab=rounds" class="btn btn-ghost btn-sm">All rounds</a></div>
+    <ul class="divide-y divide-line">
+      {% for r in recent_rounds %}<li class="py-2"><p class="text-label text-muted">{{ r.round_at|date:"d M, H:i" }} · {{ r.doctor }}</p><p class="text-body">{{ r.findings|truncatechars:220 }}</p>{% if r.plan %}<p class="text-label"><span class="text-muted">Plan:</span> {{ r.plan|truncatechars:160 }}</p>{% endif %}</li>
+      {% empty %}<li class="py-2 text-label text-muted">No ward rounds yet.</li>{% endfor %}
+    </ul>
+  </section>
+  <section class="card">
+    <div class="card-header"><h2 class="section-title">Nursing notes</h2><a href="?tab=nursing" class="btn btn-ghost btn-sm">All</a></div>
+    <ul class="divide-y divide-line">
+      {% for n in recent_notes %}<li class="py-2"><p class="text-label text-muted">{{ n.recorded_at|date:"d M, H:i" }} · {{ n.recorded_by }} · {{ n.get_kind_display }}</p><p class="text-body">{{ n.note|truncatechars:160 }}</p></li>
+      {% empty %}<li class="py-2 text-label text-muted">No nursing notes yet.</li>{% endfor %}
+    </ul>
+  </section>
+  {% if admission.is_active and can_manage %}
+  <section class="card xl:col-span-3">
+    <details>
+      <summary class="cursor-pointer text-body font-medium text-red">Cancel this admission (made by mistake)</summary>
+      <p class="mt-2 text-label text-muted">Only possible before any charge or deposit. The bed becomes available again.</p>
+      <form method="post" action="{% url 'ipd:admission-cancel' admission.pk %}" class="mt-3 flex flex-wrap gap-2">{% csrf_token %}
+        <input name="reason" class="input max-w-md" required maxlength="200" placeholder="Reason" aria-label="Reason for cancelling the admission">
+        <button class="btn btn-danger btn-sm" data-confirm="The admission is cancelled and the bed is freed." data-confirm-title="Cancel {{ admission.number }}?" data-confirm-danger="true">Cancel admission</button>
+      </form>
+    </details>
+  </section>
+  {% endif %}
+</div>
+
+{% elif tab == "rounds" %}
+<div class="grid gap-6 xl:grid-cols-[1fr_2fr]">
+  <section class="card">
+    <h2 class="section-title mb-4">New round note</h2>
+    {% if can_round and admission.is_active %}
+    <form method="post" action="{% url 'ipd:admission-round' admission.pk %}" class="space-y-4">{% csrf_token %}
+      {% include "components/field.html" with field=round_form.findings %}
+      {% include "components/field.html" with field=round_form.plan %}
+      <button class="btn btn-primary">Save round</button>
+    </form>
+    {% elif not admission.is_active %}<p class="text-body text-muted">The stay is closed.</p>
+    {% else %}<p class="text-body text-muted">Ward rounds are written by doctors.</p>{% endif %}
+  </section>
+  <section class="card">
+    <h2 class="section-title mb-4">Doctor rounds</h2>
+    <ul class="divide-y divide-line">
+      {% for r in rounds %}
+      <li class="py-3 {% if r.entered_in_error %}opacity-60{% endif %}">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <p class="text-label text-muted">{{ r.round_at|date:"d M Y, H:i" }} · {{ r.doctor }}</p>
+          {% if r.entered_in_error %}<span class="chip chip-neutral">Entered in error</span>
+          {% elif can_round %}
+            <details class="relative"><summary class="btn btn-ghost btn-sm cursor-pointer">Mark error</summary>
+              <form method="post" action="{% url 'ipd:round-error' r.pk %}" class="absolute right-0 z-20 mt-2 w-72 space-y-2 rounded-card border border-line bg-white p-3 shadow-lg">{% csrf_token %}
+                <input name="reason" class="input" required maxlength="200" placeholder="Why is this note wrong?" aria-label="Reason"><button class="btn btn-danger btn-sm">Mark as entered in error</button></form>
+            </details>
+          {% endif %}
+        </div>
+        <p class="mt-1 text-body {% if r.entered_in_error %}line-through{% endif %}">{{ r.findings|linebreaksbr }}</p>
+        {% if r.plan %}<p class="mt-1 text-body {% if r.entered_in_error %}line-through{% endif %}"><span class="text-muted">Plan:</span> {{ r.plan|linebreaksbr }}</p>{% endif %}
+        {% if r.entered_in_error %}<p class="text-label text-muted">Reason: {{ r.error_reason }} ({{ r.error_marked_by }})</p>{% endif %}
+      </li>
+      {% empty %}<li>{% include "components/empty_state.html" with icon_name="stethoscope" title="No rounds yet" message="Doctors' ward-round notes appear here, newest first." compact=True %}</li>{% endfor %}
+    </ul>
+  </section>
+</div>
+
+{% elif tab == "nursing" %}
+<div class="grid gap-6 xl:grid-cols-2">
+  <section class="card">
+    <h2 class="section-title mb-4">Nursing notes</h2>
+    {% if can_nurse and admission.is_active %}
+    <form method="post" action="{% url 'nursing:note-add' admission.pk %}" class="mb-5 space-y-3">{% csrf_token %}
+      {% include "components/field.html" with field=note_form.kind %}
+      {% include "components/field.html" with field=note_form.note %}
+      <button class="btn btn-primary btn-sm">Save note</button>
+    </form>
+    {% endif %}
+    <ul class="divide-y divide-line">
+      {% for n in notes %}
+      <li class="py-3 {% if n.entered_in_error %}opacity-60{% endif %}">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <p class="text-label text-muted">{{ n.recorded_at|date:"d M, H:i" }} · {{ n.recorded_by }} · {{ n.get_kind_display }}</p>
+          {% if n.entered_in_error %}<span class="chip chip-neutral">Entered in error</span>
+          {% elif can_nurse %}{% url 'nursing:error' 'note' n.pk as err_url %}{% include "ipd/_error_form.html" with action=err_url %}{% endif %}
+        </div>
+        <p class="mt-1 text-body {% if n.entered_in_error %}line-through{% endif %}">{{ n.note|linebreaksbr }}</p>
+        {% if n.entered_in_error %}<p class="text-label text-muted">Reason: {{ n.error_reason }} ({{ n.error_marked_by }})</p>{% endif %}
+      </li>
+      {% empty %}<li class="py-3 text-label text-muted">No nursing notes yet.</li>{% endfor %}
+    </ul>
+  </section>
+  <div class="space-y-6">
+    <section class="card">
+      <div class="card-header"><h2 class="section-title">Intake / output</h2><span class="chip chip-neutral">24 h: in {{ balance.intake }} · out {{ balance.output }} · {% if balance.balance > 0 %}+{% endif %}{{ balance.balance }} ml</span></div>
+      {% if can_nurse and admission.is_active %}
+      <form method="post" action="{% url 'nursing:io-add' admission.pk %}" class="mb-4 grid gap-3 md:grid-cols-4 md:items-end">{% csrf_token %}
+        {% include "components/field.html" with field=io_form.kind %}
+        {% include "components/field.html" with field=io_form.category %}
+        {% include "components/field.html" with field=io_form.volume_ml %}
+        <button class="btn btn-primary btn-sm">Add</button>
+        <div class="md:col-span-4">{% include "components/field.html" with field=io_form.notes %}</div>
+      </form>
+      {% endif %}
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th scope="col">Time</th><th scope="col">Type</th><th scope="col" class="text-right">ml</th><th scope="col">By</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+          <tbody>
+            {% for r in io_rows %}
+            <tr class="{% if r.entered_in_error %}opacity-60 line-through{% endif %}">
+              <td class="whitespace-nowrap">{{ r.recorded_at|date:"d M, H:i" }}</td>
+              <td>{{ r.get_kind_display }} · {{ r.get_category_display }}{% if r.notes %}<p class="text-label text-muted">{{ r.notes }}</p>{% endif %}</td>
+              <td class="text-right">{{ r.volume_ml }}</td>
+              <td>{{ r.recorded_by }}</td>
+              <td class="text-right">{% if not r.entered_in_error and can_nurse %}{% url 'nursing:error' 'io' r.pk as err_url %}{% include "ipd/_error_form.html" with action=err_url %}{% endif %}</td>
+            </tr>
+            {% empty %}<tr><td colspan="5" class="text-label text-muted">Nothing recorded yet.</td></tr>{% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+    <section class="card">
+      <h2 class="section-title mb-3">Observation schedule</h2>
+      <p class="mb-3 text-body">{% if schedule %}Currently {{ schedule.get_interval_hours_display|lower }} (set by {{ schedule.set_by }}).{% else %}No schedule set.{% endif %}{% if vitals_due %} Next due {{ vitals_due|date:"d M, H:i" }}.{% endif %}</p>
+      {% if can_nurse and admission.is_active %}
+      <form method="post" action="{% url 'nursing:schedule' admission.pk %}" class="flex flex-wrap items-end gap-3">{% csrf_token %}
+        {% include "components/field.html" with field=schedule_form.interval_hours %}
+        <button class="btn btn-secondary btn-sm">Set schedule</button>
+      </form>
+      {% endif %}
+    </section>
+    <section class="card">
+      <h2 class="section-title mb-3">Assigned nurses</h2>
+      <ul class="mb-3 space-y-2 text-body">
+        {% for a in nurses %}
+        <li class="flex items-center justify-between gap-2"><span>{{ a.nurse.get_full_name|default:a.nurse }} <span class="text-label text-muted">since {{ a.created_at|date:"d M, H:i" }}</span></span>
+          {% if can_manage %}<form method="post" action="{% url 'nursing:unassign' a.pk %}">{% csrf_token %}<button class="btn btn-ghost btn-sm">End</button></form>{% endif %}</li>
+        {% empty %}<li class="text-label text-muted">No nurse assigned.</li>{% endfor %}
+      </ul>
+      {% if can_manage and admission.is_active and staff %}
+      <form method="post" action="{% url 'nursing:assign' admission.pk %}" class="flex flex-wrap items-end gap-3">{% csrf_token %}
+        <div class="field"><label class="field-label" for="nurse">Nurse</label><select id="nurse" name="nurse" class="select">{% for u in staff %}<option value="{{ u.pk }}">{{ u.get_full_name|default:u.username }}</option>{% endfor %}</select></div>
+        <button class="btn btn-secondary btn-sm">Assign</button>
+      </form>
+      {% endif %}
+    </section>
+  </div>
+  <section class="card xl:col-span-2">
+    <h2 class="section-title mb-1">Nursing audit trail</h2>
+    <p class="mb-4 text-label text-muted">Every charting action on this admission, who did it and when. Clinical text is kept in the chart, not here.</p>
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th scope="col">When</th><th scope="col">Action</th><th scope="col">By</th><th scope="col">Detail</th></tr></thead>
+        <tbody>
+          {% for e in trail %}<tr><td class="whitespace-nowrap">{{ e.created_at|date:"d M, H:i" }}</td><td class="font-mono text-label">{{ e.action }}</td><td>{{ e.actor|default:"System" }}</td><td class="text-label text-muted">{{ e.summary }}</td></tr>
+          {% empty %}<tr><td colspan="4" class="text-label text-muted">No actions yet.</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+{% elif tab == "vitals" %}
+<section class="card mb-6">
+  <div class="card-header"><h2 class="section-title">Vitals chart</h2>
+    {% if admission.is_active and "vitals.record" in sd_perms %}<a href="{% url 'vitals:record' %}?patient={{ patient.pk }}&amp;next={{ request.get_full_path|urlencode }}" class="btn btn-primary btn-sm">{% icon "plus" "h-4 w-4" %} Record vitals</a>{% endif %}</div>
+  {% if vital_trends %}
+  <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+    {% for t in vital_trends %}
+    <div class="rounded-card border border-line p-4">
+      <p class="text-label text-muted">{{ t.label }}</p>
+      <p class="text-section-title font-bold">{{ t.latest.1 }} <span class="text-label font-normal text-muted">{{ t.unit }}</span></p>
+      {% sparkline t.points %}
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}{% include "components/empty_state.html" with icon_name="heart-pulse" title="No vitals during this stay" compact=True %}{% endif %}
+</section>
+<section class="card">
+  <h2 class="section-title mb-4">All readings this stay</h2>
+  <ul class="divide-y divide-line">
+    {% for v, rows in vital_rows %}
+    <li class="py-3 {% if v.entered_in_error %}opacity-60{% endif %}">
+      <p class="text-label text-muted">{{ v.recorded_at|date:"d M, H:i" }} · {{ v.recorded_by }}{% if v.entered_in_error %} · <span class="text-red">entered in error</span>{% endif %}</p>
+      <div class="mt-1 flex flex-wrap gap-1 {% if v.entered_in_error %}line-through{% endif %}">{% for row in rows %}{% vital_chip row %}{% endfor %}</div>
+    </li>
+    {% empty %}<li class="py-3 text-label text-muted">No readings.</li>{% endfor %}
+  </ul>
+</section>
+
+{% elif tab == "medication" %}
+<div class="grid gap-6 xl:grid-cols-[1fr_2fr]">
+  <section class="card">
+    <h2 class="section-title mb-4">Order a medicine</h2>
+    {% if can_order and admission.is_active %}
+    <form method="post" action="{% url 'ipd:admission-medication' admission.pk %}" class="space-y-3">{% csrf_token %}
+      {% include "components/field.html" with field=order_form.medicine_name %}
+      <datalist id="medicine-list">{% for name in medicine_names %}<option value="{{ name }}">{% endfor %}</datalist>
+      <div class="grid gap-3 md:grid-cols-2">
+        {% include "components/field.html" with field=order_form.dose %}
+        {% include "components/field.html" with field=order_form.route %}
+        {% include "components/field.html" with field=order_form.frequency %}
+        {% include "components/field.html" with field=order_form.ends_on %}
+      </div>
+      {% include "components/field.html" with field=order_form.instructions %}
+      <button class="btn btn-primary">Add to medication chart</button>
+    </form>
+    {% else %}<p class="text-body text-muted">{% if admission.is_active %}Medicines are ordered by doctors.{% else %}The stay is closed.{% endif %}</p>{% endif %}
+  </section>
+  <section class="card">
+    <h2 class="section-title mb-4">Medication orders</h2>
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th scope="col">Medicine</th><th scope="col">Directions</th><th scope="col">Period</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+        <tbody>
+          {% for o in orders %}
+          <tr>
+            <td class="font-medium">{{ o.medicine_name }}{% if o.instructions %}<p class="text-label font-normal text-muted">{{ o.instructions }}</p>{% endif %}</td>
+            <td>{{ o.dose }} · {{ o.route_label }} · {{ o.frequency_label|lower }}</td>
+            <td class="whitespace-nowrap text-label">{{ o.starts_at|date:"d M, H:i" }}{% if o.ends_on %} → {{ o.ends_on|date:"d M" }}{% endif %}<p class="text-muted">by {{ o.ordered_by }}</p></td>
+            <td>{% status_chip o.status o.get_status_display %}{% if o.stop_reason %}<p class="text-label text-muted">{{ o.stop_reason }}</p>{% endif %}</td>
+            <td class="text-right">{% if o.is_active and can_order %}
+              <details class="relative"><summary class="btn btn-ghost btn-sm cursor-pointer">Stop</summary>
+                <form method="post" action="{% url 'ipd:medication-stop' o.pk %}" class="absolute right-0 z-20 mt-2 w-64 space-y-2 rounded-card border border-line bg-white p-3 shadow-lg">{% csrf_token %}
+                  <input name="reason" class="input" required maxlength="200" placeholder="Reason for stopping" aria-label="Reason"><button class="btn btn-danger btn-sm">Stop medicine</button></form>
+              </details>{% endif %}</td>
+          </tr>
+          {% empty %}<tr><td colspan="5" class="text-label text-muted">No medicines ordered yet.</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  <section class="card xl:col-span-2">
+    <div class="card-header">
+      <div><h2 class="section-title">Medication administration record</h2><p class="text-label text-muted">Due = within an hour of the dose time. A dose not given needs a reason.</p></div>
+      <div class="flex items-center gap-2">
+        <a href="?tab=medication&amp;day={{ mar_prev|date:'Y-m-d' }}" class="btn btn-ghost btn-sm" aria-label="Previous day">{% icon "chevron-left" "h-4 w-4" %}</a>
+        <span class="text-body font-semibold">{{ mar_day|date:"D d M Y" }}</span>
+        <a href="?tab=medication&amp;day={{ mar_next|date:'Y-m-d' }}" class="btn btn-ghost btn-sm" aria-label="Next day">{% icon "chevron-right" "h-4 w-4" %}</a>
+      </div>
+    </div>
+    {% if mar %}
+    <ul class="divide-y divide-line">
+      {% for row in mar %}
+      <li class="py-3">
+        <p class="font-medium">{{ row.order.medicine_name }} <span class="text-label font-normal text-muted">{{ row.order.dose }} · {{ row.order.route_label }} · {{ row.order.frequency_label|lower }}</span></p>
+        <div class="mt-2 flex flex-wrap gap-2">
+          {% for d in row.doses %}
+            {% if d.entry %}
+              <span class="chip {% if d.entry.status == 'given' %}chip-success{% elif d.entry.status == 'missed' %}chip-danger{% else %}chip-warning{% endif %}" title="{{ d.entry.recorded_by }} at {{ d.entry.administered_at|date:'H:i' }}{% if d.entry.reason %}: {{ d.entry.reason }}{% endif %}">{{ d.at|time:"H:i" }} · {{ d.entry.get_status_display }}</span>
+              {% if can_nurse and admission.is_active %}{% url 'nursing:error' 'dose' d.entry.pk as err_url %}{% include "ipd/_error_form.html" with action=err_url label="Undo" %}{% endif %}
+            {% elif can_nurse and admission.is_active and d.state != "upcoming" %}
+              <details class="relative">
+                <summary class="chip {% if d.state == 'overdue' %}chip-danger{% else %}chip-warning{% endif %} cursor-pointer">{{ d.at|time:"H:i" }} · {% if d.state == "overdue" %}Overdue{% else %}Due{% endif %} — chart</summary>
+                <form method="post" action="{% url 'nursing:dose' row.order.pk %}" class="absolute left-0 z-20 mt-2 w-72 space-y-2 rounded-card border border-line bg-white p-3 shadow-lg">{% csrf_token %}
+                  <input type="hidden" name="scheduled_for" value="{{ d.at|date:'c' }}">
+                  <label class="field-label" for="st-{{ row.order.pk }}-{{ forloop.counter }}">Dose at {{ d.at|time:"H:i" }}</label>
+                  <select id="st-{{ row.order.pk }}-{{ forloop.counter }}" name="status" class="select"><option value="given">Given</option><option value="refused">Refused by patient</option><option value="held">Held (clinical reason)</option><option value="missed">Missed</option></select>
+                  <input name="reason" class="input" maxlength="200" placeholder="Reason (if not given)" aria-label="Reason">
+                  <button class="btn btn-primary btn-sm">Save</button>
+                </form>
+              </details>
+            {% else %}
+              <span class="chip {% if d.state == 'overdue' %}chip-danger{% elif d.state == 'due' %}chip-warning{% else %}chip-neutral{% endif %}">{{ d.at|time:"H:i" }} · {% if d.state == "overdue" %}Overdue{% elif d.state == "due" %}Due{% else %}Upcoming{% endif %}</span>
+            {% endif %}
+          {% empty %}
+            {% for a in row.adhoc %}<span class="chip {% if a.entered_in_error %}chip-neutral line-through{% elif a.status == 'given' %}chip-success{% else %}chip-warning{% endif %}">{{ a.administered_at|time:"H:i" }} · {{ a.get_status_display }}</span>{% empty %}<span class="text-label text-muted">{% if row.order.frequency == "SOS" %}As needed — no doses given this day.{% elif row.order.frequency == "STAT" %}One dose, not charted yet.{% else %}No doses this day.{% endif %}</span>{% endfor %}
+            {% if can_nurse and admission.is_active and row.order.is_active and row.order.frequency in "SOS STAT" %}
+              <form method="post" action="{% url 'nursing:dose' row.order.pk %}" class="flex items-center gap-2">{% csrf_token %}<input type="hidden" name="status" value="given"><button class="btn btn-secondary btn-sm">Give now</button></form>
+            {% endif %}
+          {% endfor %}
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}{% include "components/empty_state.html" with icon_name="pill" title="No medicines on this day" compact=True %}{% endif %}
+  </section>
+</div>
+
+{% elif tab == "orders" %}
+<div class="grid gap-6 xl:grid-cols-2">
+  <section class="card">
+    <div class="card-header"><h2 class="section-title">Lab orders this stay</h2>{% if can_order_lab and admission.is_active %}<a href="{% url 'lab:order-create' %}?patient={{ patient.pk }}" class="btn btn-primary btn-sm">{% icon "plus" "h-4 w-4" %} Order lab test</a>{% endif %}</div>
+    <ul class="divide-y divide-line">
+      {% for o in lab_orders %}
+      <li class="py-3">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <p><a href="{% url 'lab:order-detail' o.pk %}" class="font-mono font-medium hover:underline">{{ o.number }}</a> <span class="text-label text-muted">· {{ o.created_at|date:"d M, H:i" }} · {{ o.doctor|default:"Lab desk" }}</span></p>
+          <span class="flex gap-2">{% if o.has_critical %}<span class="chip chip-danger">Critical</span>{% endif %}{% status_chip o.status o.get_status_display %}</span>
+        </div>
+        <p class="mt-1 text-label">{% for i in o.items.all %}{{ i.test_name }}{% if not forloop.last %} · {% endif %}{% endfor %}</p>
+      </li>
+      {% empty %}<li class="py-3 text-label text-muted">No lab orders during this stay.</li>{% endfor %}
+    </ul>
+  </section>
+  <section class="card">
+    <h2 class="section-title mb-4">Prescriptions this stay</h2>
+    <ul class="divide-y divide-line">
+      {% for rx in prescriptions %}
+      <li class="py-3">
+        <p class="flex flex-wrap items-center justify-between gap-2"><span><span class="font-mono font-medium">{{ rx.number }}</span> <span class="text-label text-muted">· {{ rx.created_at|date:"d M" }} · {{ rx.doctor }}</span></span><a href="{% url 'prescriptions:print' rx.pk %}" target="_blank" class="btn btn-ghost btn-sm">Print</a></p>
+        <ul class="mt-1 text-body">{% for i in rx.items.all %}<li>{{ i.medicine_name }} <span class="text-muted">· {{ i.directions }}</span></li>{% endfor %}</ul>
+      </li>
+      {% empty %}<li class="py-3 text-label text-muted">No prescriptions during this stay. Inpatient medicines are on the medication chart.</li>{% endfor %}
+    </ul>
+  </section>
+</div>
+
+{% elif tab == "billing" %}
+<div class="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+  <div class="stat-card bg-blue-soft"><p class="text-body">Inpatient charges</p><p class="mt-2 text-[28px] font-bold">{{ organization.currency }} {{ money.ipd_charges|floatformat:"2g" }}</p><p class="text-label text-muted">{% if money.bed_estimate %}+ {{ money.bed_estimate|floatformat:"2g" }} bed charges so far (posted at final bill){% else %}Services, procedures and bed charges{% endif %}</p></div>
+  <div class="stat-card bg-violet-soft"><p class="text-body">Other bills this stay</p><p class="mt-2 text-[28px] font-bold">{{ organization.currency }} {{ money.other_total|floatformat:"2g" }}</p><p class="text-label text-muted">{{ money.other_invoices|length }} invoice(s): lab, pharmacy …</p></div>
+  <div class="stat-card bg-mint"><p class="text-body">Deposits</p><p class="mt-2 text-[28px] font-bold">{{ organization.currency }} {{ money.deposit_total|floatformat:"2g" }}</p><p class="text-label text-muted">{{ money.deposit_unapplied|floatformat:"2g" }} not yet applied</p></div>
+  <div class="stat-card bg-amber-soft"><p class="text-body">Estimated due</p><p class="mt-2 text-[28px] font-bold">{{ organization.currency }} {{ money.estimated_due|floatformat:"2g" }}</p><p class="text-label text-muted">If the bill were closed now (negative = refund)</p></div>
+</div>
+<div class="grid gap-6 xl:grid-cols-[2fr_1fr]">
+  <section class="card">
+    <div class="card-header"><h2 class="section-title">Inpatient bill{% if money.ipd_invoice %} · <span class="font-mono">{{ money.ipd_invoice.number }}</span>{% endif %}</h2>{% if money.ipd_invoice %}{% status_chip money.ipd_invoice.status money.ipd_invoice.get_status_display %}{% endif %}</div>
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th scope="col">Item</th><th scope="col" class="text-right">Qty</th><th scope="col" class="text-right">Price</th><th scope="col" class="text-right">Total</th></tr></thead>
+        <tbody>
+          {% for i in items %}<tr><td>{{ i.description }}<p class="text-label text-muted">{{ i.get_kind_display }} · {{ i.created_at|date:"d M" }}</p></td><td class="text-right">{{ i.quantity }}</td><td class="text-right">{{ i.unit_price|floatformat:"2g" }}</td><td class="text-right font-medium">{{ i.line_total|floatformat:"2g" }}</td></tr>
+          {% empty %}<tr><td colspan="4" class="text-label text-muted">No charges posted yet. Bed charges are added when the final bill is issued.</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if money.other_invoices %}
+    <h3 class="mt-6 mb-2 text-body font-semibold">Other invoices during the stay</h3>
+    <ul class="divide-y divide-line">{% for inv in money.other_invoices %}<li class="flex flex-wrap items-center justify-between gap-2 py-2 text-body"><span>{% if can_view_billing and inv.branch_id == request.branch.pk %}<a class="font-mono hover:underline" href="{% url 'billing:invoice-detail' inv.pk %}">{{ inv.number }}</a>{% else %}<span class="font-mono">{{ inv.number }}</span>{% endif %} <span class="text-label text-muted">{{ inv.notes|default:"" }}</span></span><span>{{ inv.grand_total|floatformat:"2g" }} · {% status_chip inv.status inv.get_status_display %}</span></li>{% endfor %}</ul>
+    {% endif %}
+    {% if can_view_billing and money.ipd_invoice and money.ipd_invoice.branch_id == request.branch.pk %}<a href="{% url 'billing:invoice-detail' money.ipd_invoice.pk %}" class="btn btn-secondary btn-sm mt-4">Open in Billing</a>{% endif %}
+  </section>
+  <aside class="space-y-6">
+    {% if can_manage and admission.is_active and not admission.bill_finalized_at %}
+    <section class="card">
+      <h2 class="section-title mb-3">Post a charge</h2>
+      <form method="post" action="{% url 'ipd:admission-charge' admission.pk %}" class="space-y-3">{% csrf_token %}
+        {% include "components/field.html" with field=charge_form.service %}
+        {% include "components/field.html" with field=charge_form.kind %}
+        {% include "components/field.html" with field=charge_form.description %}
+        <div class="grid grid-cols-2 gap-3">{% include "components/field.html" with field=charge_form.unit_price %}{% include "components/field.html" with field=charge_form.quantity %}</div>
+        <button class="btn btn-primary btn-sm">Add to bill</button>
+      </form>
+    </section>
+    {% endif %}
+    <section class="card">
+      <h2 class="section-title mb-3">Deposits</h2>
+      <ul class="mb-3 divide-y divide-line">
+        {% for d in money.deposits %}<li class="py-2 text-body"><p class="flex justify-between"><span class="font-mono">{{ d.number }}</span><span class="font-semibold">{{ d.amount|floatformat:"2g" }}</span></p><p class="text-label text-muted">{{ d.created_at|date:"d M, H:i" }} · {{ d.method }}{% if d.reference %} · {{ d.reference }}{% endif %} · {{ d.received_by }}{% if d.applied_amount %} · applied {{ d.applied_amount|floatformat:"2g" }}{% endif %}{% if d.returned_amount %} · returned {{ d.returned_amount|floatformat:"2g" }}{% endif %}</p></li>
+        {% empty %}<li class="py-2 text-label text-muted">No deposit taken.</li>{% endfor %}
+      </ul>
+      {% if can_collect and admission.is_active and not admission.bill_finalized_at %}
+      <form method="post" action="{% url 'ipd:admission-deposit' admission.pk %}" class="space-y-3">{% csrf_token %}
+        {{ deposit_form.idempotency_key }}
+        {% include "components/field.html" with field=deposit_form.amount %}
+        {% include "components/field.html" with field=deposit_form.method %}
+        {% include "components/field.html" with field=deposit_form.reference %}
+        <button class="btn btn-secondary btn-sm">Record deposit</button>
+      </form>
+      {% endif %}
+    </section>
+  </aside>
+</div>
+
+{% elif tab == "transfers" %}
+<div class="grid gap-6 xl:grid-cols-2">
+  <section class="card">
+    <div class="card-header"><h2 class="section-title">Transfer history</h2>{% if can_manage and admission.is_active %}<a href="{% url 'ipd:admission-transfer' admission.pk %}" class="btn btn-primary btn-sm">Transfer</a>{% endif %}</div>
+    <ul class="divide-y divide-line">
+      {% for t in transfers %}<li class="py-3"><p class="font-medium">{{ t.from_bed.code }} → {{ t.to_bed.code }} <span class="chip chip-neutral">{{ t.get_kind_display }}</span></p><p class="text-label text-muted">{{ t.transferred_at|date:"d M Y, H:i" }} · {{ t.transferred_by }} · {{ t.from_bed.room.ward.name }} → {{ t.to_bed.room.ward.name }}</p><p class="text-body">{{ t.reason }}</p></li>
+      {% empty %}<li class="py-3 text-label text-muted">No transfers.</li>{% endfor %}
+    </ul>
+  </section>
+  <section class="card">
+    <h2 class="section-title mb-4">Bed occupancy</h2>
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th scope="col">Bed</th><th scope="col">From</th><th scope="col">To</th><th scope="col" class="text-right">Bed-days</th><th scope="col" class="text-right">Rate</th></tr></thead>
+        <tbody>{% for o in occupancies %}<tr><td>{{ o.bed.code }}<p class="text-label text-muted">{{ o.bed.room.ward.name }}</p></td><td class="whitespace-nowrap">{{ o.started_at|date:"d M, H:i" }}</td><td class="whitespace-nowrap">{{ o.ended_at|date:"d M, H:i"|default:"Now" }}</td><td class="text-right">{{ o.charge_days }}</td><td class="text-right">{{ o.daily_rate|floatformat:"2g" }}{% if o.charged %}<p class="text-label text-muted">billed</p>{% endif %}</td></tr>{% endfor %}</tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+{% elif tab == "documents" %}
+<section class="card">{% include "documents/_panel.html" %}</section>
+{% endif %}
+{% endblock %}

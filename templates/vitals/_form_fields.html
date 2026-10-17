@@ -1,0 +1,29 @@
+{# Vitals entry component. Context: form (VitalsForm). #}
+<fieldset>
+  <legend class="section-title mb-4">Readings</legend>
+  <div class="grid gap-5 md:grid-cols-3">
+    <div class="field">
+      <label class="field-label" for="{{ form.temperature.id_for_label }}">Temperature</label>
+      <div class="flex gap-2">{{ form.temperature }}<label class="sr-only" for="{{ form.temperature_unit.id_for_label }}">Unit</label>{{ form.temperature_unit }}</div>
+      {% for error in form.temperature.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+    </div>
+    <div class="field">
+      <span class="field-label" id="bp-label">Blood pressure (mmHg)</span>
+      <div class="flex items-center gap-2" role="group" aria-labelledby="bp-label">{{ form.bp_systolic }}<span class="text-muted">/</span>{{ form.bp_diastolic }}</div>
+      <p class="field-help">Systolic / diastolic</p>
+      {% for error in form.bp_systolic.errors %}<p class="field-error">Systolic: {{ error }}</p>{% endfor %}
+      {% for error in form.bp_diastolic.errors %}<p class="field-error">Diastolic: {{ error }}</p>{% endfor %}
+    </div>
+    {% include "components/field.html" with field=form.pulse %}
+    {% include "components/field.html" with field=form.respiratory_rate %}
+    {% include "components/field.html" with field=form.spo2 %}
+    <div></div>
+    {% include "components/field.html" with field=form.weight_kg %}
+    {% include "components/field.html" with field=form.height_cm %}
+    <div class="field"><span class="field-label">BMI</span><p class="input flex items-center bg-page text-muted" x-data x-init="const wi = document.getElementById('{{ form.weight_kg.id_for_label }}'), hi = document.getElementById('{{ form.height_cm.id_for_label }}'); const calc = () => { const w = parseFloat(wi.value), h = parseFloat(hi.value) / 100; $el.textContent = (w > 0 && h > 0) ? (w / (h * h)).toFixed(1) : 'Calculated from weight and height'; }; wi.addEventListener('input', calc); hi.addEventListener('input', calc); calc();">Calculated from weight and height</p></div>
+    {% include "components/field.html" with field=form.blood_glucose %}
+    {% include "components/field.html" with field=form.glucose_context %}
+    <div></div>
+    {% include "components/field.html" with field=form.notes wide=True %}
+  </div>
+</fieldset>

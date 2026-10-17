@@ -1,0 +1,84 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}Laboratory worklist{% endblock %}
+{% block page_title %}Laboratory{% endblock %}
+{% block page_subtitle %}{{ current_branch.name }} · samples, processing, results and verification.{% endblock %}
+{% block page_actions %}
+  {% if "lab.catalog.manage" in sd_perms %}<a href="{% url 'lab:catalog' %}" class="btn btn-secondary">Test catalogue</a>{% endif %}
+  {% if can_order %}<a href="{% url 'lab:order-create' %}" class="btn btn-primary">{% icon "plus" "h-4 w-4" %} New lab order</a>{% endif %}
+{% endblock %}
+{% block content %}
+{% if critical %}
+<section class="mb-6 rounded-card border border-red bg-red-soft p-4" role="alert">
+  <h2 class="flex items-center gap-2 font-semibold text-red">{% icon "alert-triangle" "h-5 w-5" %} Critical results not yet acknowledged</h2>
+  <ul class="mt-2 space-y-1 text-body">
+    {% for r in critical %}<li><a class="font-medium underline" href="{% url 'lab:order-detail' r.item.order_id %}">{{ r.item.order.number }}</a> · {{ r.item.order.patient.full_name }} · {{ r.item.test_name }} <span class="font-semibold">{{ r.display_value }} {{ r.unit }}</span> ({{ r.get_flag_display }})</li>{% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+<section class="card">
+  <nav class="tabs mb-5 overflow-x-auto" aria-label="Worklist">
+    {% for key, label, n in tabs %}<a class="tab" href="?tab={{ key }}" {% if tab == key %}aria-selected="true"{% endif %}>{{ label }} <span class="chip {% if n %}chip-warning{% else %}chip-neutral{% endif %} ml-1">{{ n }}</span></a>{% endfor %}
+  </nav>
+  <form method="get" class="mb-5 grid gap-3 md:grid-cols-[1fr_auto_auto]" x-data @change="$el.submit()">
+    <input type="hidden" name="tab" value="{{ tab }}">
+    <input type="search" name="q" value="{{ q }}" class="input" placeholder="Order number, MRN or patient name" aria-label="Search">
+    <select name="priority" class="select" aria-label="Priority"><option value="">All priorities</option>{% for v, l in priorities %}<option value="{{ v }}" {% if priority == v %}selected{% endif %}>{{ l }}</option>{% endfor %}</select>
+    <select name="category" class="select" aria-label="Category"><option value="">All categories</option>{% for c in categories %}<option value="{{ c.pk }}" {% if category == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>{% endfor %}</select>
+  </form>
+
+  {% if tab == "collect" %}
+    {% if samples %}
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th scope="col">Accession</th><th scope="col">Patient</th><th scope="col">Sample · tests</th><th scope="col">Payment</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+        <tbody>
+          {% for s in samples %}
+          <tr>
+            <td><span class="font-mono font-semibold">{{ s.accession }}</span>{% if s.recollection_of %} <span class="chip chip-danger">Recollect</span>{% endif %}<p class="text-label text-muted"><a class="hover:underline" href="{% url 'lab:order-detail' s.order_id %}">{{ s.order.number }}</a> · {{ s.order.created_at|time:"H:i" }}{% if s.order.priority != "routine" %} · <span class="font-semibold text-red">{{ s.order.get_priority_display }}</span>{% endif %}</p></td>
+            <td>{{ s.order.patient.full_name }}<p class="font-mono text-label text-muted">{{ s.order.patient.mrn }}</p></td>
+            <td>{{ s.get_sample_type_display }}<p class="text-label text-muted">{% for i in s.items.all %}{{ i.test_name }}{% if not forloop.last %}, {% endif %}{% endfor %}</p></td>
+            <td>{% if s.order.is_paid %}{% status_chip "paid" s.order.payment_label %}{% else %}{% status_chip "unpaid" s.order.payment_label %}{% endif %}</td>
+            <td class="text-right whitespace-nowrap">
+              {% if "lab.sample.collect" in sd_perms %}
+                {% if s.order.is_paid or s.order.priority != "routine" %}
+                <form method="post" action="{% url 'lab:sample-collect' s.pk %}" class="inline">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="btn btn-primary btn-sm">Mark collected</button></form>
+                {% else %}<a href="{% url 'lab:order-detail' s.order_id %}" class="btn btn-secondary btn-sm">Open</a>{% endif %}
+              {% endif %}
+              <a href="{% url 'lab:sample-label' s.pk %}" target="_blank" class="btn btn-ghost btn-sm">Label</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}{% include "components/empty_state.html" with icon_name="flask" title="No samples waiting" message="New lab orders appear here until their sample is collected." %}{% endif %}
+  {% else %}
+    {% if orders %}
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th scope="col">Order</th><th scope="col">Patient</th><th scope="col">Doctor</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+        <tbody>
+          {% for o in orders %}
+          <tr>
+            <td><a href="{% url 'lab:order-detail' o.pk %}" class="font-mono font-medium hover:underline">{{ o.number }}</a>{% if o.priority != "routine" %} <span class="chip chip-danger">{{ o.get_priority_display }}</span>{% endif %}{% if o.has_critical %} <span class="chip chip-danger">Critical</span>{% endif %}<p class="text-label text-muted">{{ o.created_at|date:"d M, H:i" }}{% if o.n %} · {{ o.n }} test{{ o.n|pluralize }}{% endif %}</p></td>
+            <td>{{ o.patient.full_name }}<p class="font-mono text-label text-muted">{{ o.patient.mrn }}</p></td>
+            <td>{{ o.doctor|default:"—" }}</td>
+            <td>{% status_chip o.status o.get_status_display %}</td>
+            <td class="text-right whitespace-nowrap">
+              {% if tab == "processing" and "lab.result.enter" in sd_perms %}<form method="post" action="{% url 'lab:order-start' o.pk %}" class="inline">{% csrf_token %}<button class="btn btn-primary btn-sm">Start processing</button></form>{% endif %}
+              {% if tab == "results" and "lab.result.enter" in sd_perms %}<a href="{% url 'lab:results' o.pk %}" class="btn btn-primary btn-sm">Enter results</a>{% endif %}
+              {% if tab == "verify" and "lab.result.verify" in sd_perms %}<a href="{% url 'lab:order-detail' o.pk %}#verify" class="btn btn-primary btn-sm">Review &amp; verify</a>{% endif %}
+              {% if tab == "released" %}<a href="{% url 'lab:report' o.pk %}" target="_blank" class="btn btn-secondary btn-sm">Report</a>{% endif %}
+              <a href="{% url 'lab:order-detail' o.pk %}" class="btn btn-ghost btn-sm">Open</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}{% include "components/empty_state.html" with icon_name="inbox" title="Nothing here" message="Orders move through these lists as samples are processed." %}{% endif %}
+  {% endif %}
+</section>
+{% endblock %}

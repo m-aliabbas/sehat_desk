@@ -1,0 +1,99 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000">
+<title>27 lab result entry</title>
+<rect x="0" y="0" width="1600" height="1000" rx="0" fill="#F3F8FB"/>
+<rect x="0" y="0" width="246" height="1000" rx="0" fill="#F8FCFE"/>
+<rect x="246" y="0" width="1354" height="76" rx="0" fill="white"/>
+<path d="M36 34 C23 17 4 37 18 50 L36 67 L54 50 C68 37 49 17 36 34Z" fill="#17B99F" transform="translate(13 -3)"/>
+<path d="M32 42 H41 L45 34 L50 51 L54 42 H68" stroke="white" fill="none" stroke-width="2"/>
+<text x="78" y="43" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="25" font-weight="700">SehatDesk</text>
+<text x="124" y="62" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="11" font-weight="400">by Vibe.Exe</text>
+<path d="M1 8 L9 1 L17 8 V18 H11 V12 H7 V18 H1Z" transform="translate(33 98)" fill="none" stroke="#34516F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="64" y="115" fill="#34516F" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">Dashboard</text>
+<path d="M1 4 H17 V8 Q12 10 17 12 V16 H1 V12 Q6 10 1 8Z" transform="translate(33 153)" fill="none" stroke="#34516F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="64" y="170" fill="#34516F" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">Reception &amp; tokens</text>
+<path d="M2 4 H16 V18 H2Z M5 1 V7 M13 1 V7 M2 9 H16" transform="translate(33 208)" fill="none" stroke="#34516F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="64" y="225" fill="#34516F" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">Appointments</text>
+<path d="M5 5 A4 4 0 1 0 13 5 A4 4 0 1 0 5 5 M1 19 V16 Q9 9 17 16 V19" transform="translate(33 263)" fill="none" stroke="#34516F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="64" y="280" fill="#34516F" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">Patients</text>
+<path d="M3 1 V7 Q3 13 9 13 Q15 13 15 7 V1 M9 13 V16 Q9 21 17 18 V14" transform="translate(33 318)" fill="none" stroke="#34516F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="64" y="335" fill="#34516F" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">Doctor workspace</text>
+<path d="M1 3 V18 M1 12 H18 V18 M4 7 H8 V12 M9 6 H16 V12" transform="translate(33 373)" fill="none" stroke="#34516F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="64" y="390" fill="#34516F" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">IPD &amp; wards</text>
+<rect x="17" y="418" width="211" height="44" rx="10" fill="#086C70"/>
+<path d="M6 1 H12 M7 1 V7 L1 17 Q0 19 3 19 H15 Q18 19 17 17 L11 7 V1 M4 12 H14" transform="translate(33 428)" fill="none" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="64" y="445" fill="white" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="500">Laboratory</text>
+<path d="M4 3 Q8 -1 12 3 L17 8 Q21 12 17 16 Q13 20 9 16 L4 11 Q0 7 4 3 M7 13 L14 6" transform="translate(33 483)" fill="none" stroke="#34516F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="64" y="500" fill="#34516F" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">Pharmacy</text>
+<path d="M1 4 H18 V17 H1Z M1 8 H18 M4 13 H8" transform="translate(33 538)" fill="none" stroke="#34516F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="64" y="555" fill="#34516F" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">Billing &amp; payments</text>
+<path d="M2 18 V10 H5 V18 M8 18 V3 H11 V18 M14 18 V7 H17 V18" transform="translate(33 593)" fill="none" stroke="#34516F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="64" y="610" fill="#34516F" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">Reports</text>
+<path d="M1 4 H18 M1 10 H18 M1 16 H18 M6 1 V7 M13 7 V13 M7 13 V19" transform="translate(33 648)" fill="none" stroke="#34516F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="64" y="665" fill="#34516F" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">Settings</text>
+<rect x="18" y="814" width="211" height="150" rx="15" fill="#E3F6F4"/>
+<text x="36" y="845" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="18" font-weight="600">Connected care.</text>
+<text x="36" y="870" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="18" font-weight="600">Better together.</text>
+<text x="36" y="900" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="12" font-weight="400">Sehat Medical Centre</text>
+<text x="36" y="921" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="12" font-weight="400">Main branch · Islamabad</text>
+<rect x="274" y="17" width="536" height="42" rx="10" fill="#F5F9FC" stroke="#E5EDF3"/>
+<text x="293" y="43" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="14" font-weight="400">⌕   Search patients, visits, orders...</text>
+<rect x="1190" y="24" width="120" height="27" rx="13" fill="#EDF2F7"/>
+<text x="1201" y="42" fill="#687D96" font-family="Inter, DejaVu Sans, sans-serif" font-size="12" font-weight="500">Demo workspace</text>
+<circle cx="1385" cy="38" r="18" fill="#DDF5EF"/>
+<text x="1374.2" y="43" fill="#008E81" font-family="Inter, DejaVu Sans, sans-serif" font-size="12" font-weight="600">Lt</text>
+<text x="1415" y="34" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="14" font-weight="600">Lab technician</text>
+<text x="1415" y="55" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="11" font-weight="400">Sehat Medical Centre</text>
+<text x="278" y="125" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="28" font-weight="700">Laboratory result entry</text>
+<text x="278" y="152" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="14" font-weight="400">L-0919 · Fatima Noor · CBC · Draft results</text>
+<rect x="1350" y="111" width="214" height="40" rx="8" fill="#008E81"/>
+<text x="1365" y="136" fill="white" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="500">Save for verification</text>
+<text x="278" y="977" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="10" font-weight="400">SEHATDESK  /  DESKTOP CONCEPT  /  FICTIONAL DATA</text>
+<text x="1397" y="977" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="10" font-weight="400">1600 × 1000 desktop</text>
+<rect x="278" y="181" width="866" height="571" rx="16" fill="white" stroke="#E5EDF3"/>
+<text x="300" y="213" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="18" font-weight="600">Result worksheet</text>
+<text x="300" y="236" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="12" font-weight="400">Units and reference ranges follow the configured lab method.</text>
+<rect x="300" y="267" width="822" height="36" rx="7" fill="#F0F5F9"/>
+<text x="314" y="291" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="12" font-weight="500">Parameter</text>
+<text x="585.26" y="291" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="12" font-weight="500">Result</text>
+<text x="790.76" y="291" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="12" font-weight="500">Unit</text>
+<text x="930.5" y="291" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="12" font-weight="500">Reference</text>
+<path d="M300 375H1122" fill="none" stroke="#E5EDF3"/>
+<text x="314" y="337" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="500">Haemoglobin</text>
+<text x="585.26" y="337" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">Enter result</text>
+<text x="790.76" y="337" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">g/dL</text>
+<text x="930.5" y="337" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">Lab configured</text>
+<path d="M300 447H1122" fill="none" stroke="#E5EDF3"/>
+<text x="314" y="409" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="500">White cell count</text>
+<text x="585.26" y="409" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">Enter result</text>
+<text x="790.76" y="409" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">×10⁹/L</text>
+<text x="930.5" y="409" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">Lab configured</text>
+<path d="M300 519H1122" fill="none" stroke="#E5EDF3"/>
+<text x="314" y="481" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="500">Platelets</text>
+<text x="585.26" y="481" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">Enter result</text>
+<text x="790.76" y="481" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">×10⁹/L</text>
+<text x="930.5" y="481" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">Lab configured</text>
+<path d="M300 591H1122" fill="none" stroke="#E5EDF3"/>
+<text x="314" y="553" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="500">Haematocrit</text>
+<text x="585.26" y="553" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">Enter result</text>
+<text x="790.76" y="553" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">%</text>
+<text x="930.5" y="553" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">Lab configured</text>
+<text x="300" y="657" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="12" font-weight="500">Comments</text>
+<rect x="300" y="669" width="821" height="43" rx="8" fill="#FBFDFF" stroke="#E5EDF3"/>
+<text x="313" y="696" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="14" font-weight="400">Add relevant laboratory comments</text>
+<rect x="1160" y="181" width="422" height="340" rx="16" fill="white" stroke="#E5EDF3"/>
+<text x="1182" y="213" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="18" font-weight="600">Sample information</text>
+<text x="1182" y="255" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="14" font-weight="400">Order: L-0919</text>
+<text x="1182" y="297" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="14" font-weight="400">Patient: Fatima Noor</text>
+<text x="1182" y="339" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="14" font-weight="400">Collected: 11 Oct · 09:50 AM</text>
+<text x="1182" y="381" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="14" font-weight="400">Sample: Whole blood</text>
+<text x="1182" y="423" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="14" font-weight="400">Stage: Awaiting verification</text>
+<rect x="1160" y="540" width="422" height="179" rx="10" fill="#FFF4E1"/>
+<text x="1177" y="568" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="15" font-weight="600">Release control</text>
+<text x="1177" y="594" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">Draft results are not patient-visible.</text>
+<text x="1177" y="616" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">An authorized verifier must approve</text>
+<text x="1177" y="638" fill="#73869E" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="400">results before report release.</text>
+<rect x="300" y="809" width="103.0" height="40" rx="8" fill="white" stroke="#E5EDF3"/>
+<text x="315" y="834" fill="#112D4E" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="500">Save draft</text>
+<rect x="472" y="809" width="277" height="40" rx="8" fill="#008E81"/>
+<text x="487" y="834" fill="white" font-family="Inter, DejaVu Sans, sans-serif" font-size="13" font-weight="500">Submit for verification</text>
+</svg>

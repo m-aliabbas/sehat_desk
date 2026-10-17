@@ -1,0 +1,28 @@
+{% extends "layouts/app.html" %}
+{% block title %}Versions · {{ encounter.number }}{% endblock %}
+{% block page_title %}Signed versions{% endblock %}
+{% block page_subtitle %}<span class="font-mono">{{ encounter.number }}</span> · {{ encounter.patient.full_name }} · newest first. Signed versions are never edited.{% endblock %}
+{% block page_actions %}<a href="{% url 'encounters:detail' encounter.pk %}" class="btn btn-secondary">Back to consultation</a>{% endblock %}
+{% block content %}
+<div class="space-y-6">
+  {% for row in rows %}
+  <details class="card" {% if forloop.first %}open{% endif %}>
+    <summary class="cursor-pointer">
+      <span class="section-title">Version {{ row.version.version }}</span>
+      <span class="ml-2 text-label text-muted">signed {{ row.version.signed_at|date:"d M Y, H:i" }} by {{ row.version.signed_by }}</span>
+      {% if row.version.amendment_reason %}<p class="mt-1 text-body">Amendment reason: {{ row.version.amendment_reason }}</p>{% endif %}
+      {% if row.changed %}<p class="mt-1 text-label text-amber">Changed: {{ row.changed|join:", " }}</p>{% elif not forloop.last %}<p class="mt-1 text-label text-muted">No note changes from the previous version.</p>{% endif %}
+    </summary>
+    <dl class="mt-4 grid gap-4 md:grid-cols-2">
+      {% for label, value in row.fields %}{% if value %}
+        <div class="md:col-span-2"><dt class="field-label">{{ label }}</dt><dd class="mt-1 text-body whitespace-pre-line">{{ value }}</dd></div>
+      {% endif %}{% endfor %}
+      {% if row.version.diagnoses %}<div class="md:col-span-2"><dt class="field-label">Coded diagnoses</dt><dd class="mt-1 text-body"><ul class="list-disc pl-5">{% for d in row.version.diagnoses %}<li>{% if d.code %}<span class="font-mono">{{ d.code }}</span> · {% endif %}{{ d.text }} ({{ d.kind }}{% if d.primary %}, primary{% endif %})</li>{% endfor %}</ul></dd></div>{% endif %}
+      {% if row.version.prescription %}<div class="md:col-span-2"><dt class="field-label">Prescription</dt><dd class="mt-1 text-body"><ol class="list-decimal pl-5">{% for i in row.version.prescription %}<li><span class="font-medium">{{ i.medicine }}</span>{% if i.generic %} ({{ i.generic }}){% endif %} · {{ i.dose }} · {{ i.frequency }}{% if i.duration %} · {{ i.duration }}{% endif %}{% if i.quantity %} · qty {{ i.quantity }}{% endif %}{% if i.instructions %} · {{ i.instructions }}{% endif %}{% if i.allergy_override %} <span class="text-red">· allergy override: {{ i.allergy_override }}</span>{% endif %}</li>{% endfor %}</ol>{% if row.version.content.advice %}<p class="mt-2 whitespace-pre-line">{{ row.version.content.advice }}</p>{% endif %}</dd></div>{% endif %}
+    </dl>
+  </details>
+  {% empty %}
+  <section class="card">{% include "components/empty_state.html" with icon_name="inbox" title="Not signed yet" message="Versions appear when the consultation is completed." %}</section>
+  {% endfor %}
+</div>
+{% endblock %}

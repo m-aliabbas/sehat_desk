@@ -1,0 +1,42 @@
+{% extends "print/a4.html" %}
+{% block title %}Lab report {{ order.number }}{% endblock %}
+{% block toolbar %}{% if not pdf %}{{ block.super }}{% endif %}{% endblock %}
+{% block print_label %}Print report{% endblock %}
+{% block toolbar_extra %}<a class="btn btn-secondary" href="?format=pdf">Download PDF</a>{% endblock %}
+{% block before_sheet %}{% if not pdf %}{% for m in messages %}<p class="no-print mx-auto mb-4 max-w-[210mm] rounded-control bg-amber-soft p-3 text-body text-amber" role="status">{{ m }}</p>{% endfor %}{% endif %}{% endblock %}
+{% block document %}
+    {% if not released %}<p class="mb-4 rounded-control bg-amber-soft p-2 text-center font-bold text-amber uppercase">Preliminary · not released · not for clinical use</p>{% endif %}
+    {% if order.amendment_count %}{% include "print/_letterhead.html" with org=organization branch=order.branch unit="Laboratory" doc_title="Laboratory report" doc_number=order.number doc_note="Amended report" %}{% else %}{% include "print/_letterhead.html" with org=organization branch=order.branch unit="Laboratory" doc_title="Laboratory report" doc_number=order.number %}{% endif %}
+    <section class="mt-4 grid grid-cols-2 gap-x-8 gap-y-1 text-body">
+      <p><span class="text-muted">Patient:</span> <span class="font-semibold">{{ patient.full_name }}</span></p>
+      <p><span class="text-muted">Ordering doctor:</span> {{ order.doctor|default:"Self / walk-in" }}</p>
+      <p><span class="text-muted">MRN:</span> <span class="font-mono">{{ patient.mrn }}</span></p>
+      <p><span class="text-muted">Sample collected:</span> {{ sample_date|date:"d M Y, H:i"|default:"—" }}</p>
+      <p><span class="text-muted">Age / sex:</span> {{ patient.age_label }} · {{ patient.get_gender_display }}</p>
+      <p><span class="text-muted">Reported:</span> {{ order.released_at|date:"d M Y, H:i"|default:"—" }}</p>
+    </section>
+    <table class="mt-6 w-full text-body">
+      <thead><tr class="border-b border-ink text-left text-label uppercase"><th class="py-2">Test</th><th>Result</th><th>Flag</th><th>Unit</th><th>Reference range</th></tr></thead>
+      <tbody>
+        {% regroup items by test.category.name as groups %}
+        {% for g in groups %}
+          <tr><td colspan="5" class="pt-3 pb-1 text-label font-bold uppercase">{{ g.grouper }}</td></tr>
+          {% for i in g.list %}{% with r=i.current_result %}
+          <tr class="border-b border-line align-top">
+            <td class="py-1.5">{{ i.test_name }}{% if r.version > 1 %}<span class="block text-label text-amber">Amended: {{ r.amendment_reason }}</span>{% endif %}</td>
+            <td class="{% if r.is_abnormal %}font-bold{% endif %}">{% if r %}{{ r.display_value }}{% else %}Pending{% endif %}{% if r.interpretation %}<span class="block text-label font-normal whitespace-pre-line">{{ r.interpretation }}</span>{% endif %}</td>
+            <td class="{% if r.is_critical %}font-bold text-red{% endif %}">{% if r.flag and r.flag != "normal" %}{{ r.get_flag_display }}{% endif %}</td>
+            <td>{{ r.unit|default:i.unit }}</td>
+            <td class="text-label">{{ r.reference_text }}</td>
+          </tr>
+          {% endwith %}{% endfor %}
+        {% endfor %}
+      </tbody>
+    </table>
+    <section class="mt-10 grid grid-cols-2 gap-8 text-body">
+      <div><div class="h-8 border-b border-ink"></div><p class="mt-1 text-label"><span class="font-semibold">Technician:</span> {{ technicians|join:", "|default:"—" }}</p></div>
+      <div><div class="h-8 border-b border-ink"></div><p class="mt-1 text-label"><span class="font-semibold">Verified by (pathologist):</span> {{ verifiers|join:", "|default:"—" }}</p></div>
+    </section>
+    {% include "print/_footer.html" with org=organization note="Results should be interpreted by a qualified clinician." %}
+    <p class="mt-1 text-center text-label text-muted">Report verification code: <span class="font-mono">{{ order.number }}-{{ order.pk }}</span></p>
+{% endblock %}

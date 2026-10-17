@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% comment %}
+  Signed-in app shell: sidebar, topbar, breadcrumbs, page header, content.
+  Pages fill: title, breadcrumbs (optional), page_title, page_subtitle, page_actions, content.
+  Below 1024px (tablets) the sidebar collapses behind the menu button.
+{% endcomment %}
+{% block body_attrs %}x-data="{ sidebarOpen: false }" @keydown.escape.window="sidebarOpen = false"{% endblock %}
+{% block body %}
+<div class="min-h-screen lg:pl-sidebar">
+  {% include "partials/sidebar.html" %}
+
+  <div class="flex min-h-screen flex-col">
+    {% include "partials/topbar.html" %}
+
+    <main id="main" class="flex-1 px-4 py-6 sm:px-8 sm:py-8">
+      {% block breadcrumbs_wrap %}
+        {% if breadcrumbs %}{% include "partials/breadcrumbs.html" %}{% endif %}
+      {% endblock %}
+
+      {% block page_header %}
+      <div class="mb-6 flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 class="page-title">{% block page_title %}{% endblock %}</h1>
+          <p class="page-subtitle">{% block page_subtitle %}{% endblock %}</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-3">{% block page_actions %}{% endblock %}</div>
+      </div>
+      {% endblock %}
+
+      {% block content %}{% endblock %}
+    </main>
+
+    <footer class="flex flex-wrap justify-between gap-2 px-8 pb-6 text-[11px] tracking-wide text-muted uppercase">
+      <span>SehatDesk</span>
+      {% if workspace_env != "production" %}<span>{{ workspace_env }} workspace</span>{% endif %}
+    </footer>
+  </div>
+</div>
+
+{# HTMX-loaded modals and drawers render here (see templates/components/modal_base.html) #}
+<div id="overlay-root"></div>
+{% endblock %}

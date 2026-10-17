@@ -1,0 +1,145 @@
+/*
+ * SehatDesk design system (Tailwind v4, CSS-first config).
+ * Tokens mirror ui_design_reference/.../03-handoff/DESIGN-TOKENS.json.
+ * Build with: python manage.py tailwind build   (output: static/css/app.css)
+ */
+@import "tailwindcss";
+
+@source "../../templates";
+@source "../../apps";
+@source "../js";
+
+@theme {
+  /* Brand palette (DESIGN-TOKENS.json) */
+  --color-ink: #112d4e;
+  --color-muted: #73869e;
+  --color-line: #e5edf3;
+  --color-page: #f3f8fb;
+  --color-teal: #008e81;
+  --color-teal-deep: #086c70;
+  --color-mint: #e4f8f2;
+  --color-blue: #2189f5;
+  --color-amber: #b66a10;
+  --color-red: #ce4b55;
+
+  /* Soft status surfaces, paired with the strong colors above */
+  --color-blue-soft: #e8f2fe;
+  --color-amber-soft: #fdf3e4;
+  --color-red-soft: #fcebec;
+  --color-violet-soft: #f1eefc;
+  --color-sidebar: #f7fbfd;
+
+  /* Typography: Inter, DejaVu Sans fallback (no web-font download; works offline) */
+  --font-sans: Inter, "DejaVu Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --text-page-title: 28px;
+  --text-page-title--line-height: 1.2;
+  --text-section-title: 18px;
+  --text-section-title--line-height: 1.35;
+  --text-body: 14px;
+  --text-body--line-height: 1.5;
+  --text-label: 12px;
+  --text-label--line-height: 1.4;
+
+  /* Radius conventions */
+  --radius-card: 16px;
+  --radius-control: 8px;
+
+  /* Shell dimensions */
+  --spacing-sidebar: 246px;
+  --spacing-topbar: 76px;
+}
+
+@layer base {
+  html {
+    @apply bg-page text-body text-ink antialiased;
+  }
+  body {
+    @apply min-h-screen font-sans;
+  }
+  [x-cloak] {
+    display: none !important;
+  }
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-teal;
+  }
+}
+
+@layer components {
+  /* ---- Typography ---- */
+  .page-title { @apply text-page-title font-bold tracking-tight text-ink; }
+  .page-subtitle { @apply mt-1 text-body text-muted; }
+  .section-title { @apply text-section-title font-semibold text-ink; }
+  .label { @apply text-label font-medium text-muted; }
+
+  /* ---- Buttons: use `btn` plus one variant, e.g. class="btn btn-primary" ---- */
+  .btn {
+    @apply inline-flex h-10 items-center justify-center gap-2 rounded-control border px-4
+      text-body font-medium whitespace-nowrap transition-colors
+      disabled:cursor-not-allowed disabled:opacity-60;
+  }
+  .btn-primary { @apply border-teal bg-teal text-white hover:border-teal-deep hover:bg-teal-deep; }
+  .btn-secondary { @apply border-line bg-white text-ink hover:bg-page; }
+  .btn-danger { @apply border-red bg-red text-white hover:brightness-95; }
+  .btn-ghost { @apply border-transparent bg-transparent text-ink hover:bg-page; }
+  .btn-sm { @apply h-8 px-3 text-label; }
+  .btn-icon { @apply h-10 w-10 px-0; }
+
+  /* ---- Form controls ---- */
+  .field { @apply flex flex-col gap-1.5; }
+  .field-label { @apply text-label font-medium text-muted; }
+  .field-help { @apply text-label text-muted; }
+  .field-error { @apply text-label font-medium text-red; }
+  .input, .select {
+    @apply h-11 w-full rounded-control border border-line bg-white px-3 text-body text-ink
+      placeholder:text-muted/80 focus:border-teal focus:ring-2 focus:ring-teal/20 focus:outline-none
+      disabled:bg-page disabled:text-muted aria-invalid:border-red aria-invalid:ring-red/20;
+  }
+  textarea.input { @apply h-auto min-h-24 py-2; }
+  .select {
+    @apply appearance-none bg-no-repeat pr-9;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%2373869E' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
+    background-position: right 0.75rem center;
+  }
+  .checkbox { @apply h-4 w-4 rounded border-line text-teal accent-teal; }
+
+  /* ---- Cards ---- */
+  .card { @apply rounded-card border border-line bg-white p-6; }
+  .card-header { @apply mb-4 flex items-start justify-between gap-4; }
+  .stat-card { @apply rounded-card p-5; }
+
+  /* ---- Status chips: `chip` plus one variant. Always text + color, never color alone ---- */
+  .chip { @apply inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-label font-medium whitespace-nowrap; }
+  .chip-success { @apply bg-mint text-teal-deep; }
+  .chip-info { @apply bg-blue-soft text-blue; }
+  .chip-warning { @apply bg-amber-soft text-amber; }
+  .chip-danger { @apply bg-red-soft text-red; }
+  .chip-neutral { @apply bg-page text-muted; }
+
+  /* ---- Tables ---- */
+  .table-wrap { @apply overflow-x-auto; }
+  .table { @apply w-full border-separate border-spacing-0 text-left text-body; }
+  .table thead th { @apply bg-page px-4 py-3 text-label font-medium text-muted first:rounded-l-control last:rounded-r-control; }
+  .table tbody td { @apply border-b border-line px-4 py-3.5 align-middle; }
+  .table tbody tr:hover td { @apply bg-page/60; }
+
+  /* ---- Tabs ---- */
+  .tabs { @apply flex gap-1 border-b border-line; }
+  .tab { @apply -mb-px border-b-2 border-transparent px-4 py-2.5 text-body font-medium text-muted hover:text-ink; }
+  .tab[aria-selected="true"] { @apply border-teal text-teal-deep; }
+
+  /* ---- Overlays ---- */
+  .overlay { @apply fixed inset-0 z-40 bg-ink/40; }
+  .modal-panel { @apply relative w-full max-w-lg rounded-card bg-white p-6 shadow-xl; }
+  .drawer-panel { @apply fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col bg-white shadow-xl; }
+
+  /* ---- Loading skeleton ---- */
+  .skeleton { @apply animate-pulse rounded-control bg-line; }
+
+  /* ---- Navigation ---- */
+  .nav-link { @apply flex items-center gap-3 rounded-control px-3 py-2.5 text-body text-ink/85 transition-colors hover:bg-mint/70; }
+  .nav-link-active { @apply bg-teal-deep font-medium text-white hover:bg-teal-deep; }
+}
+
+/* htmx: show indicators only while a request is in flight */
+.htmx-indicator { display: none; }
+.htmx-request .htmx-indicator, .htmx-request.htmx-indicator { display: inline-flex; }

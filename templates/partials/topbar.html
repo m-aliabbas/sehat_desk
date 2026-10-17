@@ -1,0 +1,111 @@
+{% load ui %}
+<header class="sticky top-0 z-30 flex h-topbar items-center gap-3 border-b border-line bg-white/95 px-4 backdrop-blur sm:px-8">
+  <button type="button" class="btn btn-ghost btn-icon lg:hidden" @click="sidebarOpen = true" aria-label="Open menu">
+    {% icon "menu" %}
+  </button>
+
+  {# Global search (Phase 22): "/" or Ctrl/Cmd+K focuses it; arrow keys move through results. #}
+  <form role="search" action="{% url 'search:page' %}" method="get" class="relative w-full max-w-xl"
+        x-data="{ open: false }"
+        @keydown.window="if (($event.key === '/' && !['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName) && !document.activeElement.isContentEditable) || (($event.ctrlKey || $event.metaKey) && $event.key.toLowerCase() === 'k')) { $event.preventDefault(); $refs.q.focus(); $refs.q.select(); open = true }"
+        @click.outside="open = false"
+        @keydown.escape="open = false; $refs.q.blur()"
+        @keydown.down.prevent="const l = [...$el.querySelectorAll('.search-hit')]; (l[l.indexOf(document.activeElement) + 1] || l[0])?.focus()"
+        @keydown.up.prevent="const l = [...$el.querySelectorAll('.search-hit')]; const i = l.indexOf(document.activeElement); i <= 0 ? $refs.q.focus() : l[i - 1].focus()">
+    <label for="global-search" class="sr-only">Search</label>
+    <span class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-muted">{% icon "search" "h-4 w-4" %}</span>
+    <input x-ref="q" id="global-search" name="q" type="search" class="input h-11 bg-page pl-9"
+           placeholder="Search patients, visits, orders…  (press / or Ctrl+K)" autocomplete="off"
+           value="{% if request.resolver_match.view_name == 'search:page' %}{{ request.GET.q }}{% endif %}"
+           aria-controls="search-suggest" :aria-expanded="open"
+           hx-get="{% url 'search:suggest' %}" hx-trigger="input changed delay:250ms, focus once" hx-target="#search-suggest"
+           @focus="open = true" @input="open = true">
+    <div id="search-suggest" x-cloak x-show="open" class="absolute right-0 left-0 z-40 mt-2 max-h-[70vh] overflow-y-auto rounded-card border border-line bg-white shadow-lg empty:hidden" aria-live="polite"></div>
+  </form>
+
+  <div class="ml-auto flex items-center gap-2 sm:gap-3">
+    {% if workspace_env != "production" %}
+      <span class="hidden rounded-full bg-page px-3 py-1 text-label whitespace-nowrap text-muted xl:inline">{{ workspace_env|capfirst }} workspace</span>
+    {% endif %}
+
+    {# Branch selector: switching changes which branch's data and permissions apply #}
+    <div class="relative hidden sm:block" x-data="{ open: false }" @click.outside="open = false">
+      <button type="button" class="btn btn-secondary" @click="open = !open" :aria-expanded="open" aria-haspopup="true"
+              {% if branches|length < 2 %}disabled title="You have access to one branch"{% endif %}>
+        {% icon "building" "h-4 w-4 text-muted" %}
+        <span class="max-w-40 truncate">{{ current_branch.name|default:"No branch" }}</span>
+        {% if branches|length > 1 %}{% icon "chevron-down" "h-4 w-4 text-muted" %}{% endif %}
+      </button>
+      <div x-cloak x-show="open" x-transition class="absolute right-0 z-40 mt-2 w-64 rounded-card border border-line bg-white p-2 shadow-lg">
+        <p class="px-3 pt-1 pb-2 text-label text-muted">Switch branch</p>
+        {% for branch in branches %}
+          <form method="post" action="{% url 'accounts:switch-branch' %}">
+            {% csrf_token %}
+            <input type="hidden" name="branch" value="{{ branch.id }}">
+            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+            <button type="submit" class="nav-link w-full {% if branch == current_branch %}font-semibold text-teal-deep{% endif %}">
+              <span class="flex-1 truncate text-left">{{ branch.name }}</span>
+              {% if branch == current_branch %}{% icon "check-circle" "h-4 w-4" %}{% endif %}
+            </button>
+          </form>
+        {% endfor %}
+      </div>
+    </div>
+
+    {# Notifications (Phase 19): unread badge and the latest few #}
+    <div class="relative" x-data="{ open: false }" @click.outside="open = false">
+      <button type="button" class="btn btn-ghost btn-icon relative" @click="open = !open" :aria-expanded="open" aria-label="Notifications{% if notif_unread %}, {{ notif_unread }} unread{% endif %}">
+        {% icon "bell" %}
+        {% if notif_unread %}<span class="absolute -top-0.5 -right-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-red px-1 text-[11px] font-bold text-white" aria-hidden="true">{% if notif_unread > 99 %}99+{% else %}{{ notif_unread }}{% endif %}</span>{% endif %}
+      </button>
+      <div x-cloak x-show="open" x-transition class="absolute right-0 z-40 mt-2 w-80 rounded-card border border-line bg-white p-4 shadow-lg">
+        <div class="mb-2 flex items-center justify-between"><p class="section-title text-body">Notifications</p>
+          {% if notif_unread %}<form method="post" action="{% url 'notifications:read-all' %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="text-label text-teal-deep hover:underline">Mark all read</button></form>{% endif %}</div>
+        {% if notif_latest %}
+          <ul class="max-h-96 divide-y divide-line overflow-y-auto">
+            {% for n in notif_latest %}
+            <li>
+              <form method="post" action="{% url 'notifications:open' n.pk %}">{% csrf_token %}
+                <button class="w-full py-2 text-left hover:bg-page">
+                  <span class="flex items-start gap-2">
+                    {% if not n.is_read %}<span class="mt-1.5 h-2 w-2 shrink-0 rounded-full {% if n.level == 'critical' %}bg-red{% else %}bg-teal{% endif %}" aria-hidden="true"></span>{% else %}<span class="h-2 w-2 shrink-0"></span>{% endif %}
+                    <span class="min-w-0"><span class="block text-body {% if not n.is_read %}font-semibold{% endif %}">{% if not n.is_read %}<span class="sr-only">Unread: </span>{% endif %}{{ n.title }}</span>
+                    <span class="block text-label text-muted">{{ n.created_at|timesince }} ago</span></span>
+                  </span>
+                </button>
+              </form>
+            </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          {% include "components/empty_state.html" with icon_name="bell" title="You're all caught up" message="Alerts for appointments, lab results and stock will appear here." compact=True %}
+        {% endif %}
+        <a href="{% url 'notifications:center' %}" class="btn btn-secondary btn-sm mt-3 w-full">See all notifications</a>
+      </div>
+    </div>
+
+    {# Profile menu #}
+    <div class="relative" x-data="{ open: false }" @click.outside="open = false">
+      <button type="button" class="flex items-center gap-3 rounded-control p-1 hover:bg-page" @click="open = !open" :aria-expanded="open" aria-haspopup="true">
+        <span class="flex h-10 w-10 items-center justify-center rounded-full bg-mint text-label font-bold text-teal-deep">{{ request.user|initials }}</span>
+        <span class="hidden text-left md:block">
+          <span class="block text-body font-semibold">{{ request.user.get_full_name|default:request.user.get_username }}</span>
+          <span class="block text-label text-muted">{{ organization.name|default:"" }}</span>
+        </span>
+      </button>
+      <div x-cloak x-show="open" x-transition class="absolute right-0 z-40 mt-2 w-56 rounded-card border border-line bg-white p-2 shadow-lg">
+        <div class="px-3 py-2">
+          <p class="text-body font-semibold">{{ request.user.get_full_name|default:request.user.get_username }}</p>
+          <p class="text-label text-muted">{{ request.user.designation|default:request.user.get_username }}</p>
+        </div>
+        {% if "admin.users.view" in sd_perms %}<a href="{% url 'accounts:staff-detail' request.user.pk %}" class="nav-link">{% icon "user" "h-4 w-4" %} My profile</a>{% endif %}
+        <a href="{% url 'accounts:password-change' %}" class="nav-link">{% icon "lock" "h-4 w-4" %} Change password</a>
+        {% if branches|length > 1 %}<a href="{% url 'accounts:workspace' %}" class="nav-link">{% icon "building" "h-4 w-4" %} Choose workspace</a>{% endif %}
+        <form method="post" action="{% url 'accounts:logout' %}">
+          {% csrf_token %}
+          <button type="submit" class="nav-link w-full text-red">{% icon "log-out" "h-4 w-4" %} Sign out</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</header>

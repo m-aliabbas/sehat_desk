@@ -1,0 +1,85 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}IPD & wards{% endblock %}
+{% block page_title %}IPD &amp; ward management{% endblock %}
+{% block page_subtitle %}{{ current_branch.name }} · admissions, bed allocation and discharge readiness.{% endblock %}
+{% block page_actions %}
+  <a href="{% url 'ipd:admission-list' %}" class="btn btn-secondary">Inpatients</a>
+  {% if can_setup %}<a href="{% url 'ipd:setup' %}" class="btn btn-secondary">{% icon "sliders" "h-4 w-4" %} Wards &amp; beds</a>{% endif %}
+  {% if can_manage %}<a href="{% url 'ipd:admit' %}" class="btn btn-primary">{% icon "plus" "h-4 w-4" %} Admit patient</a>{% endif %}
+{% endblock %}
+{% block content %}
+<div class="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+  <div class="stat-card bg-mint">
+    <p class="text-body text-ink">Occupied beds</p>
+    <p class="mt-2 text-[32px] font-bold text-ink">{{ stats.occupied }} / {{ stats.usable }}</p>
+    <div class="mt-2 h-2 overflow-hidden rounded-full bg-white" role="progressbar" aria-valuenow="{{ stats.percent }}" aria-valuemin="0" aria-valuemax="100" aria-label="Occupancy"><div class="h-full rounded-full bg-teal" style="width: {{ stats.percent }}%"></div></div>
+    <p class="mt-1 text-label text-muted">{{ stats.percent }}% occupancy{% if stats.out_of_service %} · {{ stats.out_of_service }} out of service{% endif %}</p>
+  </div>
+  <div class="stat-card bg-blue-soft"><p class="text-body text-ink">Available beds</p><p class="mt-2 text-[32px] font-bold text-ink">{{ stats.available }}</p><p class="text-label text-muted">Ready for admission{% if stats.reserved %} · {{ stats.reserved }} reserved{% endif %}</p></div>
+  <div class="stat-card bg-violet-soft"><p class="text-body text-ink">Discharges today</p><p class="mt-2 text-[32px] font-bold text-ink">{{ discharges_today }}</p><p class="text-label text-muted">{{ planned }} cleared, awaiting release</p></div>
+  <div class="stat-card bg-amber-soft"><p class="text-body text-ink">Beds being cleaned</p><p class="mt-2 text-[32px] font-bold text-ink">{{ stats.cleaning }}</p><p class="text-label text-muted">Mark available when ready</p></div>
+</div>
+
+<form method="get" class="card mb-6 flex flex-wrap items-end gap-3 p-4" role="search">
+  <div class="field min-w-48 flex-1"><label class="field-label" for="q">Search</label><input id="q" name="q" value="{{ filters.q }}" class="input" placeholder="Bed, patient name or MRN"></div>
+  <div class="field"><label class="field-label" for="ward">Ward</label>
+    <select id="ward" name="ward" class="select"><option value="">All wards</option>{% for w in wards %}<option value="{{ w.pk }}" {% if filters.ward == w.pk|stringformat:"s" %}selected{% endif %}>{{ w.name }}</option>{% endfor %}</select></div>
+  <div class="field"><label class="field-label" for="status">Bed status</label>
+    <select id="status" name="status" class="select"><option value="">Any status</option>{% for v, l in statuses %}<option value="{{ v }}" {% if filters.status == v %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+  <button class="btn btn-secondary">Filter</button>
+  {% if filters.q or filters.ward or filters.status %}<a href="{% url 'ipd:board' %}" class="btn btn-ghost">Clear</a>{% endif %}
+</form>
+
+{% for s in sections %}
+<section class="card mb-6">
+  <div class="card-header">
+    <div>
+      <h2 class="section-title">{{ s.ward.name }}{% if s.ward.floor %} · {{ s.ward.floor }}{% endif %}</h2>
+      <p class="text-label text-muted">{{ s.stats.total }} beds · {{ s.stats.occupied }} occupied · {{ s.stats.available }} available{% if s.stats.cleaning %} · {{ s.stats.cleaning }} cleaning{% endif %}{% if s.stats.out_of_service %} · {{ s.stats.out_of_service }} out of service{% endif %}</p>
+    </div>
+    <span class="chip chip-neutral">{{ s.stats.percent }}% full</span>
+  </div>
+  {% if s.beds %}
+  <ul class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    {% for b in s.beds %}
+    <li class="rounded-card border border-line p-4 {% if b.status == 'available' %}bg-mint/40{% elif b.status == 'cleaning' or b.status == 'reserved' %}bg-amber-soft/40{% elif b.status == 'blocked' or b.status == 'maintenance' %}bg-page{% endif %}">
+      <div class="flex items-center justify-between gap-2">
+        <a href="{% url 'ipd:bed-detail' b.pk %}" class="text-label font-semibold tracking-wide text-muted uppercase hover:underline">Bed {{ b.code }}</a>
+        <span class="text-label text-muted">Room {{ b.room.name }}</span>
+      </div>
+      {% if b.admission %}
+        <a href="{% url 'ipd:admission-detail' b.admission.pk %}" class="mt-2 block text-section-title font-bold hover:underline">{{ b.admission.patient.full_name }}</a>
+        <p class="text-label text-muted">{{ b.admission.department }} · Day {{ b.admission.length_of_stay_days }} · {{ b.admission.admitting_doctor }}</p>
+        <div class="mt-3 flex flex-wrap gap-2">{% status_chip "occupied" "Occupied" %}{% if b.admission.status == "discharge_planned" %}{% status_chip "discharge_planned" "Discharge planned" %}{% endif %}</div>
+      {% else %}
+        <p class="mt-2 text-section-title font-bold">{{ b.get_status_display }}</p>
+        <p class="text-label text-muted">{% if b.status_note %}{{ b.status_note }}{% elif b.status == "available" %}Ready for admission{% else %}Since {{ b.status_changed_at|date:"d M, H:i" }}{% endif %}</p>
+        <div class="mt-3 flex flex-wrap items-center gap-2">
+          {% status_chip b.status b.get_status_display %}
+          {% if can_manage %}
+            {% if b.status == "available" or b.status == "reserved" %}<a href="{% url 'ipd:admit' %}?bed={{ b.pk }}" class="btn btn-ghost btn-sm">Admit here</a>{% endif %}
+            {% if b.status == "cleaning" %}
+              <form method="post" action="{% url 'ipd:bed-status' b.pk %}">{% csrf_token %}<input type="hidden" name="status" value="available"><input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="btn btn-secondary btn-sm">Mark clean</button></form>
+            {% endif %}
+          {% endif %}
+        </div>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+    {% include "components/empty_state.html" with icon_name="bed" title="No beds match" message="Change the filters, or add beds under Wards & beds." compact=True %}
+  {% endif %}
+</section>
+{% empty %}
+<section class="card">
+  {% if can_setup %}
+    {% url 'ipd:setup' as setup_url %}
+    {% include "components/empty_state.html" with icon_name="bed" title="No wards yet" message="Add the wards, rooms and beds of this branch to start admitting patients." action_url=setup_url action_label="Set up wards" %}
+  {% else %}
+    {% include "components/empty_state.html" with icon_name="bed" title="No wards yet" message="Ask an administrator to set up wards, rooms and beds for this branch." %}
+  {% endif %}
+</section>
+{% endfor %}
+{% endblock %}

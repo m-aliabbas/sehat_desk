@@ -1,0 +1,34 @@
+{% extends "layouts/auth.html" %}
+{% load ui %}
+{% block title %}Set up SehatDesk{% endblock %}
+{% block width %}max-w-2xl{% endblock %}
+{% block card %}
+<h1 class="section-title text-[22px]">Welcome to SehatDesk</h1>
+<p class="mt-1 text-body text-muted">Set up your hospital and the first administrator account. This page is shown only once.</p>
+{% if form.non_field_errors %}{% for e in form.non_field_errors %}{% include "components/alert.html" with level="danger" message=e %}{% endfor %}{% endif %}
+<form method="post" class="mt-6 space-y-8" novalidate>
+  {% csrf_token %}
+  <fieldset>
+    <legend class="section-title mb-4 text-body">Hospital</legend>
+    <div class="grid gap-5 md:grid-cols-2">
+      {% include "components/field.html" with field=form.org_name wide=True %}
+      {% include "components/field.html" with field=form.branch_name %}
+      {% include "components/field.html" with field=form.branch_code %}
+      {% include "components/field.html" with field=form.city %}
+    </div>
+  </fieldset>
+  <fieldset>
+    <legend class="section-title mb-1 text-body">Administrator</legend>
+    <p class="mb-4 text-label text-muted">This account gets the Super admin role, with full access. Keep the password safe.</p>
+    <div class="grid gap-5 md:grid-cols-2">
+      {% include "components/field.html" with field=form.first_name %}
+      {% include "components/field.html" with field=form.last_name %}
+      {% include "components/field.html" with field=form.username %}
+      {% include "components/field.html" with field=form.email %}
+      {% include "components/field.html" with field=form.password1 %}
+      {% include "components/field.html" with field=form.password2 %}
+    </div>
+  </fieldset>
+  <button type="submit" class="btn btn-primary w-full">Create hospital and sign in</button>
+</form>
+{% endblock %}

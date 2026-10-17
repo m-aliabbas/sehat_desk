@@ -1,0 +1,32 @@
+{% extends "layouts/app.html" %}
+{% block title %}Amend {{ encounter.number }}{% endblock %}
+{% block page_title %}Amend signed encounter{% endblock %}
+{% block page_subtitle %}<span class="font-mono">{{ encounter.number }}</span> · Append a correction while preserving the signed original{% endblock %}
+{% block content %}
+<div class="grid gap-6 xl:grid-cols-3">
+  <section class="card xl:col-span-2">
+    <h2 class="section-title mb-4">Amendment</h2>
+    <form method="post" class="space-y-5" novalidate>
+      {% csrf_token %}
+      {% for e in form.non_field_errors %}{% include "components/alert.html" with level="danger" title="Could not reopen" message=e %}{% endfor %}
+      {% include "components/field.html" with field=form.reason %}
+      <div class="rounded-control bg-amber-soft p-4 text-body">
+        <p class="font-semibold text-amber">Append-only revision</p>
+        <p class="text-ink/80">The note opens for editing. When you complete it again, it is saved as a new signed version with your name, the time and this reason. The original signed text stays available for audit.</p>
+      </div>
+      <div class="flex gap-3">
+        <button class="btn btn-primary">Start amendment</button>
+        <a href="{% url 'encounters:detail' encounter.pk %}" class="btn btn-secondary">Cancel</a>
+      </div>
+    </form>
+  </section>
+  <aside class="card h-fit">
+    <h2 class="section-title mb-3">Original record</h2>
+    <dl class="space-y-2 text-body">
+      <div><dt class="text-label text-muted">Patient</dt><dd>{{ encounter.patient.full_name }} · <span class="font-mono">{{ encounter.patient.mrn }}</span></dd></div>
+      <div><dt class="text-label text-muted">Clinician</dt><dd>{{ encounter.doctor }}</dd></div>
+      {% if latest %}<div><dt class="text-label text-muted">Current version</dt><dd>v{{ latest.version }} · signed {{ latest.signed_at|date:"d M Y, H:i" }} by {{ latest.signed_by }}</dd></div>{% endif %}
+    </dl>
+  </aside>
+</div>
+{% endblock %}

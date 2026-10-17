@@ -1,0 +1,31 @@
+{% extends "components/drawer_base.html" %}
+{% block drawer_title %}{{ label }}{% endblock %}
+{% block drawer_body %}
+<dl class="grid grid-cols-[8rem_1fr] gap-x-4 gap-y-2 text-body">
+  <dt class="text-muted">When</dt><dd>{{ e.created_at|date:"d M Y H:i:s" }}</dd>
+  <dt class="text-muted">Staff</dt><dd>{% if e.actor %}{{ e.actor.get_full_name|default:e.actor.username }} <span class="text-label text-muted">({{ e.actor.username }})</span>{% else %}—{% endif %}</dd>
+  <dt class="text-muted">Module</dt><dd>{{ module }}</dd>
+  <dt class="text-muted">Action code</dt><dd class="font-mono text-label">{{ e.action }}</dd>
+  <dt class="text-muted">Record</dt><dd>{{ e.entity|default:"—" }}{% if e.record_id %} <span class="font-mono">#{{ e.record_id }}</span>{% endif %}</dd>
+  <dt class="text-muted">Branch</dt><dd>{{ e.branch.name|default:"—" }}</dd>
+  <dt class="text-muted">Summary</dt><dd>{{ e.summary|default:"—" }}</dd>
+  <dt class="text-muted">IP address</dt><dd>{{ e.ip_address|default:"—" }}</dd>
+  <dt class="text-muted">Device</dt><dd class="text-label break-words">{{ e.user_agent|default:"—" }}</dd>
+</dl>
+<h3 class="mt-6 mb-2 font-semibold">Changes</h3>
+{% if changes %}
+<div class="table-wrap">
+  <table class="table">
+    <thead><tr><th scope="col">Field</th><th scope="col">Before</th><th scope="col">After</th></tr></thead>
+    <tbody>
+      {% for c in changes %}
+      <tr><td class="font-mono text-label">{{ c.field }}</td>
+        {% if c.pair %}<td class="break-words">{{ c.old|default_if_none:"—" }}</td><td class="break-words">{{ c.new|default_if_none:"—" }}</td>
+        {% else %}<td colspan="2" class="break-words">{{ c.value }}</td>{% endif %}</tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}<p class="text-label text-muted">No field changes recorded for this event.</p>{% endif %}
+<p class="mt-6 text-label text-muted">Audit events are append-only. They cannot be edited or deleted by anyone, including administrators.</p>
+{% endblock %}

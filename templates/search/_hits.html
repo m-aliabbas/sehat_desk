@@ -1,0 +1,12 @@
+{% load ui %}
+{# One result group. Context: g (group dict), compact #}
+<ul class="divide-y divide-line" role="list">
+  {% for h in g.hits %}
+  <li>
+    <a href="{{ h.url }}" class="search-hit flex items-center justify-between gap-3 {% if compact %}px-3 py-2{% else %}py-3{% endif %} hover:bg-page focus:bg-page focus:outline-none">
+      <span class="min-w-0"><span class="block truncate font-medium text-ink">{{ h.title }}</span><span class="block truncate text-label text-muted">{{ h.subtitle }}</span></span>
+      {% if h.status %}{% status_chip h.status %}{% endif %}
+    </a>
+  </li>
+  {% endfor %}
+</ul>

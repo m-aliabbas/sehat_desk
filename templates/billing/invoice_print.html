@@ -1,0 +1,48 @@
+{% extends "print/a4.html" %}
+{% block title %}Invoice {{ invoice.number }}{% endblock %}
+{% block print_label %}Print invoice{% endblock %}
+{% block document %}
+    {% include "print/_letterhead.html" with org=request.organization branch=invoice.branch doc_title="Invoice" doc_number=invoice.number doc_date=invoice.issued_at|default:invoice.created_at doc_status=invoice.get_status_display %}
+    <section class="mt-5 grid grid-cols-2 gap-6 text-body">
+      <div>
+        <p class="text-label text-muted uppercase">Bill to</p>
+        <p class="font-semibold">{{ invoice.bill_to }}</p>
+        {% if invoice.patient %}<p class="text-label">MRN {{ invoice.patient.mrn }}{% if invoice.patient.phone_display %} · {{ invoice.patient.phone_display }}{% endif %}</p>{% endif %}
+      </div>
+      {% if invoice.appointment %}
+      <div class="text-right">
+        <p class="text-label text-muted uppercase">Visit</p>
+        <p>{{ invoice.appointment.number }} · {{ invoice.appointment.date|date:"d M Y" }}</p>
+        <p class="text-label">{{ invoice.appointment.doctor }}</p>
+      </div>
+      {% endif %}
+    </section>
+    <table class="mt-6 w-full text-body">
+      <thead><tr class="border-b border-ink text-left text-label uppercase"><th class="py-2">#</th><th>Description</th><th class="text-right">Qty</th><th class="text-right">Unit price</th><th class="text-right">Discount</th>{% if invoice.tax_total %}<th class="text-right">{{ billing_settings.tax_label }}</th>{% endif %}<th class="text-right">Amount</th></tr></thead>
+      <tbody>
+        {% for item in items %}
+          <tr class="border-b border-line"><td class="py-2">{{ forloop.counter }}</td><td>{{ item.description }}</td><td class="text-right">{{ item.quantity }}</td><td class="text-right">{{ item.unit_price|floatformat:"2g" }}</td><td class="text-right">{% if item.discount %}−{{ item.discount|floatformat:"2g" }}{% else %}—{% endif %}</td>{% if invoice.tax_total %}<td class="text-right">{{ item.tax_amount|floatformat:"2g" }}</td>{% endif %}<td class="text-right">{{ item.line_total|floatformat:"2g" }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <dl class="ml-auto mt-5 w-72 space-y-1 text-body">
+      <div class="flex justify-between"><dt>Subtotal</dt><dd>{{ invoice.subtotal|floatformat:"2g" }}</dd></div>
+      {% if invoice.discount_total %}<div class="flex justify-between"><dt>Discount</dt><dd>−{{ invoice.discount_total|floatformat:"2g" }}</dd></div>{% endif %}
+      {% if invoice.tax_total %}<div class="flex justify-between"><dt>{{ billing_settings.tax_label }}</dt><dd>{{ invoice.tax_total|floatformat:"2g" }}</dd></div>{% endif %}
+      <div class="flex justify-between border-t border-ink pt-1 font-bold"><dt>Total</dt><dd>{{ request.organization.currency }} {{ invoice.grand_total|floatformat:"2g" }}</dd></div>
+      <div class="flex justify-between"><dt>Paid</dt><dd>{{ invoice.amount_paid|floatformat:"2g" }}</dd></div>
+      {% if invoice.amount_refunded %}<div class="flex justify-between"><dt>Refunded</dt><dd>−{{ invoice.amount_refunded|floatformat:"2g" }}</dd></div>{% endif %}
+      <div class="flex justify-between font-bold"><dt>Balance due</dt><dd>{{ request.organization.currency }} {{ invoice.balance_due|floatformat:"2g" }}</dd></div>
+    </dl>
+    {% if payments %}
+    <section class="mt-6">
+      <p class="text-label font-semibold uppercase">Payments</p>
+      <ul class="mt-1 text-label">
+        {% for p in payments %}<li>{{ p.created_at|date:"d M Y, H:i" }} · {{ p.number }} · {{ p.method }} · {{ p.amount|floatformat:"2g" }}</li>{% endfor %}
+        {% for r in refunds %}<li>{{ r.created_at|date:"d M Y, H:i" }} · {{ r.number }} · refund ({{ r.method }}) · −{{ r.amount|floatformat:"2g" }}</li>{% endfor %}
+      </ul>
+    </section>
+    {% endif %}
+    {% if invoice.status == "cancelled" %}<p class="mt-6 text-center text-[20px] font-bold text-red uppercase">Cancelled — {{ invoice.cancel_reason }}</p>{% endif %}
+    {% include "print/_footer.html" with org=request.organization terms=True note="Computer-generated invoice." %}
+{% endblock %}

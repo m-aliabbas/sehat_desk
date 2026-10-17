@@ -1,0 +1,37 @@
+{% extends "layouts/app.html" %}
+{% block title %}Edit {{ patient.full_name }}{% endblock %}
+{% block page_title %}Edit {{ patient.full_name }}{% endblock %}
+{% block page_subtitle %}{{ patient.mrn }} · Every change is recorded in the audit trail.{% endblock %}
+{% block content %}
+<form method="post" enctype="multipart/form-data" class="space-y-6" novalidate>
+  {% csrf_token %}
+  <section class="card">
+    {% for e in form.non_field_errors %}{% include "components/alert.html" with level="danger" message=e %}{% endfor %}
+    <div class="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+      {% include "components/field.html" with field=form.full_name %}
+      {% include "components/field.html" with field=form.phone %}
+      {% include "components/field.html" with field=form.gender %}
+      {% include "components/field.html" with field=form.date_of_birth %}
+      {% include "components/field.html" with field=form.age_years %}
+      {% include "components/field.html" with field=form.cnic %}
+      {% include "components/field.html" with field=form.blood_group %}
+      {% include "components/field.html" with field=form.allergy_status %}
+      {% include "components/field.html" with field=form.email %}
+      {% include "components/field.html" with field=form.city %}
+      {% include "components/field.html" with field=form.address wide=True %}
+      {% include "components/field.html" with field=form.emergency_contact_name %}
+      {% include "components/field.html" with field=form.emergency_contact_phone %}
+      {% include "components/field.html" with field=form.emergency_contact_relation %}
+      {% include "components/field.html" with field=form.photo %}
+      {% include "components/field.html" with field=form.consent_recorded %}
+    </div>
+    {% if form.duplicates %}
+      <div class="mt-5">{% include "patients/_duplicates.html" with matches=form.duplicates has_input=True %}{% include "components/field.html" with field=form.not_duplicate %}</div>
+    {% endif %}
+  </section>
+  <div class="flex gap-3">
+    <button type="submit" class="btn btn-primary">Save changes</button>
+    <a href="{% url 'patients:detail' patient.pk %}" class="btn btn-secondary">Cancel</a>
+  </div>
+</form>
+{% endblock %}

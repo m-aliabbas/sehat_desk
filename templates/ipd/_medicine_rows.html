@@ -1,0 +1,23 @@
+{# Repeating discharge medicine rows (med_name, med_dose ...). Context: medicines (list of dicts). #}
+{{ medicines|json_script:"discharge-medicines" }}
+<div x-data="{ rows: JSON.parse(document.getElementById('discharge-medicines').textContent || '[]') }">
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th scope="col">Medicine</th><th scope="col">Dose</th><th scope="col">How often</th><th scope="col">For how long</th><th scope="col">Instructions</th><th scope="col"><span class="sr-only">Remove</span></th></tr></thead>
+      <tbody>
+        <template x-for="(row, i) in rows" :key="i">
+          <tr>
+            <td><input name="med_name" class="input" x-model="row.medicine" aria-label="Medicine" maxlength="200"></td>
+            <td><input name="med_dose" class="input" x-model="row.dose" aria-label="Dose" maxlength="120"></td>
+            <td><input name="med_frequency" class="input" x-model="row.frequency" aria-label="How often" maxlength="120"></td>
+            <td><input name="med_duration" class="input" x-model="row.duration" aria-label="Duration" maxlength="120"></td>
+            <td><input name="med_instructions" class="input" x-model="row.instructions" aria-label="Instructions" maxlength="120"></td>
+            <td><button type="button" class="btn btn-ghost btn-sm text-red" @click="rows.splice(i, 1)" aria-label="Remove medicine">Remove</button></td>
+          </tr>
+        </template>
+      </tbody>
+    </table>
+  </div>
+  <button type="button" class="btn btn-secondary btn-sm mt-3" @click="rows.push({medicine: '', dose: '', frequency: '', duration: '', instructions: ''})">Add medicine</button>
+  <noscript><p class="text-label text-muted">Medicines can be edited with JavaScript on.</p></noscript>
+</div>

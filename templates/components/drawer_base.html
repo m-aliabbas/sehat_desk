@@ -1,0 +1,22 @@
+{% load ui %}
+{% comment %}
+  Base for server-rendered side drawers loaded with htmx into #overlay-root.
+  Fill drawer_title, drawer_body and drawer_footer. Same open/close behaviour as modal_base.html.
+{% endcomment %}
+<div x-data="{ open: false }" x-init="$nextTick(() => open = true); $watch('open', v => { if (!v) setTimeout(() => $root.remove(), 250) })"
+     @keydown.escape.window="open = false" @close-overlay.window="open = false">
+  <div class="overlay" x-show="open" x-transition.opacity @click="open = false"></div>
+  <aside class="drawer-panel" x-show="open"
+         x-transition:enter="transition ease-out duration-200" x-transition:enter-start="translate-x-full" x-transition:enter-end="translate-x-0"
+         x-transition:leave="transition ease-in duration-150" x-transition:leave-start="translate-x-0" x-transition:leave-end="translate-x-full"
+         role="dialog" aria-modal="true" aria-labelledby="drawer-title">
+    <div class="flex items-center justify-between border-b border-line px-6 py-4">
+      <h2 id="drawer-title" class="section-title">{% block drawer_title %}{% endblock %}</h2>
+      <button type="button" class="text-muted hover:text-ink" @click="open = false" aria-label="Close">{% icon "x" %}</button>
+    </div>
+    <div class="flex-1 overflow-y-auto px-6 py-5">{% block drawer_body %}{% endblock %}</div>
+    <div class="flex justify-end gap-3 border-t border-line px-6 py-4">
+      {% block drawer_footer %}<button type="button" class="btn btn-secondary" @click="open = false">Close</button>{% endblock %}
+    </div>
+  </aside>
+</div>

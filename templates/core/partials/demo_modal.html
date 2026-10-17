@@ -1,0 +1,13 @@
+{% extends "components/modal_base.html" %}
+{% block modal_title %}Example modal{% endblock %}
+{% block modal_body %}
+<p class="text-body text-muted">This content was rendered by the server and loaded with htmx. Forms inside a modal post back and swap their own errors in place.</p>
+<div class="field mt-4">
+  <label class="field-label" for="demo-reason">Reason</label>
+  <input id="demo-reason" class="input" placeholder="Enter a reason">
+</div>
+{% endblock %}
+{% block modal_footer %}
+<button type="button" class="btn btn-secondary" @click="open = false">Cancel</button>
+<button type="button" class="btn btn-primary" @click="open = false; $dispatch('toast', { level: 'success', message: 'Saved.' })">Save</button>
+{% endblock %}

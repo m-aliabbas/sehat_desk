@@ -1,0 +1,88 @@
+{% extends "layouts/app.html" %}
+{% load ui reports %}
+{% block title %}{{ report.title }} · Reports{% endblock %}
+{% block page_title %}{{ report.title }}{% endblock %}
+{% block page_subtitle %}{{ report.description }} <span class="whitespace-nowrap">{{ scope }}</span>{% endblock %}
+{% block page_actions %}
+<div class="relative" x-data="{ open: false }" @click.outside="open = false">
+  <button type="button" class="btn btn-primary" @click="open = !open" :aria-expanded="open" aria-haspopup="true">Export {% icon "chevron-down" "h-4 w-4" %}</button>
+  <div x-cloak x-show="open" x-transition class="absolute right-0 z-40 mt-2 w-48 rounded-card border border-line bg-white p-2 shadow-lg">
+    <a class="nav-link" href="?{{ export_query }}{% if export_query %}&{% endif %}format=csv">CSV</a>
+    <a class="nav-link" href="?{{ export_query }}{% if export_query %}&{% endif %}format=xlsx">Excel (XLSX)</a>
+    <a class="nav-link" href="?{{ export_query }}{% if export_query %}&{% endif %}format=pdf" target="_blank" rel="noopener">PDF</a>
+  </div>
+</div>
+{% endblock %}
+{% block content %}
+<form method="get" class="card mb-6 flex flex-wrap items-end gap-3" aria-label="Report filters">
+  {% if "date" in report.filters %}
+  <div><label class="field-label" for="r-from">From</label><input id="r-from" type="date" name="from" value="{{ f.start|date:'Y-m-d' }}" class="input mt-1.5"></div>
+  <div><label class="field-label" for="r-to">To</label><input id="r-to" type="date" name="to" value="{{ f.end|date:'Y-m-d' }}" class="input mt-1.5"></div>
+  {% endif %}
+  {% if "branch" in report.filters and branches|length > 1 %}
+  <div><label class="field-label" for="r-branch">Branch</label>
+    <select id="r-branch" name="branch" class="select mt-1.5">
+      <option value="">Current branch</option>
+      <option value="all" {% if f.branch_choice == "all" %}selected{% endif %}>All my branches</option>
+      {% for b in branches %}<option value="{{ b.pk }}" {% if f.branch_choice == b.pk|stringformat:"s" %}selected{% endif %}>{{ b.name }}</option>{% endfor %}
+    </select></div>
+  {% endif %}
+  {% if "department" in report.filters %}
+  <div><label class="field-label" for="r-dept">Department</label>
+    <select id="r-dept" name="department" class="select mt-1.5">
+      <option value="">All departments</option>
+      {% for d in departments %}<option value="{{ d.pk }}" {% if f.department == d %}selected{% endif %}>{{ d.name }}</option>{% endfor %}
+    </select></div>
+  {% endif %}
+  {% if "doctor" in report.filters %}
+  <div><label class="field-label" for="r-doctor">Doctor</label>
+    <select id="r-doctor" name="doctor" class="select mt-1.5">
+      <option value="">All doctors</option>
+      {% for d in doctors %}<option value="{{ d.pk }}" {% if f.doctor == d %}selected{% endif %}>{{ d }}</option>{% endfor %}
+    </select></div>
+  {% endif %}
+  <button class="btn btn-primary">Apply filters</button>
+  {% if presets %}
+  <div class="flex w-full flex-wrap gap-2" aria-label="Quick date ranges">
+    {% for label, s, e in presets %}<a class="chip chip-neutral hover:ring-2 hover:ring-teal/20" href="?from={{ s|date:'Y-m-d' }}&to={{ e|date:'Y-m-d' }}{% if f.branch_choice %}&branch={{ f.branch_choice }}{% endif %}{% if f.department %}&department={{ f.department.pk }}{% endif %}{% if f.doctor %}&doctor={{ f.doctor.pk }}{% endif %}">{{ label }}</a>{% endfor %}
+  </div>
+  {% endif %}
+  {% if report.date_hint %}<p class="w-full text-label text-muted">{{ report.date_hint }}</p>{% endif %}
+</form>
+
+{% if result.cards %}
+<div class="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+  {% for c in result.cards %}
+  <div class="stat-card {% cycle 'bg-mint' 'bg-blue-soft' 'bg-violet-soft' 'bg-amber-soft' %}">
+    <p class="text-body text-ink">{{ c.label }}</p>
+    <p class="mt-2 text-[28px] font-bold text-ink">{% if c.kind == "money" %}{{ organization.currency }} {% endif %}{{ c.value|fmt:c.kind }}</p>
+    {% if c.note %}<p class="text-label text-muted">{{ c.note }}</p>{% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if result.chart %}<div class="mb-6">{% include "reports/_chart.html" with chart=result.chart chart_kind=result.chart_kind chart_title=result.chart_title %}</div>{% endif %}
+
+<section class="card" aria-label="Report table">
+  {% if rows %}
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr>{% for c in result.columns %}<th scope="col" {% if c.kind != "text" and c.kind != "date" and c.kind != "datetime" %}class="text-right"{% endif %}>{{ c.label }}</th>{% endfor %}</tr></thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>{% for c in result.columns %}<td class="{% if c.kind != 'text' and c.kind != 'date' and c.kind != 'datetime' %}text-right {% endif %}{% if c.kind == 'date' or c.kind == 'datetime' %}whitespace-nowrap{% endif %}">{{ row|cell:c }}</td>{% endfor %}</tr>
+        {% endfor %}
+      </tbody>
+      {% if result.totals and not page_obj.has_next %}
+      <tfoot><tr class="font-semibold">{% for c in result.columns %}<td class="{% if c.kind != 'text' and c.kind != 'date' and c.kind != 'datetime' %}text-right{% endif %}">{% if forloop.first %}{{ result.totals|cell:c|default:"Total" }}{% else %}{% if c.key in result.totals %}{{ result.totals|cell:c }}{% endif %}{% endif %}</td>{% endfor %}</tr></tfoot>
+      {% endif %}
+    </table>
+  </div>
+  {% include "components/pagination.html" with page_obj=page_obj %}
+  {% else %}
+    {% include "components/empty_state.html" with icon_name="bar-chart" title="Nothing to report" message="No records match these filters. Try a wider date range or another branch." %}
+  {% endif %}
+  {% if result.note %}<p class="mt-4 text-label text-muted">{{ result.note }}</p>{% endif %}
+</section>
+{% endblock %}

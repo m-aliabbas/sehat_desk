@@ -1,0 +1,71 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}Register a patient{% endblock %}
+{% block page_title %}Register a patient{% endblock %}
+{% block page_subtitle %}{% if quick %}Quick registration: the minimum needed to book or issue a token. Complete the record later.{% else %}Create a patient record. One MRN is used across all departments and branches.{% endif %}{% endblock %}
+{% block page_actions %}
+  {% if quick %}<a href="{% url 'patients:register' %}" class="btn btn-secondary">Full registration</a>{% else %}<a href="{% url 'patients:register' %}?mode=quick" class="btn btn-secondary">Quick registration</a>{% endif %}
+  <a href="{% url 'patients:list' %}" class="btn btn-primary">{% icon "search" "h-4 w-4" %} Search existing</a>
+{% endblock %}
+{% block content %}
+<form method="post" enctype="multipart/form-data" class="grid gap-6 xl:grid-cols-3" novalidate
+      hx-get="{% url 'patients:duplicates' %}" hx-target="#duplicate-panel" hx-trigger="change from:.dup-field, keyup changed delay:600ms from:.dup-field" hx-include=".dup-field">
+  {% csrf_token %}
+  {% if quick %}<input type="hidden" name="mode" value="quick">{% endif %}
+  <div class="space-y-6 xl:col-span-2">
+    <section class="card">
+      <h2 class="section-title">Patient information</h2>
+      <p class="mb-4 text-label text-muted">Required fields are marked with an asterisk.</p>
+      {% for e in form.non_field_errors %}{% include "components/alert.html" with level="danger" message=e %}{% endfor %}
+      <div class="mt-4 grid gap-5 md:grid-cols-2">
+        <div class="md:col-span-2 grid gap-5 md:grid-cols-2">
+          {% include "components/field.html" with field=form.full_name %}
+          {% include "components/field.html" with field=form.phone %}
+        </div>
+        {% include "components/field.html" with field=form.gender %}
+        <div class="grid grid-cols-[1fr_auto] items-end gap-3">
+          {% include "components/field.html" with field=form.date_of_birth %}
+          <div class="w-24">{% include "components/field.html" with field=form.age_years %}</div>
+        </div>
+        {% include "components/field.html" with field=form.cnic %}
+        {% if form.guardian_cnic %}{% include "components/field.html" with field=form.guardian_cnic %}{% endif %}
+        {% if not quick %}
+          {% include "components/field.html" with field=form.blood_group %}
+          {% include "components/field.html" with field=form.allergy_status %}
+          {% include "components/field.html" with field=form.email %}
+          {% include "components/field.html" with field=form.city %}
+          {% include "components/field.html" with field=form.address wide=True %}
+        {% endif %}
+      </div>
+    </section>
+    {% if not quick %}
+    <section class="card">
+      <h2 class="section-title mb-4">Emergency contact &amp; photo</h2>
+      <div class="grid gap-5 md:grid-cols-3">
+        {% include "components/field.html" with field=form.emergency_contact_name %}
+        {% include "components/field.html" with field=form.emergency_contact_phone %}
+        {% include "components/field.html" with field=form.emergency_contact_relation %}
+        {% include "components/field.html" with field=form.photo %}
+        <div class="md:col-span-2 self-end">{% include "components/field.html" with field=form.consent_recorded %}</div>
+      </div>
+    </section>
+    {% endif %}
+    {% if form.duplicates %}
+      <section class="card border-red/30">{% include "components/field.html" with field=form.not_duplicate %}</section>
+    {% endif %}
+    <div class="flex flex-wrap gap-3">
+      {% if "appointment.manage" in sd_perms %}<button type="submit" name="next" value="book" class="btn btn-primary">Save &amp; book appointment</button>{% endif %}
+      <button type="submit" name="next" value="profile" class="btn {% if 'appointment.manage' in sd_perms %}btn-secondary{% else %}btn-primary{% endif %}">Save patient only</button>
+      <a href="{% url 'patients:list' %}" class="btn btn-ghost">Cancel</a>
+    </div>
+  </div>
+  <aside class="card h-fit xl:sticky xl:top-24">
+    <h2 class="section-title mb-4">Duplicate check</h2>
+    <div id="duplicate-panel">{% include "patients/_duplicates.html" with matches=form.duplicates has_input=form.is_bound %}</div>
+  </aside>
+</form>
+<script>
+  // Mark the fields that feed the live duplicate check.
+  document.querySelectorAll("#id_full_name, #id_phone, #id_cnic, #id_date_of_birth").forEach((el) => el.classList.add("dup-field"));
+</script>
+{% endblock %}

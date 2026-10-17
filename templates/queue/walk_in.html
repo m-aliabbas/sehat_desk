@@ -1,0 +1,68 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}Walk-in token{% endblock %}
+{% block page_title %}Walk-in token{% endblock %}
+{% block page_subtitle %}Issue a queue token for a patient who arrived without an appointment.{% endblock %}
+{% block content %}
+<form method="post" class="grid gap-6 xl:grid-cols-3" novalidate
+      x-data="{ patientId: '{{ form.patient.value|default:'' }}', patientLabel: '{% if patient %}{{ patient.full_name|escapejs }} · {{ patient.mrn }}{% endif %}', search: '' }"
+      @patient-picked="patientId = $event.detail.id; patientLabel = $event.detail.label; search = ''">
+  {% csrf_token %}
+  <input type="hidden" name="patient" :value="patientId">
+  <div class="space-y-6 xl:col-span-2">
+    {% for e in form.non_field_errors %}{% include "components/alert.html" with level="danger" title="Could not issue token" message=e %}{% endfor %}
+    <section class="card">
+      <h2 class="section-title mb-4">Patient</h2>
+      <template x-if="patientId">
+        <div class="flex items-center justify-between rounded-control border border-teal/30 bg-mint/40 p-3">
+          <span class="font-medium" x-text="patientLabel"></span>
+          <button type="button" class="btn btn-ghost btn-sm" @click="patientId = ''">Change</button>
+        </div>
+      </template>
+      <div x-show="!patientId" class="relative">
+        <label class="field-label" for="patient-search">Find patient</label>
+        <input id="patient-search" type="search" class="input mt-1.5" placeholder="MRN, mobile, CNIC or name" autocomplete="off" autofocus
+               x-model="search" name="q" hx-get="{% url 'patients:lookup' %}" hx-trigger="input changed delay:250ms" hx-target="#patient-results">
+        <div id="patient-results" class="absolute z-20 mt-1 w-full" x-show="search.length >= 2"></div>
+        <p class="field-help mt-2">New patient? <a class="font-medium text-teal-deep underline" href="{% url 'patients:register' %}?mode=quick">Quick registration</a>, then come back.</p>
+      </div>
+      {% if form.patient.errors %}<p class="field-error mt-2">Choose a patient.</p>{% endif %}
+    </section>
+    <section class="card">
+      <h2 class="section-title mb-4">Clinic</h2>
+      <div class="grid gap-5 md:grid-cols-2">
+        <div class="field">
+          <label class="field-label" for="id_department">Department <span class="text-red">*</span></label>
+          <select id="id_department" name="department" class="select" hx-get="{% url 'appointments:doctor-options' %}" hx-target="#id_doctor"
+                  hx-on::after-request="document.querySelector('#id_doctor option').textContent = 'Any doctor (department queue)'">
+            <option value="">Choose a department</option>
+            {% for d in form.fields.department.queryset %}<option value="{{ d.pk }}" {% if form.department.value|stringformat:"s" == d.pk|stringformat:"s" %}selected{% endif %}>{{ d.name }}</option>{% endfor %}
+          </select>
+          {% for e in form.department.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+        </div>
+        <div class="field">
+          <label class="field-label" for="id_doctor">Doctor</label>
+          <select id="id_doctor" name="doctor" class="select">
+            <option value="">Any doctor (department queue)</option>
+            {% for d in form.fields.doctor.queryset %}<option value="{{ d.pk }}" {% if form.doctor.value|stringformat:"s" == d.pk|stringformat:"s" %}selected{% endif %}>{{ d.display_name }} · {{ d.department }}</option>{% endfor %}
+          </select>
+          {% for e in form.doctor.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+        </div>
+        {% include "components/field.html" with field=form.priority %}
+        {% include "components/field.html" with field=form.reason %}
+      </div>
+    </section>
+  </div>
+  <aside class="card h-fit">
+    <h2 class="section-title mb-3">Priority rules</h2>
+    <ul class="space-y-2 text-body text-muted">
+      <li><span class="font-medium text-ink">Emergency</span> is served first, then special priority, urgent, and normal.</li>
+      <li>Within the same priority, patients are seen in order of arrival.</li>
+      <li>Special priority needs a permission; priority changes are audited.</li>
+      <li>Choosing a doctor also records a walk-in visit on the patient's history.</li>
+    </ul>
+    <button type="submit" class="btn btn-primary mt-6 w-full" :disabled="!patientId">Issue token</button>
+    <a href="{% url 'queue:desk' %}" class="btn btn-secondary mt-2 w-full">Cancel</a>
+  </aside>
+</form>
+{% endblock %}

@@ -1,0 +1,174 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}{{ invoice.number }}{% endblock %}
+{% block page_title %}Invoice {{ invoice.number }}{% endblock %}
+{% block page_subtitle %}{{ invoice.bill_to }} · {{ invoice.created_at|date:"j F Y" }}{% endblock %}
+{% block page_actions %}
+  {% status_chip invoice.status invoice.get_status_display %}
+  {% if not invoice.is_draft %}<a href="{% url 'billing:invoice-print' invoice.pk %}" target="_blank" rel="noopener" class="btn btn-secondary">Print invoice</a>{% endif %}
+{% endblock %}
+{% block content %}
+{% if new_receipt %}
+  <div class="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-control bg-mint p-4 text-teal-deep" role="status">
+    <p class="flex items-center gap-2 font-medium">{% icon "check-circle" "h-5 w-5" %} {{ new_receipt.number }} · {{ organization.currency }} {{ new_receipt.amount|floatformat:"2g" }} received by {{ new_receipt.method }}.</p>
+    <a href="{% url 'billing:receipt' new_receipt.pk %}" target="_blank" rel="noopener" class="btn btn-primary btn-sm">Print receipt</a>
+  </div>
+{% endif %}
+
+<div class="grid gap-6 xl:grid-cols-3">
+  <section class="card xl:col-span-2">
+    <div class="grid gap-6 md:grid-cols-2">
+      <div>
+        <p class="text-label text-muted uppercase">Bill to</p>
+        {% if invoice.patient %}
+        <p class="mt-1 text-[22px] font-bold"><a class="hover:underline" href="{% url 'patients:detail' invoice.patient.pk %}?tab=billing">{{ invoice.patient.full_name }}</a></p>
+        {% else %}
+        <p class="mt-1 text-[22px] font-bold">{{ invoice.bill_to }}</p>
+        {% endif %}
+        <p class="text-label text-muted">{% if invoice.patient %}<span class="font-mono">{{ invoice.patient.mrn }}</span>{% else %}Walk-in customer{% endif %}{% if invoice.appointment %} · OPD visit {{ invoice.appointment.number }} · {{ invoice.appointment.doctor }}{% endif %}</p>
+      </div>
+      <div class="md:text-right">
+        <p>{{ invoice.created_at|date:"j F Y" }}</p>
+        <p>{{ organization.name }}</p>
+        <p class="text-label text-muted">{{ invoice.branch.name }}</p>
+        {% if invoice.notes %}<p class="mt-2 text-label text-muted">{{ invoice.notes }}</p>{% endif %}
+      </div>
+    </div>
+
+    <div class="table-wrap mt-6">
+      <table class="table">
+        <thead><tr><th scope="col">Service</th><th scope="col" class="text-right">Qty</th><th scope="col" class="text-right">Unit price</th><th scope="col" class="text-right">Discount</th>{% if invoice.tax_total %}<th scope="col" class="text-right">{{ billing_settings.tax_label }}</th>{% endif %}<th scope="col" class="text-right">Amount</th>{% if invoice.is_draft and can_collect %}<th scope="col"><span class="sr-only">Actions</span></th>{% endif %}</tr></thead>
+        <tbody>
+          {% for item in items %}
+            <tr>
+              <td><p class="font-medium">{{ item.description }}</p><p class="text-label text-muted">{{ item.get_kind_display }}{% if item.service %} · {{ item.service.code }}{% endif %}{% if item.discount_reason %} · discount: {{ item.discount_reason }}{% endif %}</p></td>
+              <td class="text-right">{{ item.quantity }}</td>
+              <td class="text-right">{{ item.unit_price|floatformat:"2g" }}</td>
+              <td class="text-right">{% if item.discount %}−{{ item.discount|floatformat:"2g" }}{% else %}—{% endif %}</td>
+              {% if invoice.tax_total %}<td class="text-right">{{ item.tax_amount|floatformat:"2g" }} <span class="text-label text-muted">({{ item.tax_percent|floatformat:"-2" }}%)</span></td>{% endif %}
+              <td class="text-right font-medium">{{ item.line_total|floatformat:"2g" }}</td>
+              {% if invoice.is_draft and can_collect %}
+              <td class="text-right whitespace-nowrap">
+                {% if can_discount %}
+                <details class="relative inline-block text-left">
+                  <summary class="btn btn-ghost btn-sm cursor-pointer list-none">Discount</summary>
+                  <form method="post" action="{% url 'billing:invoice-discount' invoice.pk %}" class="absolute right-0 z-20 mt-1 w-72 space-y-3 rounded-card border border-line bg-white p-4 shadow-lg">
+                    {% csrf_token %}<input type="hidden" name="item" value="{{ item.pk }}">
+                    <div class="field"><label class="field-label" for="ld-{{ item.pk }}">Amount off (max {{ item.gross|floatformat:"2g" }})</label><input id="ld-{{ item.pk }}" name="amount" type="number" min="0" step="0.01" max="{{ item.gross|stringformat:'s' }}" value="{{ item.discount|stringformat:'s' }}" class="input"></div>
+                    <div class="field"><label class="field-label" for="lr-{{ item.pk }}">Reason</label><input id="lr-{{ item.pk }}" name="reason" maxlength="200" value="{{ item.discount_reason }}" class="input" placeholder="e.g. Staff family"></div>
+                    <button class="btn btn-primary btn-sm w-full">Apply</button>
+                  </form>
+                </details>
+                {% endif %}
+                <form method="post" action="{% url 'billing:invoice-item-remove' invoice.pk item.pk %}" class="inline">{% csrf_token %}<button class="btn btn-ghost btn-sm text-red" aria-label="Remove {{ item.description }}">Remove</button></form>
+              </td>
+              {% endif %}
+            </tr>
+          {% empty %}
+            <tr><td colspan="7" class="py-8 text-center text-muted">No items yet. Add a service below.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% if item_form %}
+    <form method="post" action="{% url 'billing:invoice-item-add' invoice.pk %}" class="mt-4 rounded-control border border-dashed border-line p-4"
+          x-data="{ custom: {% if item_form.service.value %}false{% else %}true{% endif %} }">
+      {% csrf_token %}
+      <h3 class="mb-3 font-semibold">Add item</h3>
+      {% for e in item_form.non_field_errors %}<p class="field-error mb-2">{{ e }}</p>{% endfor %}
+      <div class="grid gap-3 md:grid-cols-[2fr_1fr_auto] md:items-end">
+        <div class="field">
+          <label class="field-label" for="id_service">Service</label>
+          <select id="id_service" name="service" class="select" @change="custom = !$event.target.value">
+            <option value="">Custom item</option>
+            {% for s in item_form.fields.service.queryset %}<option value="{{ s.pk }}" {% if item_form.service.value|stringformat:"s" == s.pk|stringformat:"s" %}selected{% endif %}>{{ s.name }} · {{ s.code }}</option>{% endfor %}
+          </select>
+        </div>
+        {% include "components/field.html" with field=item_form.quantity %}
+        <button class="btn btn-primary">{% icon "plus" "h-4 w-4" %} Add</button>
+      </div>
+      <div class="mt-3 grid gap-3 md:grid-cols-2" x-show="custom" x-cloak>
+        {% include "components/field.html" with field=item_form.description %}
+        {% include "components/field.html" with field=item_form.unit_price %}
+      </div>
+      <p class="field-help mt-2">Service prices come from Settings → Services (branch price when set).</p>
+    </form>
+    {% endif %}
+
+    <div class="mt-6 grid gap-6 md:grid-cols-2">
+      <div class="space-y-3">
+        {% if invoice.is_draft and can_discount and items %}
+        <details class="rounded-control border border-line p-3" {% if invoice.invoice_discount %}open{% endif %}>
+          <summary class="cursor-pointer font-medium">Invoice discount</summary>
+          <form method="post" action="{% url 'billing:invoice-discount' invoice.pk %}" class="mt-3 space-y-3">
+            {% csrf_token %}
+            <div class="field"><label class="field-label" for="inv-disc">Amount off the total</label><input id="inv-disc" name="amount" type="number" min="0" step="0.01" value="{{ invoice.invoice_discount|stringformat:'s' }}" class="input"></div>
+            <div class="field"><label class="field-label" for="inv-disc-reason">Reason <span class="text-red">*</span></label><input id="inv-disc-reason" name="reason" maxlength="200" value="{{ invoice.discount_reason }}" class="input" placeholder="e.g. Welfare case approved by admin"></div>
+            <button class="btn btn-secondary btn-sm">Apply discount</button>
+          </form>
+        </details>
+        {% endif %}
+        {% if invoice.discount_by %}<p class="text-label text-muted">Discount authorised by {{ invoice.discount_by }}{% if invoice.discount_reason %} — {{ invoice.discount_reason }}{% endif %}</p>{% endif %}
+        {% if invoice.status == "cancelled" %}
+          {% include "components/alert.html" with level="danger" title="Cancelled" message=invoice.cancel_reason %}
+        {% endif %}
+      </div>
+      <dl class="space-y-2 text-body">
+        <div class="flex justify-between"><dt class="text-muted">Subtotal</dt><dd>{{ invoice.subtotal|floatformat:"2g" }}</dd></div>
+        <div class="flex justify-between"><dt class="text-muted">Discount</dt><dd>{% if invoice.discount_total %}−{% endif %}{{ invoice.discount_total|floatformat:"2g" }}</dd></div>
+        {% if invoice.tax_total %}<div class="flex justify-between"><dt class="text-muted">{{ billing_settings.tax_label }}</dt><dd>{{ invoice.tax_total|floatformat:"2g" }}</dd></div>{% endif %}
+        <div class="flex justify-between border-t border-line pt-3 text-[20px] font-bold"><dt>Total</dt><dd>{{ organization.currency }} {{ invoice.grand_total|floatformat:"2g" }}</dd></div>
+        {% if not invoice.is_draft %}
+        <div class="flex justify-between"><dt class="text-muted">Paid</dt><dd>{{ invoice.amount_paid|floatformat:"2g" }}</dd></div>
+        {% if invoice.amount_refunded %}<div class="flex justify-between"><dt class="text-muted">Refunded</dt><dd>−{{ invoice.amount_refunded|floatformat:"2g" }}</dd></div>{% endif %}
+        <div class="flex justify-between text-[18px] font-bold {% if invoice.balance_due %}text-amber{% else %}text-teal-deep{% endif %}"><dt>Balance due</dt><dd>{{ organization.currency }} {{ invoice.balance_due|floatformat:"2g" }}</dd></div>
+        {% endif %}
+      </dl>
+    </div>
+
+    <div class="mt-6 flex flex-wrap gap-3 border-t border-line pt-5">
+      {% if invoice.is_draft and can_collect and items %}
+        <form method="post" action="{% url 'billing:invoice-issue' invoice.pk %}">{% csrf_token %}<button class="btn btn-secondary" data-confirm="Items and prices are locked after issuing. Changes later need a refund." data-confirm-title="Issue {{ invoice.number }}?" data-confirm-action="Issue invoice">Issue without payment</button></form>
+      {% endif %}
+      {% if can_refund and invoice.refundable %}<a href="{% url 'billing:invoice-refund' invoice.pk %}" class="btn btn-secondary">Refund</a>{% endif %}
+      {% if can_cancel %}
+        <details class="rounded-control border border-line px-3 py-2">
+          <summary class="cursor-pointer font-medium text-red">Cancel invoice</summary>
+          <form method="post" action="{% url 'billing:invoice-cancel' invoice.pk %}" class="mt-3 space-y-3">
+            {% csrf_token %}
+            <div class="field"><label class="field-label" for="cancel-reason">Reason <span class="text-red">*</span></label><input id="cancel-reason" name="reason" class="input" required maxlength="200" placeholder="e.g. Created by mistake"></div>
+            <button class="btn btn-danger" data-confirm="The invoice stays in history as cancelled. This is audit-logged." data-confirm-title="Cancel {{ invoice.number }}?" data-confirm-action="Cancel invoice" data-confirm-danger="true">Cancel invoice</button>
+          </form>
+        </details>
+      {% endif %}
+    </div>
+  </section>
+
+  <div class="space-y-6">
+    {% if can_collect and items %}{% if invoice.is_draft or invoice.is_outstanding %}
+    <section class="card">
+      <h2 class="section-title mb-3">Collect payment</h2>
+      <p class="text-body text-muted">Amount due</p>
+      <p class="text-[28px] font-bold text-ink">{{ organization.currency }} {% if invoice.is_draft %}{{ invoice.grand_total|floatformat:"2g" }}{% else %}{{ invoice.balance_due|floatformat:"2g" }}{% endif %}</p>
+      <a href="{% url 'billing:invoice-pay' invoice.pk %}" hx-get="{% url 'billing:invoice-pay' invoice.pk %}" hx-target="#overlay-root" class="btn btn-primary mt-4 w-full">Collect payment</a>
+      {% if invoice.is_draft %}<p class="field-help mt-2">Collecting a payment issues the invoice.</p>{% endif %}
+    </section>
+    {% endif %}{% endif %}
+
+    <section class="card">
+      <h2 class="section-title mb-3">Payment trail</h2>
+      <ol class="space-y-3">
+        {% for t in trail %}
+          <li class="text-body">
+            <p class="text-label text-muted">{{ t.when|date:"d M Y, H:i" }}</p>
+            <p>{{ t.text }}</p>
+            {% if t.payment %}<a href="{% url 'billing:receipt' t.payment.pk %}" target="_blank" rel="noopener" class="text-label font-medium text-teal-deep hover:underline">Print receipt</a>{% if t.payment.reference %} <span class="text-label text-muted">· ref {{ t.payment.reference }}</span>{% endif %}{% endif %}
+          </li>
+        {% endfor %}
+        {% if not payments %}<li class="text-label text-muted">No payments recorded yet.</li>{% endif %}
+      </ol>
+    </section>
+  </div>
+</div>
+{% endblock %}

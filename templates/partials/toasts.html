@@ -1,0 +1,27 @@
+{% load ui %}
+{# Toast stack. Django messages are pushed in on page load; htmx responses use HX-Trigger "toast". #}
+<div x-data
+     x-init="{% for message in messages %}$store.toasts.push({ level: '{% if message.level_tag == 'error' %}danger{% else %}{{ message.level_tag|escapejs }}{% endif %}', message: '{{ message|escapejs }}' });{% endfor %}"
+     class="pointer-events-none fixed right-4 bottom-4 z-[70] flex w-full max-w-sm flex-col gap-3"
+     aria-live="polite" role="status">
+  <template x-for="toast in $store.toasts.items" :key="toast.id">
+    <div x-transition
+         class="pointer-events-auto flex items-start gap-3 rounded-card border bg-white p-4 shadow-lg"
+         :class="{
+           'border-teal/30': toast.level === 'success',
+           'border-blue/30': toast.level === 'info',
+           'border-amber/30': toast.level === 'warning',
+           'border-red/30': toast.level === 'danger',
+         }">
+      <span class="mt-0.5 shrink-0"
+            :class="{ 'text-teal': toast.level === 'success', 'text-blue': toast.level === 'info', 'text-amber': toast.level === 'warning', 'text-red': toast.level === 'danger' }">
+        <template x-if="toast.level === 'success'">{% icon "check-circle" %}</template>
+        <template x-if="toast.level === 'danger'">{% icon "alert-circle" %}</template>
+        <template x-if="toast.level === 'warning'">{% icon "alert-triangle" %}</template>
+        <template x-if="!['success','danger','warning'].includes(toast.level)">{% icon "info" %}</template>
+      </span>
+      <p class="flex-1 text-body text-ink" x-text="toast.message"></p>
+      <button type="button" class="text-muted hover:text-ink" @click="$store.toasts.dismiss(toast.id)" aria-label="Dismiss">{% icon "x" "h-4 w-4" %}</button>
+    </div>
+  </template>
+</div>

@@ -1,0 +1,55 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}{{ vendor.name }}{% endblock %}
+{% block page_title %}{{ vendor.name }}{% endblock %}
+{% block page_subtitle %}{{ vendor.contact_person|default:"" }}{% if vendor.phone %} · {{ vendor.phone }}{% endif %}{% if vendor.email %} · {{ vendor.email }}{% endif %}{% endblock %}
+{% block page_actions %}
+  {% if not vendor.is_active %}{% status_chip "inactive" "Inactive" %}{% endif %}
+  <a href="{% url 'pharmacy:vendor-edit' vendor.pk %}" class="btn btn-secondary">Edit</a>
+  <form method="post" action="{% url 'pharmacy:vendor-toggle' vendor.pk %}">{% csrf_token %}<button class="btn btn-ghost">{% if vendor.is_active %}Deactivate{% else %}Activate{% endif %}</button></form>
+  {% if vendor.is_active %}<a href="{% url 'pharmacy:purchase-create' %}?vendor={{ vendor.pk }}" class="btn btn-primary">{% icon "plus" "h-4 w-4" %} New purchase</a>{% endif %}
+{% endblock %}
+{% block content %}
+{% include "pharmacy/purchasing/_tabs.html" with active="suppliers" %}
+<div class="grid gap-6 xl:grid-cols-3">
+  <section class="card xl:col-span-2">
+    <div class="card-header"><h2 class="section-title">Supplier account</h2><p class="text-right"><span class="text-label text-muted">Balance owed</span><br><span class="text-[24px] font-bold">{{ organization.currency }} {{ balance|floatformat:"2g" }}</span></p></div>
+    {% if entries %}
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th scope="col">Date</th><th scope="col">Entry</th><th scope="col">Reference</th><th scope="col" class="text-right">Amount</th><th scope="col" class="text-right">Balance</th></tr></thead>
+        <tbody>
+          {% for e in entries %}
+          <tr>
+            <td class="whitespace-nowrap">{{ e.created_at|date:"d M Y" }}<p class="text-label text-muted">{{ e.branch.name }}</p></td>
+            <td>{{ e.get_kind_display }}{% if e.note %}<p class="text-label text-muted">{{ e.note }}</p>{% endif %}</td>
+            <td class="font-mono text-label">{% if e.purchase_return %}{{ e.purchase_return.number }}{% elif e.purchase %}<a class="hover:underline" href="{% url 'pharmacy:purchase-detail' e.purchase.pk %}">{{ e.purchase.number }}</a>{% else %}—{% endif %}</td>
+            <td class="text-right {% if e.amount < 0 %}text-teal-deep{% endif %}">{{ e.amount|floatformat:"2g" }}</td>
+            <td class="text-right font-medium">{{ e.balance_after|floatformat:"2g" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}<p class="text-label text-muted">No entries yet. Received purchases add to the balance; returns reduce it.</p>{% endif %}
+  </section>
+  <div class="space-y-6">
+    <section class="card">
+      <h2 class="section-title mb-3">Details</h2>
+      <dl class="space-y-2 text-body">
+        <div><dt class="text-label text-muted">Address</dt><dd>{{ vendor.address|default:"—" }}</dd></div>
+        <div><dt class="text-label text-muted">NTN / tax number</dt><dd>{{ vendor.tax_number|default:"—" }}</dd></div>
+        <div><dt class="text-label text-muted">Payment terms</dt><dd>{% if vendor.payment_terms_days %}{{ vendor.payment_terms_days }} days{% else %}On delivery{% endif %}</dd></div>
+        {% if vendor.notes %}<div><dt class="text-label text-muted">Notes</dt><dd>{{ vendor.notes }}</dd></div>{% endif %}
+      </dl>
+    </section>
+    <section class="card">
+      <h2 class="section-title mb-3">Recent purchases (this branch)</h2>
+      <ul class="divide-y divide-line">
+        {% for p in purchases %}<li class="flex justify-between gap-2 py-2"><a href="{% url 'pharmacy:purchase-detail' p.pk %}" class="font-mono hover:underline">{{ p.number }}</a><span class="text-label">{% status_chip p.status p.get_status_display %} {{ p.grand_total|floatformat:"2g" }}</span></li>
+        {% empty %}<li class="py-2 text-label text-muted">No purchases yet.</li>{% endfor %}
+      </ul>
+    </section>
+  </div>
+</div>
+{% endblock %}

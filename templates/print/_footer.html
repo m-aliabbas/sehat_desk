@@ -1,0 +1,9 @@
+{% comment %}
+  Footer for A4/A5 documents: hospital footer text, terms (when terms=True) and a printed-by line.
+  {% include "print/_footer.html" with org=request.organization terms=True note="Computer-generated invoice." %}
+{% endcomment %}
+<footer class="mt-10 border-t border-line pt-3 text-center text-label text-muted">
+  {% if org.report_footer %}<p class="whitespace-pre-line">{{ org.report_footer }}</p>{% endif %}
+  {% if terms and org.print_terms %}<p class="mt-1 text-[10px] whitespace-pre-line">{{ org.print_terms }}</p>{% endif %}
+  <p class="mt-1">Printed {% now "d M Y, H:i" %}{% if request.user.is_authenticated %} by {{ request.user.get_full_name|default:request.user.get_username }}{% endif %}.{% if note %} {{ note }}{% endif %}</p>
+</footer>

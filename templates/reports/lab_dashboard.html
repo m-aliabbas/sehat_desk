@@ -1,0 +1,67 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}Laboratory dashboard{% endblock %}
+{% block page_title %}Laboratory operations{% endblock %}
+{% block page_subtitle %}{{ current_branch.name }} · {{ today|date:"l j F" }}. Counts refresh when you reload.{% endblock %}
+{% block page_actions %}
+  <a href="{% url 'lab:worklist' %}" class="btn btn-primary">{% icon "flask" "h-4 w-4" %} Open worklist</a>
+  {% if "reports.view" in sd_perms %}<a href="{% url 'reports:report' 'lab-tat' %}" class="btn btn-secondary">TAT report</a>{% endif %}
+{% endblock %}
+{% block content %}
+<div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+  <a href="{% url 'lab:worklist' %}" class="stat-card bg-amber-soft hover:ring-2 hover:ring-amber/20">
+    <p class="text-body text-ink">Pending samples</p>
+    <p class="mt-2 text-[32px] font-bold text-ink">{{ k.pending_samples }}</p>
+    <p class="text-label text-muted">{{ k.awaiting_payment }} waiting for payment</p>
+  </a>
+  <a href="{% url 'lab:worklist' %}" class="stat-card bg-blue-soft hover:ring-2 hover:ring-blue/20">
+    <p class="text-body text-ink">Processing</p>
+    <p class="mt-2 text-[32px] font-bold text-ink">{{ k.processing }}</p>
+    <p class="text-label text-muted">Tests collected or running</p>
+  </a>
+  <a href="{% url 'lab:worklist' %}" class="stat-card bg-violet-soft hover:ring-2 hover:ring-blue/20">
+    <p class="text-body text-ink">Verification pending</p>
+    <p class="mt-2 text-[32px] font-bold text-ink">{{ k.verification_pending }}</p>
+    <p class="text-label text-muted">Results entered, not verified</p>
+  </a>
+  <div class="stat-card {% if k.critical %}bg-red-soft{% else %}bg-mint{% endif %}">
+    <p class="text-body text-ink">Critical results</p>
+    <p class="mt-2 text-[32px] font-bold {% if k.critical %}text-red{% else %}text-ink{% endif %}">{{ k.critical }}</p>
+    <p class="text-label text-muted">Not yet acknowledged</p>
+  </div>
+  <div class="stat-card bg-mint">
+    <p class="text-body text-ink">Completed today</p>
+    <p class="mt-2 text-[32px] font-bold text-ink">{{ k.released_today }}</p>
+    <p class="text-label text-muted">Reports released · {{ k.verified_today }} results verified · {{ k.ordered_today }} ordered</p>
+  </div>
+</div>
+
+<div class="mt-6 grid gap-6 xl:grid-cols-2">
+  <section class="card">
+    <h2 class="section-title mb-3">Critical results to acknowledge</h2>
+    {% if k.critical_list %}
+    <ul class="divide-y divide-line">
+      {% for r in k.critical_list %}
+      <li class="flex items-center justify-between gap-3 py-2">
+        <span><a class="font-medium hover:underline" href="{% url 'lab:order-detail' r.item.order_id %}">{{ r.item.order.number }}</a> · {{ r.item.order.patient.full_name }}<span class="block text-label text-muted">{{ r.item.test_name }}: <span class="font-semibold text-red">{{ r.display_value }}</span> ({{ r.get_flag_display }})</span></span>
+        <span class="text-label text-muted whitespace-nowrap">{{ r.entered_at|timesince }} ago</span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}{% include "components/empty_state.html" with icon_name="check-circle" title="No unacknowledged critical results" compact=True %}{% endif %}
+  </section>
+  <section class="card">
+    <h2 class="section-title mb-3">Oldest open tests</h2>
+    {% if k.oldest_open %}
+    <ul class="divide-y divide-line">
+      {% for i in k.oldest_open %}
+      <li class="flex items-center justify-between gap-3 py-2">
+        <span><a class="font-medium hover:underline" href="{% url 'lab:order-detail' i.order_id %}">{{ i.order.number }}</a> · {{ i.test_name }}<span class="block text-label text-muted">{{ i.order.patient.full_name }}</span></span>
+        <span class="flex items-center gap-2">{% status_chip i.status i.get_status_display %}<span class="text-label text-muted whitespace-nowrap">{{ i.order.created_at|timesince }}</span></span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}{% include "components/empty_state.html" with icon_name="flask" title="No open tests" compact=True %}{% endif %}
+  </section>
+</div>
+{% endblock %}

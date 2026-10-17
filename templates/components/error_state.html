@@ -1,0 +1,15 @@
+{% load ui %}
+{% comment %}
+  {% include "components/error_state.html" with title="Could not load appointments" retry_url=... retry_target="#list" %}
+  With retry_url, the Retry button re-requests the fragment over htmx.
+{% endcomment %}
+<div class="flex flex-col items-center py-12 text-center" role="alert">
+  <span class="flex h-14 w-14 items-center justify-center rounded-full bg-red-soft text-red">{% icon "alert-circle" "h-6 w-6" %}</span>
+  <p class="mt-4 text-body font-semibold text-ink">{{ title|default:"Something went wrong" }}</p>
+  <p class="mt-1 max-w-sm text-label text-muted">{{ message|default:"The data could not be loaded. Your work has not been lost. Try again, or contact your administrator if this keeps happening." }}</p>
+  {% if retry_url %}
+    <button type="button" class="btn btn-secondary mt-5" hx-get="{{ retry_url }}" hx-target="{{ retry_target }}" hx-swap="innerHTML">
+      {% icon "refresh" "h-4 w-4" %} Retry
+    </button>
+  {% endif %}
+</div>

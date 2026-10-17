@@ -1,0 +1,46 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}{% if role.pk %}Edit {{ role.name }}{% else %}New role{% endif %}{% endblock %}
+{% block page_title %}{% if role.pk %}Edit {{ role.name }}{% else %}New role{% endif %}{% endblock %}
+{% block page_subtitle %}Choose what this role can do. Changes apply at the staff member's next page load.{% endblock %}
+{% block content %}
+{% include "partials/settings_tabs.html" %}
+<form method="post" class="grid gap-6 xl:grid-cols-3" novalidate>
+  {% csrf_token %}
+  <section class="card">
+    <h2 class="section-title mb-4">Role</h2>
+    <div class="space-y-5">
+      {% include "components/field.html" with field=form.name %}
+      {% include "components/field.html" with field=form.description %}
+    </div>
+  </section>
+  <section class="card xl:col-span-2">
+    <h2 class="section-title mb-1">Permissions</h2>
+    <p class="mb-4 text-label text-muted">Greyed-out permissions are ones you do not hold, so you cannot grant or remove them.</p>
+    {% for e in form.permissions.errors %}{% include "components/alert.html" with level="danger" message=e %}{% endfor %}
+    <div class="grid gap-6 md:grid-cols-2">
+      {% for module, perms in groups %}
+        <fieldset>
+          <legend class="mb-2 text-label font-semibold tracking-wide text-muted uppercase">{{ module }}</legend>
+          <div class="space-y-2">
+            {% for p in perms %}
+              {% with pid=p.pk|stringformat:"d" %}
+              <label class="flex items-start gap-2 text-body {% if p.code not in held %}opacity-50{% endif %}">
+                <input type="checkbox" class="checkbox mt-0.5" name="permissions" value="{{ p.pk }}" {% if pid in selected %}checked{% endif %}
+                       {% if p.code not in held %}disabled{% endif %}>
+                {% if p.code not in held and pid in selected %}<input type="hidden" name="permissions" value="{{ p.pk }}">{% endif %}
+                <span>{{ p.label }}<span class="block font-mono text-[11px] text-muted">{{ p.code }}</span></span>
+              </label>
+              {% endwith %}
+            {% endfor %}
+          </div>
+        </fieldset>
+      {% endfor %}
+    </div>
+  </section>
+  <div class="flex gap-3 xl:col-span-3">
+    <button type="submit" class="btn btn-primary">Save role</button>
+    <a href="{% url 'accounts:role-list' %}" class="btn btn-secondary">Cancel</a>
+  </div>
+</form>
+{% endblock %}

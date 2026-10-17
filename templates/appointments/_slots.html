@@ -1,0 +1,30 @@
+{% load ui %}
+{# Slot picker. Clicking a slot dispatches "slot-picked" with "HH:MM". #}
+{% if not doctor %}
+  <p class="text-body text-muted">Choose a doctor and date to see available slots.</p>
+{% elif on_leave %}
+  {% include "components/alert.html" with level="warning" title="Doctor on leave" message="No slots on this date. Choose another date or doctor, or book a walk-in/emergency visit." %}
+{% elif not schedule %}
+  {% include "components/alert.html" with level="info" title="No clinic on this day" message="This doctor has no clinic hours in this branch on that weekday." %}
+{% elif not slots %}
+  <p class="text-body text-muted">No slots configured.</p>
+{% else %}
+  <p class="mb-3 text-label text-muted">{{ day|date:"l, j F Y" }} · {{ schedule.start_time|time:"H:i" }}–{{ schedule.end_time|time:"H:i" }}{% if schedule.room %} · {{ schedule.room }}{% endif %} · {{ doctor.slot_minutes }}-minute slots</p>
+  <div class="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6" role="radiogroup" aria-label="Available slots">
+    {% for s in slots %}
+      <button type="button" role="radio"
+        class="btn btn-sm {% if s.available %}btn-secondary{% else %}btn-ghost cursor-not-allowed line-through opacity-50{% endif %}"
+        :class="time === '{{ s.value }}' && 'btn-primary !border-teal !bg-teal !text-white'"
+        :aria-checked="time === '{{ s.value }}'"
+        {% if s.available or doctor.allow_overbooking and not s.past %}@click="$dispatch('slot-picked', '{{ s.value }}')"{% else %}disabled{% endif %}
+        title="{% if s.past %}Past{% elif s.booked %}Booked{% else %}Available{% endif %}">{{ s.value }}</button>
+    {% endfor %}
+  </div>
+  <p class="mt-3 text-label text-muted">Struck-out slots are booked or already past.{% if doctor.allow_overbooking %} This doctor allows overbooking of booked slots.{% endif %}</p>
+{% endif %}
+{% if suggested_visit_type %}
+  <div x-init="$dispatch('visit-suggested', '{{ suggested_visit_type }}')" class="mt-4 rounded-control bg-mint/50 p-3 text-body">
+    Suggested: <span class="font-semibold">{% if suggested_visit_type == "follow_up" %}Follow-up{% else %}New consultation{% endif %}</span>
+    · fee {{ organization.currency }} {{ suggested_fee|floatformat:"0g" }}
+  </div>
+{% endif %}

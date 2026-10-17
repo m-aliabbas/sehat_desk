@@ -1,0 +1,204 @@
+{
+  "POS checkout": {
+    "screens": [
+      43,
+      44,
+      45,
+      46,
+      47,
+      48,
+      49
+    ],
+    "steps": [
+      "Cart",
+      "Patient",
+      "Prescription",
+      "Batches",
+      "Discount",
+      "Payment",
+      "Receipt"
+    ]
+  },
+  "Sales return": {
+    "screens": [
+      51,
+      52,
+      53
+    ],
+    "steps": [
+      "Find receipt",
+      "Review items",
+      "Refund"
+    ]
+  },
+  "Medicine setup": {
+    "screens": [
+      55,
+      56,
+      57
+    ],
+    "steps": [
+      "Identity",
+      "Pricing",
+      "Opening stock"
+    ]
+  },
+  "Purchase order": {
+    "screens": [
+      59,
+      60,
+      61
+    ],
+    "steps": [
+      "Supplier",
+      "Items",
+      "Review"
+    ]
+  },
+  "Goods receipt": {
+    "screens": [
+      62,
+      63,
+      64
+    ],
+    "steps": [
+      "Purchase order",
+      "Batches",
+      "Post stock"
+    ]
+  },
+  "Stock adjustment": {
+    "screens": [
+      66,
+      67
+    ],
+    "steps": [
+      "Count",
+      "Approve"
+    ]
+  },
+  "Lab test setup": {
+    "screens": [
+      72,
+      73,
+      74
+    ],
+    "steps": [
+      "Test identity",
+      "Method & range",
+      "Review"
+    ]
+  },
+  "Lab order": {
+    "screens": [
+      76,
+      77,
+      78
+    ],
+    "steps": [
+      "Patient",
+      "Tests",
+      "Confirm"
+    ]
+  },
+  "Sample collection": {
+    "screens": [
+      79,
+      80
+    ],
+    "steps": [
+      "Verify identity",
+      "Collect & label"
+    ]
+  },
+  "Lab result entry": {
+    "screens": [
+      83,
+      84
+    ],
+    "steps": [
+      "Enter results",
+      "Validate"
+    ]
+  },
+  "Lab verification": {
+    "screens": [
+      86,
+      87
+    ],
+    "steps": [
+      "Review",
+      "Release"
+    ]
+  },
+  "OPD consultation": {
+    "screens": [
+      95,
+      96,
+      97,
+      98,
+      99,
+      100,
+      101,
+      102,
+      103
+    ],
+    "steps": [
+      "Identity",
+      "History",
+      "Exam",
+      "Assessment",
+      "Orders",
+      "Rx",
+      "Plan",
+      "Review",
+      "Signed"
+    ]
+  },
+  "Prescription item": {
+    "screens": [
+      104,
+      105,
+      106
+    ],
+    "steps": [
+      "Medicine",
+      "Directions",
+      "Review"
+    ]
+  },
+  "Doctor onboarding": {
+    "screens": [
+      109,
+      110,
+      111
+    ],
+    "steps": [
+      "Profile",
+      "Clinic",
+      "Access"
+    ]
+  },
+  "Referral": {
+    "screens": [
+      114,
+      115
+    ],
+    "steps": [
+      "Destination",
+      "Handover"
+    ]
+  },
+  "Inpatient discharge": {
+    "screens": [
+      119,
+      120,
+      121
+    ],
+    "steps": [
+      "Clinical",
+      "Clearance",
+      "Release"
+    ]
+  }
+}

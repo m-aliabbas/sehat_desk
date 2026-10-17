@@ -1,0 +1,89 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}Nursing workspace{% endblock %}
+{% block page_title %}Nursing workspace{% endblock %}
+{% block page_subtitle %}{{ shift }} · ward assignments, observations and medicines due.{% endblock %}
+{% block page_actions %}
+  <a href="{% url 'nursing:handover' %}" class="btn btn-secondary">Shift handover</a>
+  <a href="{% url 'ipd:board' %}" class="btn btn-secondary">{% icon "bed" "h-4 w-4" %} Bed board</a>
+{% endblock %}
+{% block content %}
+<div class="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+  <div class="stat-card bg-mint"><p class="text-body">{% if show == "mine" %}My patients{% else %}Patients{% endif %}</p><p class="mt-2 text-[32px] font-bold">{{ rows|length }}</p><p class="text-label text-muted">{% if show == "mine" %}Assigned to you{% else %}Admitted{% if ward %} in this ward{% endif %}{% endif %}</p></div>
+  <div class="stat-card bg-blue-soft"><p class="text-body">Tasks due</p><p class="mt-2 text-[32px] font-bold">{{ tasks|length }}</p><p class="text-label text-muted">Doses and observations due or overdue</p></div>
+  <div class="stat-card bg-violet-soft"><p class="text-body">Doses charted</p><p class="mt-2 text-[32px] font-bold">{{ done }}</p><p class="text-label text-muted">By you, last 8 hours</p></div>
+  <div class="stat-card bg-amber-soft"><p class="text-body">Handover notes</p><p class="mt-2 text-[32px] font-bold">{{ handover_count }}</p><p class="text-label text-muted">Awaiting acknowledgement</p></div>
+</div>
+
+<form method="get" class="mb-6 flex flex-wrap items-end gap-3">
+  <div class="field"><label class="field-label" for="show">Show</label>
+    <select id="show" name="show" class="select">{% if has_mine %}<option value="mine" {% if show == "mine" %}selected{% endif %}>My assigned patients</option>{% endif %}<option value="ward" {% if show == "ward" %}selected{% endif %}>Ward patients</option></select></div>
+  <div class="field"><label class="field-label" for="ward">Ward</label>
+    <select id="ward" name="ward" class="select"><option value="">All wards</option>{% for w in wards %}<option value="{{ w.pk }}" {% if ward == w.pk|stringformat:"s" %}selected{% endif %}>{{ w.name }}</option>{% endfor %}</select></div>
+  <button class="btn btn-secondary">Show</button>
+</form>
+
+<section class="card mb-6" hx-get="{{ request.get_full_path }}" hx-trigger="every 60s [document.visibilityState === 'visible']" hx-select="#care-tasks" hx-target="#care-tasks" hx-swap="outerHTML">
+  <h2 class="section-title mb-4">Care tasks due</h2>
+  <div id="care-tasks">
+  {% if tasks %}
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th scope="col">Patient / bed</th><th scope="col">Task</th><th scope="col">Due</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Action</span></th></tr></thead>
+      <tbody>
+        {% for t in tasks %}
+        <tr>
+          <td>{{ t.admission.patient.full_name }} · <span class="font-mono">{{ t.admission.current_bed.code|default:"—" }}</span></td>
+          <td>{{ t.label }}</td>
+          <td class="whitespace-nowrap">{{ t.due|date:"H:i" }}{% if t.due|date:"Ymd" != now|date:"Ymd" %} <span class="text-label text-muted">{{ t.due|date:"d M" }}</span>{% endif %}</td>
+          <td>{% status_chip t.state %}</td>
+          <td class="text-right">{% if t.kind == "dose" %}<a href="{% url 'ipd:admission-detail' t.admission.pk %}?tab=medication" class="btn btn-ghost btn-sm">Chart dose →</a>{% else %}<a href="{% url 'vitals:record' %}?patient={{ t.admission.patient_id }}&amp;next={{ request.get_full_path|urlencode }}" class="btn btn-primary btn-sm">Record vitals</a>{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+    {% include "components/empty_state.html" with icon_name="check-circle" title="Nothing due right now" message="Doses due within the hour and overdue observations appear here." compact=True %}
+  {% endif %}
+  </div>
+</section>
+
+<div class="grid gap-6 xl:grid-cols-[2fr_1fr]">
+  <section class="card">
+    <h2 class="section-title mb-4">Patients</h2>
+    {% if rows %}
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th scope="col">Bed</th><th scope="col">Patient</th><th scope="col">Last vitals</th><th scope="col">Next obs.</th><th scope="col"><span class="sr-only">Open</span></th></tr></thead>
+        <tbody>
+          {% for r in rows %}
+          <tr>
+            <td class="font-mono">{{ r.admission.current_bed.code|default:"—" }}</td>
+            <td>{{ r.admission.patient.full_name }}<p class="text-label text-muted">{{ r.admission.patient.age_label }} · Day {{ r.admission.length_of_stay_days }}{% if r.tasks %} · {{ r.tasks }} task(s){% endif %}</p></td>
+            <td>{% if r.last_vitals %}{{ r.last_vitals.recorded_at|date:"d M, H:i" }}{% else %}<span class="chip chip-warning">None this stay</span>{% endif %}</td>
+            <td>{% if r.vitals_due %}<span class="{% if r.vitals_due < now %}font-semibold text-red{% endif %}">{{ r.vitals_due|date:"H:i" }}</span>{% else %}<span class="text-label text-muted">No schedule</span>{% endif %}</td>
+            <td class="text-right"><a href="{% url 'ipd:admission-detail' r.admission.pk %}?tab=nursing" class="btn btn-ghost btn-sm">Open →</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      {% include "components/empty_state.html" with icon_name="bed" title="No admitted patients" message="Admitted patients in your ward appear here." compact=True %}
+    {% endif %}
+  </section>
+  <section class="card">
+    <div class="card-header"><h2 class="section-title">Handover to acknowledge</h2><a href="{% url 'nursing:handover' %}" class="btn btn-ghost btn-sm">All</a></div>
+    <ul class="divide-y divide-line">
+      {% for h in handovers %}
+      <li class="py-3">
+        <p class="text-label text-muted">{{ h.ward.name }} · {{ h.get_shift_display }} · {{ h.given_by }}</p>
+        <p class="text-body">{{ h.summary|truncatechars:160 }}</p>
+        {% if h.given_by_id != request.user.pk %}<form method="post" action="{% url 'nursing:handover-ack' h.pk %}" class="mt-2">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="btn btn-secondary btn-sm">Acknowledge</button></form>{% endif %}
+      </li>
+      {% empty %}<li class="py-3 text-label text-muted">No handover waiting.</li>{% endfor %}
+    </ul>
+  </section>
+</div>
+{% endblock %}

@@ -1,0 +1,11 @@
+{% load ui %}
+{# {% include "components/alert.html" with level="danger|warning|info|success" title="..." message="..." %} #}
+<div class="mt-5 flex gap-3 rounded-control p-4 text-body
+  {% if level == 'danger' %}bg-red-soft text-red{% elif level == 'warning' %}bg-amber-soft text-amber{% elif level == 'success' %}bg-mint text-teal-deep{% else %}bg-blue-soft text-blue{% endif %}"
+  role="{% if level == 'danger' %}alert{% else %}status{% endif %}">
+  {% if level == 'success' %}{% icon "check-circle" "h-5 w-5 shrink-0" %}{% elif level == 'info' %}{% icon "info" "h-5 w-5 shrink-0" %}{% else %}{% icon "alert-circle" "h-5 w-5 shrink-0" %}{% endif %}
+  <div>
+    {% if title %}<p class="font-semibold">{{ title }}</p>{% endif %}
+    {% if message %}<p class="{% if title %}mt-0.5 {% endif %}text-ink/80">{{ message }}</p>{% endif %}
+  </div>
+</div>

@@ -1,0 +1,24 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}Amend discharge summary{% endblock %}
+{% block page_title %}Amend discharge summary{% endblock %}
+{% block page_subtitle %}{{ admission.patient.full_name }} · {{ admission.number }}. Signing creates a new version; earlier versions stay on record.{% endblock %}
+{% block content %}
+<form method="post" class="card space-y-4">{% csrf_token %}
+  {% if form.non_field_errors %}{% include "components/alert.html" with level="danger" message=form.non_field_errors|join:" " %}{% endif %}
+  <div class="grid gap-4 md:grid-cols-2">
+    {% include "components/field.html" with field=form.discharge_type %}
+    {% include "components/field.html" with field=form.discharge_condition %}
+    {% include "components/field.html" with field=form.discharge_diagnosis wide=True %}
+    {% include "components/field.html" with field=form.hospital_course wide=True %}
+  </div>
+  <div><h3 class="mb-2 text-body font-semibold">Discharge medicines</h3>{% include "ipd/_medicine_rows.html" %}</div>
+  <div class="grid gap-4 md:grid-cols-2">
+    {% include "components/field.html" with field=form.discharge_advice wide=True %}
+    {% include "components/field.html" with field=form.follow_up_date %}
+    {% include "components/field.html" with field=form.follow_up_instructions %}
+  </div>
+  <div class="field"><label class="field-label" for="reason">Reason for the amendment <span class="text-red" aria-hidden="true">*</span></label><input id="reason" name="reason" value="{{ reason }}" class="input" required maxlength="200"></div>
+  <div class="flex gap-3"><button class="btn btn-primary">Sign new version</button><a href="{% url 'ipd:admission-detail' admission.pk %}" class="btn btn-ghost">Cancel</a></div>
+</form>
+{% endblock %}

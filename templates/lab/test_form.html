@@ -1,0 +1,59 @@
+{% extends "layouts/app.html" %}
+{% block title %}{% if creating %}New lab test{% else %}{{ test }}{% endif %}{% endblock %}
+{% block page_title %}{% if creating %}New lab test{% else %}Edit {{ test.code }}{% endif %}{% endblock %}
+{% block page_subtitle %}Identity, method and reference ranges. Orders already placed keep the name and unit they were ordered with.{% endblock %}
+{% block content %}
+<form method="post" novalidate class="space-y-6">
+  {% csrf_token %}
+  {% for e in form.non_field_errors %}{% include "components/alert.html" with level="danger" message=e %}{% endfor %}
+  <section class="card">
+    <h2 class="section-title mb-4">Identity &amp; price</h2>
+    <div class="grid gap-5 md:grid-cols-3">
+      {% include "components/field.html" with field=form.code %}
+      {% include "components/field.html" with field=form.name %}
+      {% include "components/field.html" with field=form.category %}
+      {% include "components/field.html" with field=form.sample_type %}
+      {% include "components/field.html" with field=form.price %}
+      {% include "components/field.html" with field=form.turnaround_hours %}
+    </div>
+  </section>
+  <section class="card">
+    <h2 class="section-title mb-4">Result &amp; method</h2>
+    <div class="grid gap-5 md:grid-cols-3">
+      {% include "components/field.html" with field=form.result_type %}
+      {% include "components/field.html" with field=form.unit %}
+      {% include "components/field.html" with field=form.decimals %}
+      {% include "components/field.html" with field=form.options %}
+      {% include "components/field.html" with field=form.normal_value %}
+      {% include "components/field.html" with field=form.method %}
+    </div>
+  </section>
+  <section class="card">
+    <h2 class="section-title mb-1">Reference ranges (numeric tests)</h2>
+    <p class="mb-4 text-label text-muted">The most specific matching row (sex, then age band) is used. Leave the age to-field empty for "and older". Critical limits trigger the critical-result alert.</p>
+    {{ ranges.management_form }}
+    {% for e in ranges.non_form_errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th scope="col">Sex</th><th scope="col">Age from</th><th scope="col">Age to</th><th scope="col">Low</th><th scope="col">High</th><th scope="col">Critical low</th><th scope="col">Critical high</th><th scope="col">Remove</th></tr></thead>
+        <tbody>
+          {% for f in ranges %}
+          <tr>{% for hidden in f.hidden_fields %}{{ hidden }}{% endfor %}
+            <td><select name="{{ f.gender.html_name }}" class="select" aria-label="Sex">{% for v, l in f.fields.gender.choices %}<option value="{{ v }}" {% if f.gender.value == v %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></td>
+            <td><input name="{{ f.age_min_years.html_name }}" value="{{ f.age_min_years.value|default_if_none:'' }}" class="input w-20" inputmode="numeric" aria-label="Age from"></td>
+            <td><input name="{{ f.age_max_years.html_name }}" value="{{ f.age_max_years.value|default_if_none:'' }}" class="input w-20" inputmode="numeric" aria-label="Age to"></td>
+            <td><input name="{{ f.low.html_name }}" value="{{ f.low.value|default_if_none:'' }}" class="input w-24" inputmode="decimal" aria-label="Low"></td>
+            <td><input name="{{ f.high.html_name }}" value="{{ f.high.value|default_if_none:'' }}" class="input w-24" inputmode="decimal" aria-label="High"></td>
+            <td><input name="{{ f.critical_low.html_name }}" value="{{ f.critical_low.value|default_if_none:'' }}" class="input w-24" inputmode="decimal" aria-label="Critical low"></td>
+            <td><input name="{{ f.critical_high.html_name }}" value="{{ f.critical_high.value|default_if_none:'' }}" class="input w-24" inputmode="decimal" aria-label="Critical high"></td>
+            <td>{% if f.instance.pk %}<input type="checkbox" name="{{ f.DELETE.html_name }}" class="checkbox" aria-label="Remove range">{% endif %}</td>
+          </tr>
+          {% if f.errors %}<tr><td colspan="8" class="field-error">{% for field, errs in f.errors.items %}{{ field }}: {{ errs|join:" " }} {% endfor %}</td></tr>{% endif %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  <div class="flex gap-3"><button class="btn btn-primary">Save test</button><a href="{% url 'lab:catalog' %}" class="btn btn-secondary">Cancel</a></div>
+</form>
+{% endblock %}

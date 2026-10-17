@@ -1,0 +1,22 @@
+{% extends "print/thermal.html" %}
+{% block title %}Receipt {{ payment.number }}{% endblock %}
+{% block print_label %}Print receipt{% endblock %}
+{% block document %}
+    {% include "print/_thermal_header.html" with org=request.organization branch=payment.branch doc_title="Payment receipt" %}
+    <dl class="space-y-1 text-label">
+      <div class="flex justify-between"><dt>Receipt</dt><dd class="font-mono">{{ payment.number }}</dd></div>
+      <div class="flex justify-between"><dt>Date</dt><dd>{{ payment.created_at|date:"d M Y, H:i" }}</dd></div>
+      <div class="flex justify-between"><dt>Invoice</dt><dd class="font-mono">{{ inv.number }}</dd></div>
+      <div class="flex justify-between"><dt>{% if inv.patient %}Patient{% else %}Customer{% endif %}</dt><dd>{{ inv.bill_to }}</dd></div>
+      {% if inv.patient %}<div class="flex justify-between"><dt>MRN</dt><dd class="font-mono">{{ inv.patient.mrn }}</dd></div>{% endif %}
+      <div class="flex justify-between"><dt>Method</dt><dd>{{ payment.method }}</dd></div>
+      {% if payment.reference %}<div class="flex justify-between"><dt>Reference</dt><dd>{{ payment.reference }}</dd></div>{% endif %}
+    </dl>
+    <hr class="my-3 border-dashed border-line">
+    <div class="flex justify-between font-bold"><span>Amount paid</span><span>{{ request.organization.currency }} {{ payment.amount|floatformat:"2g" }}</span></div>
+    <div class="mt-1 flex justify-between text-label"><span>Invoice total</span><span>{{ inv.grand_total|floatformat:"2g" }}</span></div>
+    <div class="flex justify-between text-label"><span>Balance due now</span><span>{{ inv.balance_due|floatformat:"2g" }}</span></div>
+    <hr class="my-3 border-dashed border-line">
+    <p class="text-center text-label">Received by {{ payment.received_by }}</p>
+    {% include "print/_thermal_footer.html" with org=request.organization terms=True message=billing_settings.receipt_message %}
+{% endblock %}

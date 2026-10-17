@@ -1,0 +1,102 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}Discharge · {{ admission.number }}{% endblock %}
+{% block page_title %}Discharge workspace{% endblock %}
+{% block page_subtitle %}{{ patient.full_name }} · {{ admission.number }} · day {{ admission.length_of_stay_days }}{% endblock %}
+{% block page_actions %}<a href="{% url 'ipd:summary' admission.pk %}" target="_blank" class="btn btn-secondary">Preview summary</a>{% endblock %}
+{% block content %}
+{% if admission.status == "discharged" %}
+  {% include "components/alert.html" with level="success" title="Discharged" message="This stay is closed. The signed summary can be printed or amended." %}
+  <div class="mt-4 flex gap-3"><a href="{% url 'ipd:summary' admission.pk %}" class="btn btn-primary" target="_blank">Discharge summary</a>{% if can_write %}<a href="{% url 'ipd:summary-amend' admission.pk %}" class="btn btn-secondary">Amend summary</a>{% endif %}</div>
+{% elif admission.status == "cancelled" %}
+  {% include "components/alert.html" with level="warning" title="Admission cancelled" message=admission.cancel_reason %}
+{% else %}
+<ol class="mb-6 grid gap-3 md:grid-cols-4" aria-label="Discharge steps">
+  <li class="rounded-card border p-4 {% if check.summary_ready %}border-teal bg-mint{% else %}border-line bg-white{% endif %}"><p class="text-label text-muted">Step 1</p><p class="font-semibold">Clinical summary</p><p class="text-label">{% if check.doctor_cleared %}Doctor cleared{% elif check.summary_ready %}Written, not cleared{% else %}Not written{% endif %}</p></li>
+  <li class="rounded-card border p-4 {% if not check.pending_labs and check.doctor_cleared %}border-teal bg-mint{% else %}border-line bg-white{% endif %}"><p class="text-label text-muted">Step 2</p><p class="font-semibold">Pending services</p><p class="text-label">{{ check.pending_labs|length }} lab order(s) open · {{ check.active_medicines }} active medicine(s)</p></li>
+  <li class="rounded-card border p-4 {% if check.bill_finalized and not check.outstanding %}border-teal bg-mint{% else %}border-line bg-white{% endif %}"><p class="text-label text-muted">Step 3</p><p class="font-semibold">Final bill</p><p class="text-label">{% if check.bill_finalized %}Issued · {{ check.outstanding|floatformat:"2g" }} due{% else %}Not finalized{% endif %}</p></li>
+  <li class="rounded-card border border-line bg-white p-4"><p class="text-label text-muted">Step 4</p><p class="font-semibold">Release</p><p class="text-label">Bed set to cleaning</p></li>
+</ol>
+
+<div class="grid gap-6 xl:grid-cols-[2fr_1fr]">
+  <section class="card">
+    <div class="card-header"><h2 class="section-title">1 · Clinical summary</h2>{% if check.doctor_cleared %}{% status_chip "discharge_planned" "Cleared for discharge" %}{% endif %}</div>
+    {% if can_write %}
+    <form method="post" class="space-y-4">{% csrf_token %}
+      <input type="hidden" name="action" value="save">
+      <div class="grid gap-4 md:grid-cols-2">
+        {% include "components/field.html" with field=form.discharge_type %}
+        {% include "components/field.html" with field=form.discharge_condition %}
+        {% include "components/field.html" with field=form.discharge_diagnosis wide=True %}
+        {% include "components/field.html" with field=form.hospital_course wide=True %}
+      </div>
+      <div><h3 class="mb-2 text-body font-semibold">Discharge medicines</h3>{% include "ipd/_medicine_rows.html" %}</div>
+      <div class="grid gap-4 md:grid-cols-2">
+        {% include "components/field.html" with field=form.discharge_advice wide=True %}
+        {% include "components/field.html" with field=form.follow_up_date %}
+        {% include "components/field.html" with field=form.follow_up_instructions %}
+      </div>
+      <div class="flex flex-wrap gap-3">
+        <button class="btn btn-secondary">Save draft</button>
+        {% if admission.status == "admitted" %}<button class="btn btn-primary" name="plan" value="1">Save and clear for discharge</button>{% endif %}
+      </div>
+    </form>
+    {% if admission.status == "discharge_planned" and not admission.bill_finalized_at %}
+      <form method="post" class="mt-3">{% csrf_token %}<input type="hidden" name="action" value="revert"><button class="btn btn-ghost btn-sm">Withdraw discharge clearance</button></form>
+    {% endif %}
+    {% else %}
+      <dl class="space-y-3 text-body">
+        <div><dt class="text-label text-muted">Discharge diagnosis</dt><dd>{{ admission.discharge_diagnosis|default:"Not written yet"|linebreaksbr }}</dd></div>
+        <div><dt class="text-label text-muted">Follow-up</dt><dd>{{ admission.follow_up_date|date:"d M Y"|default:"—" }} {{ admission.follow_up_instructions }}</dd></div>
+      </dl>
+      <p class="mt-3 text-label text-muted">The discharge summary is written by the doctor.</p>
+    {% endif %}
+  </section>
+
+  <aside class="space-y-6">
+    <section class="card">
+      <h2 class="section-title mb-3">2 · Pending services</h2>
+      {% if check.pending_labs %}
+        <p class="mb-2 text-body">These lab orders are still open. Results released after discharge stay on the patient record.</p>
+        <ul class="mb-3 space-y-1 text-body">{% for o in check.pending_labs %}<li><a href="{% url 'lab:order-detail' o.pk %}" class="font-mono hover:underline">{{ o.number }}</a> · {% status_chip o.status o.get_status_display %}</li>{% endfor %}</ul>
+      {% else %}<p class="text-body">No open lab orders.</p>{% endif %}
+      <p class="text-body">{{ check.active_medicines }} active medicine order(s) will be closed on release.</p>
+    </section>
+    <section class="card">
+      <h2 class="section-title mb-3">3 · Final bill</h2>
+      <dl class="space-y-1 text-body">
+        <div class="flex justify-between"><dt>Inpatient charges</dt><dd>{{ check.money.ipd_charges|floatformat:"2g" }}</dd></div>
+        {% if check.money.bed_estimate %}<div class="flex justify-between"><dt>Bed charges to post</dt><dd>{{ check.money.bed_estimate|floatformat:"2g" }}</dd></div>{% endif %}
+        <div class="flex justify-between"><dt>Other bills this stay</dt><dd>{{ check.money.other_total|floatformat:"2g" }}</dd></div>
+        <div class="flex justify-between"><dt>Deposits</dt><dd>{{ check.money.deposit_total|floatformat:"2g" }}</dd></div>
+        <div class="flex justify-between border-t border-line pt-1 font-semibold"><dt>{% if check.bill_finalized %}Still unpaid{% else %}Estimated due{% endif %}</dt><dd>{{ organization.currency }} {% if check.bill_finalized %}{{ check.outstanding|floatformat:"2g" }}{% else %}{{ check.money.estimated_due|floatformat:"2g" }}{% endif %}</dd></div>
+      </dl>
+      {% if not check.bill_finalized %}
+        {% if can_collect %}
+        <form method="post" class="mt-4">{% csrf_token %}<input type="hidden" name="action" value="finalize">
+          <button class="btn btn-primary btn-sm" data-confirm="Bed charges are posted, the inpatient bill is issued and deposits are applied. No more charges can be added." data-confirm-title="Finalize the bill?">Finalize bill</button></form>
+        {% else %}<p class="mt-3 text-label text-muted">The cashier finalizes the bill.</p>{% endif %}
+      {% else %}
+        {% if check.money.ipd_invoice and "billing.view" in sd_perms and check.outstanding %}<a href="{% url 'billing:invoice-detail' check.money.ipd_invoice.pk %}" class="btn btn-secondary btn-sm mt-3">Collect payment in Billing</a>{% endif %}
+        {% if check.deposit_unapplied > 0 %}
+          <p class="mt-3 text-body">{{ check.deposit_unapplied|floatformat:"2g" }} of the deposit is left over.</p>
+          {% if can_refund %}<form method="post" class="mt-2">{% csrf_token %}<input type="hidden" name="action" value="return_deposit"><button class="btn btn-secondary btn-sm" data-confirm="Record that the unused deposit was handed back to the attendant?">Return unused deposit</button></form>{% endif %}
+        {% endif %}
+      {% endif %}
+    </section>
+    <section class="card">
+      <h2 class="section-title mb-3">4 · Release</h2>
+      {% if can_release %}
+      <form method="post" class="space-y-3">{% csrf_token %}<input type="hidden" name="action" value="release">
+        {% if check.bill_finalized and check.outstanding and can_override %}
+          <div class="field"><label class="field-label" for="override">Unpaid balance: reason to discharge anyway</label><input id="override" name="override" class="input" maxlength="200" placeholder="e.g. panel patient, payment by employer"></div>
+        {% endif %}
+        <button class="btn btn-primary" {% if not check.doctor_cleared or not check.bill_finalized %}disabled{% endif %} data-confirm="The stay is closed, the summary is signed and the bed goes to cleaning." data-confirm-title="Discharge {{ patient.full_name }}?">Discharge patient</button>
+        {% if not check.doctor_cleared %}<p class="text-label text-muted">Waiting for the doctor's clearance.</p>{% elif not check.bill_finalized %}<p class="text-label text-muted">Waiting for the final bill.</p>{% endif %}
+      </form>
+      {% else %}<p class="text-label text-muted">Ward staff release the patient.</p>{% endif %}
+    </section>
+  </aside>
+</div>
+{% endif %}
+{% endblock %}

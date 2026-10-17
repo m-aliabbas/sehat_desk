@@ -1,0 +1,135 @@
+Screen,Module,Page,SVG,PNG,Wizard
+1,Core desktop,Admin Dashboard,01-editable-svg/01-admin-dashboard.svg,02-png-previews/01-admin-dashboard.png,
+2,Core desktop,Reception Token Desk,01-editable-svg/02-reception-token-desk.svg,02-png-previews/02-reception-token-desk.png,
+3,Core desktop,Patient Registration,01-editable-svg/03-patient-registration.svg,02-png-previews/03-patient-registration.png,
+4,Core desktop,Appointments Calendar,01-editable-svg/04-appointments-calendar.svg,02-png-previews/04-appointments-calendar.png,
+5,Core desktop,Patient History,01-editable-svg/05-patient-history.svg,02-png-previews/05-patient-history.png,
+6,Core desktop,Doctor Prescription Ai,01-editable-svg/06-doctor-prescription-ai.svg,02-png-previews/06-doctor-prescription-ai.png,
+7,Core desktop,Ipd Bed Management,01-editable-svg/07-ipd-bed-management.svg,02-png-previews/07-ipd-bed-management.png,
+8,Core desktop,Laboratory Worklist,01-editable-svg/08-laboratory-worklist.svg,02-png-previews/08-laboratory-worklist.png,
+9,Core desktop,Pharmacy Inventory,01-editable-svg/09-pharmacy-inventory.svg,02-png-previews/09-pharmacy-inventory.png,
+10,Core desktop,Invoicing Payments,01-editable-svg/10-invoicing-payments.svg,02-png-previews/10-invoicing-payments.png,
+11,Core desktop,Reports Analytics,01-editable-svg/11-reports-analytics.svg,02-png-previews/11-reports-analytics.png,
+12,Core desktop,Design System,01-editable-svg/12-design-system.svg,02-png-previews/12-design-system.png,
+13,Core desktop,Login,01-editable-svg/13-login.svg,02-png-previews/13-login.png,
+14,Core desktop,Password Reset,01-editable-svg/14-password-reset.svg,02-png-previews/14-password-reset.png,
+15,Core desktop,Role And Counter Selection,01-editable-svg/15-role-and-counter-selection.svg,02-png-previews/15-role-and-counter-selection.png,
+16,Core desktop,Staff Profile,01-editable-svg/16-staff-profile.svg,02-png-previews/16-staff-profile.png,
+17,Core desktop,Staff Directory,01-editable-svg/17-staff-directory.svg,02-png-previews/17-staff-directory.png,
+18,Core desktop,Counter Management,01-editable-svg/18-counter-management.svg,02-png-previews/18-counter-management.png,
+19,Core desktop,Public Token Display,01-editable-svg/19-public-token-display.svg,02-png-previews/19-public-token-display.png,
+20,Core desktop,Counter Settings,01-editable-svg/20-counter-settings.svg,02-png-previews/20-counter-settings.png,
+21,Core desktop,Nursing Workspace,01-editable-svg/21-nursing-workspace.svg,02-png-previews/21-nursing-workspace.png,
+22,Core desktop,Consultation Notes,01-editable-svg/22-consultation-notes.svg,02-png-previews/22-consultation-notes.png,
+23,Core desktop,Follow Up Plan,01-editable-svg/23-follow-up-plan.svg,02-png-previews/23-follow-up-plan.png,
+24,Core desktop,Ipd Admission,01-editable-svg/24-ipd-admission.svg,02-png-previews/24-ipd-admission.png,
+25,Core desktop,Bed Transfer,01-editable-svg/25-bed-transfer.svg,02-png-previews/25-bed-transfer.png,
+26,Core desktop,Discharge Workspace,01-editable-svg/26-discharge-workspace.svg,02-png-previews/26-discharge-workspace.png,
+27,Core desktop,Lab Result Entry,01-editable-svg/27-lab-result-entry.svg,02-png-previews/27-lab-result-entry.png,
+28,Core desktop,Lab Report Verification,01-editable-svg/28-lab-report-verification.svg,02-png-previews/28-lab-report-verification.png,
+29,Core desktop,Pharmacy Dispensing,01-editable-svg/29-pharmacy-dispensing.svg,02-png-previews/29-pharmacy-dispensing.png,
+30,Core desktop,Stock Receipt,01-editable-svg/30-stock-receipt.svg,02-png-previews/30-stock-receipt.png,
+31,Core desktop,Invoice Register,01-editable-svg/31-invoice-register.svg,02-png-previews/31-invoice-register.png,
+32,Core desktop,Counter Cash Closing,01-editable-svg/32-counter-cash-closing.svg,02-png-previews/32-counter-cash-closing.png,
+33,Core desktop,Expense Entry,01-editable-svg/33-expense-entry.svg,02-png-previews/33-expense-entry.png,
+34,Core desktop,Role Permissions,01-editable-svg/34-role-permissions.svg,02-png-previews/34-role-permissions.png,
+35,Core desktop,Hospital Settings,01-editable-svg/35-hospital-settings.svg,02-png-previews/35-hospital-settings.png,
+36,Core desktop,Audit Log,01-editable-svg/36-audit-log.svg,02-png-previews/36-audit-log.png,
+37,Core desktop,Common Interface States,01-editable-svg/37-common-interface-states.svg,02-png-previews/37-common-interface-states.png,
+38,Core desktop,Notifications,01-editable-svg/38-notifications.svg,02-png-previews/38-notifications.png,
+39,Core desktop,Patient Directory,01-editable-svg/39-patient-directory.svg,02-png-previews/39-patient-directory.png,
+40,Core desktop,Appointment Booking,01-editable-svg/40-appointment-booking.svg,02-png-previews/40-appointment-booking.png,
+41,Core desktop,Refund Approval,01-editable-svg/41-refund-approval.svg,02-png-previews/41-refund-approval.png,
+42,Core desktop,Doctor Schedule,01-editable-svg/42-doctor-schedule.svg,02-png-previews/42-doctor-schedule.png,
+43,Pharmacy,Pharmacy point of sale,01-editable-svg/043-pharmacy-pos.svg,02-png-previews/043-pharmacy-pos.png,POS checkout
+44,Pharmacy,Attach patient to sale,01-editable-svg/044-pos-patient-lookup.svg,02-png-previews/044-pos-patient-lookup.png,POS checkout
+45,Pharmacy,Prescription verification,01-editable-svg/045-pos-prescription-link.svg,02-png-previews/045-pos-prescription-link.png,POS checkout
+46,Pharmacy,Choose supply batches,01-editable-svg/046-pos-batch-selection.svg,02-png-previews/046-pos-batch-selection.png,POS checkout
+47,Pharmacy,Price & discount review,01-editable-svg/047-pos-discount-review.svg,02-png-previews/047-pos-discount-review.png,POS checkout
+48,Pharmacy,Take payment,01-editable-svg/048-pos-payment.svg,02-png-previews/048-pos-payment.png,POS checkout
+49,Pharmacy,Sale completed,01-editable-svg/049-pos-sale-success.svg,02-png-previews/049-pos-sale-success.png,POS checkout
+50,Pharmacy,Held sales,01-editable-svg/050-held-sales.svg,02-png-previews/050-held-sales.png,
+51,Pharmacy,Find original sale,01-editable-svg/051-return-receipt.svg,02-png-previews/051-return-receipt.png,Sales return
+52,Pharmacy,Review return quantities,01-editable-svg/052-return-items.svg,02-png-previews/052-return-items.png,Sales return
+53,Pharmacy,Approve refund,01-editable-svg/053-return-refund.svg,02-png-previews/053-return-refund.png,Sales return
+54,Pharmacy,Medicine & product catalog,01-editable-svg/054-pharmacy-product-catalog.svg,02-png-previews/054-pharmacy-product-catalog.png,
+55,Pharmacy,New medicine · Identity,01-editable-svg/055-medicine-identity.svg,02-png-previews/055-medicine-identity.png,Medicine setup
+56,Pharmacy,New medicine · Units & pricing,01-editable-svg/056-medicine-pricing.svg,02-png-previews/056-medicine-pricing.png,Medicine setup
+57,Pharmacy,New medicine · Opening stock,01-editable-svg/057-medicine-opening-stock.svg,02-png-previews/057-medicine-opening-stock.png,Medicine setup
+58,Pharmacy,Suppliers,01-editable-svg/058-supplier-directory.svg,02-png-previews/058-supplier-directory.png,
+59,Pharmacy,Purchase order · Supplier,01-editable-svg/059-purchase-supplier.svg,02-png-previews/059-purchase-supplier.png,Purchase order
+60,Pharmacy,Purchase order · Items,01-editable-svg/060-purchase-items.svg,02-png-previews/060-purchase-items.png,Purchase order
+61,Pharmacy,Purchase order · Review,01-editable-svg/061-purchase-review.svg,02-png-previews/061-purchase-review.png,Purchase order
+62,Pharmacy,Goods receipt · Order,01-editable-svg/062-goods-select-order.svg,02-png-previews/062-goods-select-order.png,Goods receipt
+63,Pharmacy,Goods receipt · Batch details,01-editable-svg/063-goods-batch-entry.svg,02-png-previews/063-goods-batch-entry.png,Goods receipt
+64,Pharmacy,Goods receipt · Post stock,01-editable-svg/064-goods-post-review.svg,02-png-previews/064-goods-post-review.png,Goods receipt
+65,Pharmacy,Expiry & quarantine,01-editable-svg/065-expiry-quarantine.svg,02-png-previews/065-expiry-quarantine.png,
+66,Pharmacy,Stock adjustment · Count,01-editable-svg/066-stock-count.svg,02-png-previews/066-stock-count.png,Stock adjustment
+67,Pharmacy,Stock adjustment · Approval,01-editable-svg/067-stock-adjust-review.svg,02-png-previews/067-stock-adjust-review.png,Stock adjustment
+68,Pharmacy,Stock transfers,01-editable-svg/068-pharmacy-stock-transfer.svg,02-png-previews/068-pharmacy-stock-transfer.png,
+69,Pharmacy,Pharmacy sales & margins,01-editable-svg/069-pharmacy-sales-report.svg,02-png-previews/069-pharmacy-sales-report.png,
+70,Laboratory,Laboratory operations,01-editable-svg/070-lab-dashboard.svg,02-png-previews/070-lab-dashboard.png,
+71,Laboratory,Test catalog,01-editable-svg/071-lab-test-catalog.svg,02-png-previews/071-lab-test-catalog.png,
+72,Laboratory,Test setup · Identity,01-editable-svg/072-lab-test-identity.svg,02-png-previews/072-lab-test-identity.png,Lab test setup
+73,Laboratory,Test setup · Method & ranges,01-editable-svg/073-lab-test-method.svg,02-png-previews/073-lab-test-method.png,Lab test setup
+74,Laboratory,Test setup · Review,01-editable-svg/074-lab-test-review.svg,02-png-previews/074-lab-test-review.png,Lab test setup
+75,Laboratory,Test packages,01-editable-svg/075-lab-test-packages.svg,02-png-previews/075-lab-test-packages.png,
+76,Laboratory,Lab order · Patient,01-editable-svg/076-lab-order-patient.svg,02-png-previews/076-lab-order-patient.png,Lab order
+77,Laboratory,Lab order · Tests,01-editable-svg/077-lab-order-tests.svg,02-png-previews/077-lab-order-tests.png,Lab order
+78,Laboratory,Lab order · Review,01-editable-svg/078-lab-order-confirm.svg,02-png-previews/078-lab-order-confirm.png,Lab order
+79,Laboratory,Sample collection · Identity,01-editable-svg/079-sample-identity.svg,02-png-previews/079-sample-identity.png,Sample collection
+80,Laboratory,Sample collection · Label,01-editable-svg/080-sample-label.svg,02-png-previews/080-sample-label.png,Sample collection
+81,Laboratory,Specimen accession,01-editable-svg/081-lab-accession.svg,02-png-previews/081-lab-accession.png,
+82,Laboratory,Processing worklist,01-editable-svg/082-lab-processing.svg,02-png-previews/082-lab-processing.png,
+83,Laboratory,Result entry · Values,01-editable-svg/083-lab-results-values.svg,02-png-previews/083-lab-results-values.png,Lab result entry
+84,Laboratory,Result entry · Validation,01-editable-svg/084-lab-results-validation.svg,02-png-previews/084-lab-results-validation.png,Lab result entry
+85,Laboratory,Critical result communication,01-editable-svg/085-lab-critical-alerts.svg,02-png-previews/085-lab-critical-alerts.png,
+86,Laboratory,Verify report · Review,01-editable-svg/086-lab-verification-review.svg,02-png-previews/086-lab-verification-review.png,Lab verification
+87,Laboratory,Verify report · Release gate,01-editable-svg/087-lab-verification-release.svg,02-png-previews/087-lab-verification-release.png,Lab verification
+88,Laboratory,Released reports,01-editable-svg/088-lab-released-reports.svg,02-png-previews/088-lab-released-reports.png,
+89,Laboratory,Amend a released report,01-editable-svg/089-lab-report-amendment.svg,02-png-previews/089-lab-report-amendment.png,
+90,Laboratory,Reject / recollect specimen,01-editable-svg/090-lab-specimen-rejection.svg,02-png-previews/090-lab-specimen-rejection.png,
+91,Laboratory,Laboratory billing,01-editable-svg/091-lab-billing.svg,02-png-previews/091-lab-billing.png,
+92,Laboratory,Lab operational reports,01-editable-svg/092-lab-operations-report.svg,02-png-previews/092-lab-operations-report.png,
+93,Doctors,Doctor workspace,01-editable-svg/093-doctor-home.svg,02-png-previews/093-doctor-home.png,
+94,Doctors,Doctor patient queue,01-editable-svg/094-doctor-patient-queue.svg,02-png-previews/094-doctor-patient-queue.png,
+95,Doctors,Consultation · Identity,01-editable-svg/095-consult-identity.svg,02-png-previews/095-consult-identity.png,OPD consultation
+96,Doctors,Consultation · History,01-editable-svg/096-consult-history.svg,02-png-previews/096-consult-history.png,OPD consultation
+97,Doctors,Consultation · Examination,01-editable-svg/097-consult-exam.svg,02-png-previews/097-consult-exam.png,OPD consultation
+98,Doctors,Consultation · Assessment,01-editable-svg/098-consult-assessment.svg,02-png-previews/098-consult-assessment.png,OPD consultation
+99,Doctors,Consultation · Investigations,01-editable-svg/099-consult-orders.svg,02-png-previews/099-consult-orders.png,OPD consultation
+100,Doctors,Consultation · Prescription,01-editable-svg/100-consult-prescription.svg,02-png-previews/100-consult-prescription.png,OPD consultation
+101,Doctors,Consultation · Plan & follow-up,01-editable-svg/101-consult-plan.svg,02-png-previews/101-consult-plan.png,OPD consultation
+102,Doctors,Consultation · Review & sign,01-editable-svg/102-consult-review-sign.svg,02-png-previews/102-consult-review-sign.png,OPD consultation
+103,Doctors,Encounter signed,01-editable-svg/103-consultation-signed.svg,02-png-previews/103-consultation-signed.png,OPD consultation
+104,Doctors,Prescription item · Medicine,01-editable-svg/104-rx-select-medicine.svg,02-png-previews/104-rx-select-medicine.png,Prescription item
+105,Doctors,Prescription item · Directions,01-editable-svg/105-rx-directions.svg,02-png-previews/105-rx-directions.png,Prescription item
+106,Doctors,Prescription item · Review,01-editable-svg/106-rx-review-item.svg,02-png-previews/106-rx-review-item.png,Prescription item
+107,Doctors,Prescription review alerts,01-editable-svg/107-prescription-alerts.svg,02-png-previews/107-prescription-alerts.png,
+108,Doctors,Clinical documentation templates,01-editable-svg/108-doctor-templates.svg,02-png-previews/108-doctor-templates.png,
+109,Administration,Add doctor · Profile,01-editable-svg/109-doctor-create-profile.svg,02-png-previews/109-doctor-create-profile.png,Doctor onboarding
+110,Administration,Add doctor · Clinic setup,01-editable-svg/110-doctor-create-clinic.svg,02-png-previews/110-doctor-create-clinic.png,Doctor onboarding
+111,Administration,Add doctor · Access,01-editable-svg/111-doctor-create-access.svg,02-png-previews/111-doctor-create-access.png,Doctor onboarding
+112,Doctors,Leave & availability,01-editable-svg/112-doctor-leave.svg,02-png-previews/112-doctor-leave.png,
+113,Doctors,Reschedule affected visits,01-editable-svg/113-doctor-reschedule.svg,02-png-previews/113-doctor-reschedule.png,
+114,Doctors,Referral · Destination,01-editable-svg/114-referral-destination.svg,02-png-previews/114-referral-destination.png,Referral
+115,Doctors,Referral · Clinical handover,01-editable-svg/115-referral-handover.svg,02-png-previews/115-referral-handover.png,Referral
+116,Doctors,Medical certificates,01-editable-svg/116-medical-certificate.svg,02-png-previews/116-medical-certificate.png,
+117,Inpatient,Inpatient progress note,01-editable-svg/117-inpatient-progress-note.svg,02-png-previews/117-inpatient-progress-note.png,
+118,Inpatient,Ward rounds,01-editable-svg/118-doctor-ward-rounds.svg,02-png-previews/118-doctor-ward-rounds.png,
+119,Inpatient,Discharge · Clinical summary,01-editable-svg/119-discharge-clinical.svg,02-png-previews/119-discharge-clinical.png,Inpatient discharge
+120,Inpatient,Discharge · Department clearance,01-editable-svg/120-discharge-clearance.svg,02-png-previews/120-discharge-clearance.png,Inpatient discharge
+121,Inpatient,Discharge · Release episode,01-editable-svg/121-discharge-release.svg,02-png-previews/121-discharge-release.png,Inpatient discharge
+122,Administration,Reception profile,01-editable-svg/122-reception-profile.svg,02-png-previews/122-reception-profile.png,
+123,Administration,Nursing profile,01-editable-svg/123-nurse-profile.svg,02-png-previews/123-nurse-profile.png,
+124,Administration,Pharmacist profile,01-editable-svg/124-pharmacist-profile.svg,02-png-previews/124-pharmacist-profile.png,
+125,Administration,Lab technician profile,01-editable-svg/125-lab-staff-profile.svg,02-png-previews/125-lab-staff-profile.png,
+126,Administration,Administrator profile,01-editable-svg/126-administrator-profile.svg,02-png-previews/126-administrator-profile.png,
+127,Administration,Access & session states,01-editable-svg/127-authentication-states.svg,02-png-previews/127-authentication-states.png,
+128,Doctors,Visit / prescription document,01-editable-svg/128-print-visit-prescription.svg,02-png-previews/128-print-visit-prescription.png,
+129,Laboratory,Laboratory report document,01-editable-svg/129-print-lab-report.svg,02-png-previews/129-print-lab-report.png,
+130,Pharmacy,Pharmacy receipt document,01-editable-svg/130-print-pharmacy-receipt.svg,02-png-previews/130-print-pharmacy-receipt.png,
+131,Pharmacy,Clear an unsaved sale,01-editable-svg/131-pos-clear-confirmation.svg,02-png-previews/131-pos-clear-confirmation.png,
+132,Pharmacy,Create stock transfer,01-editable-svg/132-stock-transfer-form.svg,02-png-previews/132-stock-transfer-form.png,
+133,Laboratory,Critical result acknowledgement,01-editable-svg/133-critical-result-acknowledgement.svg,02-png-previews/133-critical-result-acknowledgement.png,
+134,Doctors,Amend signed encounter,01-editable-svg/134-signed-encounter-amendment.svg,02-png-previews/134-signed-encounter-amendment.png,

@@ -1,0 +1,43 @@
+{
+  "colors": {
+    "ink": "#112D4E",
+    "muted": "#73869E",
+    "line": "#E5EDF3",
+    "bg": "#F3F8FB",
+    "teal": "#008E81",
+    "mint": "#E4F8F2",
+    "blue": "#2189F5",
+    "amber": "#B66A10",
+    "red": "#CE4B55"
+  },
+  "fontFamily": [
+    "Inter",
+    "DejaVu Sans",
+    "sans-serif"
+  ],
+  "typography": {
+    "pageTitle": 28,
+    "sectionTitle": 18,
+    "body": 14,
+    "label": 12
+  },
+  "spacing": [
+    4,
+    8,
+    12,
+    16,
+    24,
+    32
+  ],
+  "radius": {
+    "card": 16,
+    "button": 8,
+    "input": 8
+  },
+  "desktop": {
+    "width": 1600,
+    "height": 1000,
+    "sidebar": 246,
+    "topbar": 76
+  }
+}

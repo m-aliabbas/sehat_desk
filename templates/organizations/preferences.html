@@ -1,0 +1,59 @@
+{% extends "layouts/app.html" %}
+{% block title %}Preferences · Settings{% endblock %}
+{% block page_title %}Preferences{% endblock %}
+{% block page_subtitle %}Modules in use and hospital-wide defaults. Changes apply to every branch and are recorded in the audit log.{% endblock %}
+{% block content %}
+{% include "partials/settings_tabs.html" %}
+<form method="post" class="grid gap-6 xl:grid-cols-3" novalidate>
+  {% csrf_token %}
+  <div class="space-y-6 xl:col-span-2">
+    <section class="card">
+      <h2 class="section-title mb-1">Modules</h2>
+      <p class="mb-4 text-label text-muted">A module that is off disappears from every menu and its pages are blocked. Records are kept and come back when it is turned on again.</p>
+      <div class="grid gap-3">
+        {% include "components/field.html" with field=form.feature_lab %}
+        {% include "components/field.html" with field=form.feature_pharmacy %}
+        {% include "components/field.html" with field=form.feature_ipd %}
+      </div>
+    </section>
+    <section class="card">
+      <h2 class="section-title mb-1">Consultations</h2>
+      <p class="mb-4 text-label text-muted">Starting values for new doctors. Each doctor's own settings (Settings → Doctors) still apply.</p>
+      <div class="grid gap-5 md:grid-cols-2">
+        {% include "components/field.html" with field=form.default_slot_minutes %}
+        {% include "components/field.html" with field=form.default_follow_up_days %}
+      </div>
+    </section>
+    <section class="card">
+      <h2 class="section-title mb-1">Queue display</h2>
+      <p class="mb-4 text-label text-muted">The waiting-room screen never shows patient names. Token letters are set per department.</p>
+      <div class="grid gap-5 md:grid-cols-2">
+        {% include "components/field.html" with field=form.display_refresh_seconds %}
+        {% include "components/field.html" with field=form.display_show_doctor %}
+      </div>
+    </section>
+    <section class="card">
+      <h2 class="section-title mb-1">Pharmacy stock</h2>
+      <div class="grid gap-5 md:grid-cols-2">
+        {% include "components/field.html" with field=form.near_expiry_days %}
+        {% include "components/field.html" with field=form.default_reorder_level %}
+      </div>
+      <p class="mt-4 text-label text-muted"><span class="font-semibold text-ink">Negative stock:</span> never allowed. A sale or adjustment that would take a batch below zero is refused, and the database blocks it too. Correct counts with a stock adjustment instead.</p>
+    </section>
+    <div class="flex gap-3">
+      <button type="submit" class="btn btn-primary">Save preferences</button>
+      <a href="{% url 'organizations:preferences' %}" class="btn btn-secondary">Cancel</a>
+    </div>
+  </div>
+  <aside class="card h-fit">
+    <h2 class="section-title mb-3">Elsewhere in Settings</h2>
+    <ul class="space-y-2 text-body text-muted">
+      <li><span class="text-ink">Hospital:</span> name, logo, contact, number prefixes, print header, footer and terms.</li>
+      <li><span class="text-ink">Billing:</span> payment methods, tax, discount limit, receipt message.</li>
+      <li><span class="text-ink">Branches:</span> branch details, counters and waiting-room display link.</li>
+      <li><span class="text-ink">Doctors:</span> fees, slot length, follow-up window, working hours.</li>
+      <li><span class="text-ink">Roles:</span> who may discount, refund, verify and more.</li>
+    </ul>
+  </aside>
+</form>
+{% endblock %}

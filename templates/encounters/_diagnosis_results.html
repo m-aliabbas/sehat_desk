@@ -1,0 +1,24 @@
+{# Diagnosis search results. Each row adds the code; the last row adds the typed text. #}
+{% if q|length >= 2 %}
+<ul class="divide-y divide-line rounded-control border border-line">
+  {% for c in results %}
+    <li class="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
+      <span><span class="font-mono text-teal-deep">{{ c.code }}</span> · {{ c.title }}</span>
+      <span class="flex gap-1">
+        <button class="btn btn-secondary btn-sm" hx-post="{% url 'encounters:diagnosis-add' encounter.pk %}" hx-vals='{"code": "{{ c.pk }}", "kind": "provisional"}' hx-target="#diagnoses-panel" hx-swap="outerHTML">Provisional</button>
+        <button class="btn btn-primary btn-sm" hx-post="{% url 'encounters:diagnosis-add' encounter.pk %}" hx-vals='{"code": "{{ c.pk }}", "kind": "final"}' hx-target="#diagnoses-panel" hx-swap="outerHTML">Final</button>
+      </span>
+    </li>
+  {% empty %}
+    <li class="px-3 py-2 text-label text-muted">No code matches “{{ q }}”.</li>
+  {% endfor %}
+  <li class="flex flex-wrap items-center justify-between gap-2 bg-page px-3 py-2">
+    <span class="text-body">Free text: “{{ q }}”</span>
+    <form hx-post="{% url 'encounters:diagnosis-add' encounter.pk %}" hx-target="#diagnoses-panel" hx-swap="outerHTML" class="flex gap-1">
+      <input type="hidden" name="text" value="{{ q }}">
+      <button name="kind" value="provisional" class="btn btn-ghost btn-sm">Add as provisional</button>
+      <button name="kind" value="final" class="btn btn-ghost btn-sm">Add as final</button>
+    </form>
+  </li>
+</ul>
+{% endif %}

@@ -1,0 +1,50 @@
+# Pre-commit checks. One-time setup (inside the conda env, see CLAUDE.md):
+#   conda activate agent_dev311 && pip install -r requirements-dev.txt && pre-commit install
+# Run everything by hand: pre-commit run --all-files
+# Local hooks use the active env's ruff/python, so commit from the activated conda env.
+exclude: ^(ui_design_reference/|static/vendor/|static/css/app\.css$)
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-merge-conflict
+      - id: check-yaml
+      - id: check-toml
+      - id: check-added-large-files
+        args: ["--maxkb=1024"]
+      - id: detect-private-key
+
+  - repo: local
+    hooks:
+      - id: forbid-local-data
+        name: never commit .env files, databases or the data folder
+        language: fail
+        entry: "Local secrets/patient data must not be committed (see .gitignore)"
+        files: (^|/)\.env$|^deploy/.*\.env$|\.sqlite3$|^data(-staging)?/
+
+      - id: ruff-check
+        name: ruff check
+        language: system
+        entry: ruff check --fix
+        types: [python]
+
+      - id: ruff-format
+        name: ruff format
+        language: system
+        entry: ruff format
+        types: [python]
+
+      - id: django-check
+        name: django system check
+        language: system
+        entry: python manage.py check --fail-level WARNING
+        pass_filenames: false
+        types: [python]
+
+      - id: missing-migrations
+        name: no missing migrations
+        language: system
+        entry: python manage.py makemigrations --check --dry-run
+        pass_filenames: false
+        types: [python]

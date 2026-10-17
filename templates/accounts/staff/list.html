@@ -1,0 +1,42 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}Staff{% endblock %}
+{% block page_title %}Doctors &amp; staff{% endblock %}
+{% block page_subtitle %}Profiles for every role, managed from one directory.{% endblock %}
+{% block page_actions %}
+  {% if can_manage %}<a href="{% url 'accounts:staff-create' %}" class="btn btn-primary">{% icon "plus" "h-4 w-4" %} Add staff</a>{% endif %}
+{% endblock %}
+{% block content %}
+<section class="card">
+  <form class="mb-5 grid gap-3 md:grid-cols-[1fr_auto_auto_auto]"
+        hx-get="{% url 'accounts:staff-list' %}" hx-target="#staff-table" hx-trigger="input changed delay:300ms from:input[name=q], change" hx-push-url="true">
+    <div class="field">
+      <label class="field-label" for="staff-q">Search</label>
+      <input id="staff-q" name="q" value="{{ q }}" class="input" placeholder="Search by name, username, employee code or designation" type="search">
+    </div>
+    <div class="field">
+      <label class="field-label" for="staff-status">Status</label>
+      <select id="staff-status" name="status" class="select">
+        <option value="">All statuses</option>
+        <option value="active" {% if status == "active" %}selected{% endif %}>Active</option>
+        <option value="inactive" {% if status == "inactive" %}selected{% endif %}>Inactive</option>
+      </select>
+    </div>
+    <div class="field">
+      <label class="field-label" for="staff-role">Role</label>
+      <select id="staff-role" name="role" class="select">
+        <option value="">All roles</option>
+        {% for r in roles %}<option value="{{ r.id }}" {% if role_id == r.id|stringformat:"d" %}selected{% endif %}>{{ r.name }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="field">
+      <label class="field-label" for="staff-branch">Branch</label>
+      <select id="staff-branch" name="branch" class="select">
+        <option value="">All branches</option>
+        {% for b in branches %}<option value="{{ b.id }}" {% if branch_id == b.id|stringformat:"d" %}selected{% endif %}>{{ b.name }}</option>{% endfor %}
+      </select>
+    </div>
+  </form>
+  <div id="staff-table">{% include "accounts/staff/_table.html" %}</div>
+</section>
+{% endblock %}

@@ -1,0 +1,111 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}{{ staff }}{% endblock %}
+{% block page_header %}
+<div class="mb-6 flex flex-wrap items-center justify-between gap-4">
+  <div class="flex items-center gap-4">
+    <span class="flex h-16 w-16 items-center justify-center rounded-full bg-mint text-section-title font-bold text-teal-deep">{{ staff|initials }}</span>
+    <div>
+      <h1 class="page-title">{{ staff }}</h1>
+      <p class="page-subtitle">{{ staff.designation|default:"Staff" }} · {% if staff.is_active %}{% status_chip "active" %}{% else %}{% status_chip "inactive" %}{% endif %}{% if staff.must_change_password %} {% status_chip "pending" "Must set password" %}{% endif %}</p>
+    </div>
+  </div>
+  {% if can_manage %}
+  <div class="flex flex-wrap gap-3">
+    <a href="{% url 'accounts:staff-edit' staff.pk %}" class="btn btn-secondary">Edit details</a>
+    {% if not is_self %}
+    <form method="post" action="{% url 'accounts:staff-toggle-active' staff.pk %}">
+      {% csrf_token %}
+      {% if staff.is_active %}
+        <button class="btn btn-danger"
+                data-confirm="{{ staff }} will be signed out and cannot sign in until reactivated. Their records stay unchanged."
+                data-confirm-title="Deactivate account?" data-confirm-action="Deactivate" data-confirm-danger="true">Deactivate</button>
+      {% else %}
+        <button class="btn btn-primary">Activate</button>
+      {% endif %}
+    </form>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+{% block content %}
+<div class="grid gap-6 xl:grid-cols-3">
+  <section class="card">
+    <h2 class="section-title mb-4">Profile</h2>
+    <dl class="space-y-3 text-body">
+      <div class="flex justify-between gap-4"><dt class="text-muted">Username</dt><dd class="font-mono">{{ staff.username }}</dd></div>
+      <div class="flex justify-between gap-4"><dt class="text-muted">Employee code</dt><dd>{{ staff.employee_code|default:"—" }}</dd></div>
+      <div class="flex justify-between gap-4"><dt class="text-muted">Email</dt><dd class="truncate">{{ staff.email|default:"—" }}</dd></div>
+      <div class="flex justify-between gap-4"><dt class="text-muted">Phone</dt><dd>{{ staff.phone|default:"—" }}</dd></div>
+      <div class="flex justify-between gap-4"><dt class="text-muted">Last sign-in</dt><dd>{{ staff.last_login|date:"d M Y, H:i"|default:"Never" }}</dd></div>
+      <div class="flex justify-between gap-4"><dt class="text-muted">Joined</dt><dd>{{ staff.date_joined|date:"d M Y" }}</dd></div>
+    </dl>
+  </section>
+
+  <section class="card xl:col-span-2">
+    <div class="card-header">
+      <div>
+        <h2 class="section-title">Roles &amp; branch access</h2>
+        <p class="text-label text-muted">A role for “All branches” applies everywhere; otherwise only in that branch.</p>
+      </div>
+    </div>
+    {% if assignments %}
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th scope="col">Role</th><th scope="col">Branch</th><th scope="col">Since</th>{% if can_manage %}<th scope="col"><span class="sr-only">Remove</span></th>{% endif %}</tr></thead>
+        <tbody>
+          {% for a in assignments %}
+            <tr>
+              <td class="font-medium">{{ a.role.name }}{% if not a.role.is_active %} {% status_chip "inactive" "Role inactive" %}{% endif %}</td>
+              <td>{{ a.branch|default:"All branches" }}</td>
+              <td class="text-muted">{{ a.created_at|date:"d M Y" }}</td>
+              {% if can_manage %}
+              <td class="text-right">
+                <form method="post" action="{% url 'accounts:assignment-remove' staff.pk a.pk %}">
+                  {% csrf_token %}
+                  <button class="btn btn-ghost btn-sm text-red"
+                          data-confirm="Remove {{ a.role.name }} ({{ a.branch|default:'All branches' }}) from {{ staff }}?"
+                          data-confirm-title="Remove role?" data-confirm-action="Remove" data-confirm-danger="true">Remove</button>
+                </form>
+              </td>
+              {% endif %}
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      {% include "components/empty_state.html" with icon_name="lock" title="No roles assigned" message="This person can sign in but cannot open any workspace until a role is added." compact=True %}
+    {% endif %}
+
+    {% if can_manage %}
+    <form method="post" action="{% url 'accounts:assignment-add' staff.pk %}" class="mt-5 grid gap-3 border-t border-line pt-5 md:grid-cols-[1fr_1fr_auto] md:items-end">
+      {% csrf_token %}
+      {% include "components/field.html" with field=assignment_form.role %}
+      {% include "components/field.html" with field=assignment_form.branch %}
+      <button class="btn btn-primary">{% icon "plus" "h-4 w-4" %} Add role</button>
+    </form>
+    {% endif %}
+  </section>
+
+  {% if can_manage %}
+  <section class="card xl:col-span-3">
+    <h2 class="section-title mb-1">Sign-in &amp; security</h2>
+    <p class="mb-4 text-label text-muted">Set a temporary password (the person must change it at next sign-in), or clear a lockout after repeated failed attempts.</p>
+    <div class="grid gap-6 lg:grid-cols-[2fr_1fr]">
+      <form method="post" action="{% url 'accounts:staff-reset-password' staff.pk %}" class="grid gap-3 md:grid-cols-[1fr_1fr_auto] md:items-end" novalidate>
+        {% csrf_token %}
+        {% include "components/field.html" with field=reset_form.password1 %}
+        {% include "components/field.html" with field=reset_form.password2 %}
+        <button class="btn btn-secondary">Reset password</button>
+      </form>
+      <form method="post" action="{% url 'accounts:staff-unlock' staff.pk %}" class="flex items-end">
+        {% csrf_token %}
+        <button class="btn btn-secondary w-full">{% icon "lock" "h-4 w-4" %} Unlock sign-in</button>
+      </form>
+    </div>
+  </section>
+  {% endif %}
+</div>
+{% endblock %}

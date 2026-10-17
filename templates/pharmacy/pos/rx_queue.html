@@ -1,0 +1,44 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}Prescriptions to dispense{% endblock %}
+{% block page_title %}Pharmacy · prescriptions{% endblock %}
+{% block page_subtitle %}Signed prescriptions doctors sent to the {{ current_branch.name }} pharmacy. Open one to check stock and dispense all or part of it.{% endblock %}
+{% block content %}
+{% include "pharmacy/pos/_tabs.html" with active="rx" %}
+<div class="mb-6 grid gap-4 md:grid-cols-3">
+  <div class="stat-card bg-amber-soft"><p class="text-body text-ink">Waiting</p><p class="mt-2 text-[32px] font-bold text-ink">{{ waiting_count }}</p><p class="text-label text-muted">Not dispensed or partly dispensed</p></div>
+  <div class="stat-card bg-blue-soft"><p class="text-body text-ink">Partly dispensed</p><p class="mt-2 text-[32px] font-bold text-ink">{{ partial_count }}</p><p class="text-label text-muted">Rest still to give</p></div>
+  <div class="stat-card bg-mint"><p class="text-body text-ink">Received today</p><p class="mt-2 text-[32px] font-bold text-ink">{{ today_count }}</p><p class="text-label text-muted">Sent to this pharmacy</p></div>
+</div>
+<section class="card">
+  <nav class="tabs mb-4" aria-label="Prescription views">
+    <a class="tab" href="?view=pending" {% if view == "pending" %}aria-selected="true"{% endif %}>Waiting</a>
+    <a class="tab" href="?view=all" {% if view != "pending" %}aria-selected="true"{% endif %}>All</a>
+  </nav>
+  <form method="get" class="mb-4"><input type="hidden" name="view" value="{{ view }}"><label class="sr-only" for="rx-q">Search</label><input id="rx-q" type="search" name="q" value="{{ q }}" class="input" placeholder="Search by prescription number, MRN or patient name"></form>
+  {% if prescriptions %}
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th scope="col">Prescription</th><th scope="col">Patient</th><th scope="col">Doctor</th><th scope="col">Medicines</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+      <tbody>
+        {% for rx in prescriptions %}
+        <tr>
+          <td><span class="font-mono font-medium">{{ rx.number }}</span><p class="text-label text-muted">sent {{ rx.sent_to_pharmacy_at|date:"d M, H:i" }}</p></td>
+          <td>{{ rx.patient.full_name }}<p class="font-mono text-label text-muted">{{ rx.patient.mrn }}</p></td>
+          <td>{{ rx.doctor }}</td>
+          <td><ul class="text-label">{% for i in rx.items.all %}<li>{{ i.medicine_name }} · {{ i.dose }} {{ i.frequency }}{% if i.quantity %} · qty {{ i.quantity }}{% endif %}</li>{% endfor %}</ul></td>
+          <td>{% if rx.dispense_status == "dispensed" %}{% status_chip "completed" rx.get_dispense_status_display %}{% elif rx.dispense_status == "partial" %}{% status_chip "partially_paid" rx.get_dispense_status_display %}{% elif rx.dispense_status == "closed" %}{% status_chip "closed" "Closed" %}{% else %}{% status_chip "pending" rx.get_dispense_status_display %}{% endif %}</td>
+          <td class="whitespace-nowrap text-right">
+            <a href="{% url 'pharmacy:rx-detail' rx.pk %}" class="btn {% if rx.dispense_status == 'pending' or rx.dispense_status == 'partial' %}btn-primary{% else %}btn-secondary{% endif %} btn-sm">{% if rx.dispense_status == 'pending' or rx.dispense_status == 'partial' %}Dispense{% else %}Open{% endif %}</a>
+            <a href="{% url 'prescriptions:print' rx.pk %}" target="_blank" rel="noopener" class="btn btn-ghost btn-sm">Print</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+    {% include "components/empty_state.html" with icon_name="pill" title="No prescriptions waiting" message="When a doctor signs a consultation and presses “Send to pharmacy”, it appears here." %}
+  {% endif %}
+</section>
+{% endblock %}

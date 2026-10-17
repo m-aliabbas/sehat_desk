@@ -1,0 +1,36 @@
+{% load ui %}
+{% if not page_obj.object_list %}
+  {% if q or status or branch_id or role_id %}
+    {% include "components/empty_state.html" with icon_name="search" title="No staff match these filters" message="Try a different search or clear the filters." %}
+  {% else %}
+    {% url 'accounts:staff-create' as create_url %}
+    {% include "components/empty_state.html" with icon_name="users" title="No staff yet" message="Add doctors, reception, nursing, lab and pharmacy staff." action_url=create_url action_label="Add staff" %}
+  {% endif %}
+{% else %}
+<div class="table-wrap">
+  <table class="table">
+    <thead><tr><th scope="col">Staff</th><th scope="col">Designation</th><th scope="col">Roles</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Action</span></th></tr></thead>
+    <tbody>
+      {% for s in page_obj %}
+        <tr>
+          <td>
+            <div class="flex items-center gap-3">
+              <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-mint text-label font-bold text-teal-deep">{{ s|initials }}</span>
+              <div><p class="font-medium">{{ s }}</p><p class="text-label text-muted">{{ s.username }}{% if s.employee_code %} · {{ s.employee_code }}{% endif %}</p></div>
+            </div>
+          </td>
+          <td>{{ s.designation|default:"—" }}</td>
+          <td>
+            <div class="flex flex-wrap gap-1">
+              {% for a in s.assignments.all %}<span class="chip chip-neutral" title="{{ a.branch|default:'All branches' }}">{{ a.role.name }}{% if a.branch %} · {{ a.branch.code }}{% endif %}</span>{% empty %}<span class="text-label text-muted">No role</span>{% endfor %}
+            </div>
+          </td>
+          <td>{% if s.is_active %}{% status_chip "active" %}{% else %}{% status_chip "inactive" %}{% endif %}</td>
+          <td class="text-right"><a href="{% url 'accounts:staff-detail' s.pk %}" class="font-medium text-teal-deep hover:underline">View profile →</a></td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% include "components/pagination.html" with page_obj=page_obj hx_target="#staff-table" %}
+{% endif %}

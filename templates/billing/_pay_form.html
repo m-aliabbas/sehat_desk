@@ -1,0 +1,19 @@
+{# Payment form body, shared by the modal and the full page. Context: invoice, form #}
+{% for e in form.non_field_errors %}{% include "components/alert.html" with level="danger" title="Payment not recorded" message=e %}{% endfor %}
+<div class="mt-2 space-y-4" x-data="{ amount: '{{ form.amount.value|default:''|stringformat:'s' }}', due: {{ invoice.balance_due|default:invoice.grand_total|stringformat:'s' }} }">
+  {{ form.key }}
+  <div class="rounded-control bg-page p-3 text-body">
+    <div class="flex justify-between"><span class="text-muted">Invoice</span><span class="font-mono">{{ invoice.number }}</span></div>
+    <div class="flex justify-between"><span class="text-muted">Bill to</span><span>{{ invoice.bill_to }}</span></div>
+    <div class="flex justify-between font-semibold"><span>Amount due</span><span>{{ organization.currency }} {% if invoice.is_draft %}{{ invoice.grand_total|floatformat:"2g" }}{% else %}{{ invoice.balance_due|floatformat:"2g" }}{% endif %}</span></div>
+  </div>
+  {% include "components/field.html" with field=form.method %}
+  <div class="field">
+    <label class="field-label" for="{{ form.amount.id_for_label }}">{{ form.amount.label }} <span class="text-red" aria-hidden="true">*</span></label>
+    <input type="number" step="0.01" min="0.01" name="{{ form.amount.html_name }}" id="{{ form.amount.id_for_label }}" class="input" x-model="amount" required>
+    {% for error in form.amount.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+  </div>
+  {% include "components/field.html" with field=form.reference %}
+  {% include "components/field.html" with field=form.note %}
+  <div class="flex justify-between text-body"><span class="text-muted">Balance after payment</span><span class="font-bold text-teal-deep" x-text="'{{ organization.currency }} ' + Math.max(0, due - (parseFloat(amount) || 0)).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})"></span></div>
+</div>

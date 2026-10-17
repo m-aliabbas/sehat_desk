@@ -1,0 +1,23 @@
+{% comment %}
+  Hospital letterhead for A4/A5 documents.
+  {% include "print/_letterhead.html" with org=request.organization branch=invoice.branch doc_title="Invoice" doc_number=invoice.number doc_date=invoice.issued_at doc_status="Paid" unit="Laboratory" %}
+  doc_version (optional) follows the number; doc_note (optional) prints in amber under the number, e.g. "Amended report".
+{% endcomment %}
+<header class="flex items-start justify-between gap-6 border-b border-ink pb-4">
+  <div class="flex items-start gap-4">
+    {% if org.logo %}<img src="{{ org.logo.url }}" alt="" class="h-14 w-14 object-contain">{% endif %}
+    <div>
+      <p class="text-[20px] leading-tight font-bold">{{ org.name }}</p>
+      <p class="text-label text-muted">{% if unit %}{{ unit }} · {% endif %}{{ branch.name }}{% with address=branch.address|default:org.address phone=branch.phone|default:org.phone %}{% if address %} · {{ address }}{% endif %}{% if phone %} · {{ phone }}{% endif %}{% endwith %}</p>
+      {% if org.registration_number %}<p class="text-label text-muted">Reg. {{ org.registration_number }}</p>{% endif %}
+      {% if org.report_header %}<p class="text-label whitespace-pre-line text-muted">{{ org.report_header }}</p>{% endif %}
+    </div>
+  </div>
+  <div class="shrink-0 text-right">
+    <p class="text-[18px] font-bold uppercase">{{ doc_title }}</p>
+    {% if doc_number %}<p class="font-mono">{{ doc_number }}{% if doc_version %} · version {{ doc_version }}{% endif %}</p>{% endif %}
+    {% if doc_date %}<p class="text-label text-muted">{{ doc_date|date:"d M Y, H:i" }}</p>{% endif %}
+    {% if doc_status %}<p class="mt-1 text-label font-semibold uppercase">{{ doc_status }}</p>{% endif %}
+    {% if doc_note %}<p class="text-label font-semibold text-amber uppercase">{{ doc_note }}</p>{% endif %}
+  </div>
+</header>

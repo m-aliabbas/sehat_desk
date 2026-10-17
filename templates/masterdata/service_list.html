@@ -1,0 +1,53 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}Services{% endblock %}
+{% block page_title %}Services &amp; prices{% endblock %}
+{% block page_subtitle %}Billable services with a default price and optional branch prices.{% endblock %}
+{% block page_actions %}<a href="{% url 'masterdata:service-create' %}" class="btn btn-primary">{% icon "plus" "h-4 w-4" %} New service</a>{% endblock %}
+{% block content %}
+{% include "partials/settings_tabs.html" %}
+<div class="grid gap-6 xl:grid-cols-3">
+  <section class="card xl:col-span-2">
+    <form class="mb-4" method="get"><label class="sr-only" for="svc-q">Search services</label><input id="svc-q" name="q" value="{{ q }}" type="search" class="input" placeholder="Search by name or code"></form>
+    {% if services %}
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th scope="col">Service</th><th scope="col">Category</th><th scope="col">Price</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+        <tbody>
+          {% for s in services %}
+            <tr>
+              <td><p class="font-medium">{{ s.name }}</p><p class="font-mono text-label text-muted">{{ s.code }}{% if s.department %} · {{ s.department }}{% endif %}</p></td>
+              <td>{{ s.category }}</td>
+              <td>{{ organization.currency }} {{ s.price|floatformat:"2g" }}{% if s.branch_prices.exists %} <span class="chip chip-info">Branch prices</span>{% endif %}</td>
+              <td>{% if s.is_active %}{% status_chip "active" %}{% else %}{% status_chip "inactive" %}{% endif %}</td>
+              <td class="text-right whitespace-nowrap">
+                <a href="{% url 'masterdata:service-edit' s.pk %}" class="btn btn-ghost btn-sm">Edit</a>
+                <form method="post" action="{% url 'masterdata:service-toggle' s.pk %}" class="inline">{% csrf_token %}
+                  {% if s.is_active %}<button class="btn btn-ghost btn-sm text-red">Deactivate</button>{% else %}<button class="btn btn-ghost btn-sm">Activate</button>{% endif %}
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% elif q %}
+      {% include "components/empty_state.html" with icon_name="search" title="No services match" message="Try a different name or code." %}
+    {% else %}
+      {% url 'masterdata:service-create' as create_url %}
+      {% include "components/empty_state.html" with icon_name="credit-card" title="No services yet" message="Add a category first, then services such as Consultation, Dressing or ECG." action_url=create_url action_label="New service" %}
+    {% endif %}
+  </section>
+  <section class="card h-fit">
+    <h2 class="section-title mb-4">Categories</h2>
+    <div class="flex flex-wrap gap-2">
+      {% for c in categories %}<span class="chip chip-neutral">{{ c.name }}</span>{% empty %}<p class="text-label text-muted">No categories yet.</p>{% endfor %}
+    </div>
+    <form method="post" action="{% url 'masterdata:category-create' %}" class="mt-5 flex items-end gap-2">
+      {% csrf_token %}
+      <div class="field flex-1"><label class="field-label" for="cat-name">Add category</label><input id="cat-name" name="name" class="input" required maxlength="80" placeholder="e.g. Procedures"></div>
+      <button class="btn btn-secondary">Add</button>
+    </form>
+  </section>
+</div>
+{% endblock %}

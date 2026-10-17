@@ -1,0 +1,42 @@
+# Local dependencies and a containerised staging server.
+#   docker compose up -d db          PostgreSQL only, for running the app/tests against it:
+#       SEHATDESK_DATABASE_URL=postgres://sehatdesk:sehatdesk@localhost:5432/sehatdesk pytest
+#   docker compose up --build        PostgreSQL + SehatDesk (staging config) on http://localhost:8001
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: sehatdesk
+      POSTGRES_USER: sehatdesk
+      POSTGRES_PASSWORD: sehatdesk  # local development only
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sehatdesk -d sehatdesk"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  app:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SEHATDESK_ENV: staging
+      DJANGO_DEBUG: "false"
+      # Local throwaway value. Real staging/production keys come from a secret store.
+      DJANGO_SECRET_KEY: ${SEHATDESK_COMPOSE_SECRET_KEY:-compose-local-staging-key-change-me-0123456789abcdefghij}
+      SEHATDESK_DATABASE_URL: postgres://sehatdesk:sehatdesk@db:5432/sehatdesk
+      SEHATDESK_ALLOWED_HOSTS: localhost,127.0.0.1
+      SEHATDESK_CSRF_TRUSTED_ORIGINS: http://localhost:8001
+    ports:
+      - "8001:8000"
+    volumes:
+      - appdata:/data
+
+volumes:
+  pgdata:
+  appdata:

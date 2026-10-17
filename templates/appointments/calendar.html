@@ -1,0 +1,107 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}Appointments{% endblock %}
+{% block page_title %}Appointments{% endblock %}
+{% block page_subtitle %}{% if view == "week" %}A week view of bookings per doctor.{% else %}A day view of clinic availability and booked visits.{% endif %}{% endblock %}
+{% block page_actions %}
+  <a href="{% url 'appointments:list' %}?date={{ day|date:'Y-m-d' }}" class="btn btn-secondary">List view</a>
+  {% if can_manage %}<a href="{% url 'appointments:book' %}?date={{ day|date:'Y-m-d' }}" class="btn btn-primary">{% icon "plus" "h-4 w-4" %} Book appointment</a>{% endif %}
+{% endblock %}
+{% block content %}
+<section class="card">
+  <form method="get" class="card-header flex-wrap" x-data @change="$el.submit()">
+    <input type="hidden" name="view" value="{{ view }}">
+    <div class="flex items-center gap-2">
+      <a class="btn btn-secondary btn-icon btn-sm" href="?view={{ view }}&date={{ prev_day|date:'Y-m-d' }}&department={{ dept_id }}&doctor={{ doctor_id }}" aria-label="Previous">{% icon "chevron-left" "h-4 w-4" %}</a>
+      <div>
+        <h2 class="section-title">{% if view == "week" %}Week of {{ week_days.0|date:"j M" }} – {{ week_days.6|date:"j M Y" }}{% else %}{{ day|date:"l, j F Y" }}{% endif %}</h2>
+        <p class="text-label text-muted">{% if view == "day" %}{{ appointments_count }} booked · {{ step }}-minute slots{% if on_leave %} · {% for d in on_leave %}{{ d }}{% if not forloop.last %}, {% endif %}{% endfor %} on leave{% endif %}{% else %}Active bookings per doctor per day{% endif %}</p>
+      </div>
+      <a class="btn btn-secondary btn-icon btn-sm" href="?view={{ view }}&date={{ next_day|date:'Y-m-d' }}&department={{ dept_id }}&doctor={{ doctor_id }}" aria-label="Next">{% icon "chevron-right" "h-4 w-4" %}</a>
+      {% if day != today %}<a class="btn btn-ghost btn-sm" href="?view={{ view }}&department={{ dept_id }}&doctor={{ doctor_id }}">Today</a>{% endif %}
+    </div>
+    <div class="flex flex-wrap items-center gap-2">
+      <input type="date" name="date" value="{{ day|date:'Y-m-d' }}" class="input h-10 w-40" aria-label="Date">
+      <div class="flex rounded-control border border-line p-0.5">
+        <a href="?view=day&date={{ day|date:'Y-m-d' }}&department={{ dept_id }}&doctor={{ doctor_id }}" class="btn btn-sm {% if view == 'day' %}btn-primary{% else %}btn-ghost{% endif %}">Day</a>
+        <a href="?view=week&date={{ day|date:'Y-m-d' }}&department={{ dept_id }}&doctor={{ doctor_id }}" class="btn btn-sm {% if view == 'week' %}btn-primary{% else %}btn-ghost{% endif %}">Week</a>
+      </div>
+      <select name="department" class="select h-10 w-48" aria-label="Department">
+        <option value="">All departments</option>
+        {% for d in departments %}<option value="{{ d.pk }}" {% if dept_id == d.pk|stringformat:"d" %}selected{% endif %}>{{ d.name }}</option>{% endfor %}
+      </select>
+      <select name="doctor" class="select h-10 w-48" aria-label="Doctor">
+        <option value="">All doctors</option>
+        {% for d in all_doctors %}<option value="{{ d.pk }}" {% if doctor_id == d.pk|stringformat:"d" %}selected{% endif %}>{{ d.display_name }}</option>{% endfor %}
+      </select>
+    </div>
+  </form>
+
+  {% if view == "week" %}
+    {% if week_grid %}
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th scope="col">Doctor</th>{% for d in week_days %}<th scope="col" class="text-center {% if d == today %}text-teal-deep{% endif %}">{{ d|date:"D j" }}</th>{% endfor %}</tr></thead>
+          <tbody>
+            {% for row in week_grid %}
+              <tr>
+                <td><p class="font-medium">{{ row.doctor.display_name }}</p><p class="text-label text-muted">{{ row.doctor.department }}</p></td>
+                {% for c in row.cells %}
+                  <td class="text-center">
+                    <a href="?view=day&date={{ c.date|date:'Y-m-d' }}&doctor={{ row.doctor.pk }}" class="inline-flex min-w-12 justify-center rounded-control px-2 py-1 {% if c.count %}bg-blue-soft font-semibold text-blue{% elif c.works %}bg-mint/50 text-teal-deep{% else %}text-muted{% endif %}">
+                      {% if c.count %}{{ c.count }}{% elif c.works %}Open{% else %}—{% endif %}
+                    </a>
+                  </td>
+                {% endfor %}
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      {% include "components/empty_state.html" with icon_name="calendar" title="No clinics this week" message="Set doctor schedules in Settings → Doctors to open slots." %}
+    {% endif %}
+  {% elif columns %}
+    <div class="table-wrap">
+      <table class="w-full border-separate border-spacing-0 text-body">
+        <thead>
+          <tr>
+            <th class="w-16"></th>
+            {% for d in columns %}<th scope="col" class="min-w-56 px-2 pb-4 text-left align-bottom"><p class="text-section-title">{{ d.display_name }}</p><p class="text-label font-normal text-muted">{{ d.department }}</p></th>{% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+            <tr>
+              <td class="border-t border-line pt-2 pr-3 align-top text-label text-muted">{{ row.time|time:"H:i" }}</td>
+              {% for cell in row.cells %}
+                <td class="h-16 border-t border-line p-1 align-top {% if not cell.open and not cell.appointments %}bg-page/60{% endif %}">
+                  {% for a in cell.appointments %}
+                    <a href="{% url 'appointments:detail' a.pk %}"
+                       class="mb-1 block rounded-control px-3 py-2 hover:ring-2 hover:ring-teal/30
+                       {% if a.status == 'completed' %}bg-mint{% elif a.status in 'cancelled no_show' %}bg-page line-through opacity-60{% elif a.status in 'checked_in in_queue with_doctor' %}bg-amber-soft{% else %}bg-blue-soft{% endif %}">
+                      <p class="font-semibold">{{ a.patient.full_name }}</p>
+                      <p class="text-label text-muted">{{ a.start_time|time:"H:i" }} · {{ a.get_status_display }} · {{ a.duration_minutes }} min{% if a.is_overbooked %} · overbooked{% endif %}</p>
+                    </a>
+                  {% endfor %}
+                  {% if cell.open and not cell.appointments and can_manage and day >= today %}
+                    <a href="{% url 'appointments:book' %}?doctor={{ cell.doctor.pk }}&date={{ day|date:'Y-m-d' }}&time={{ row.time|time:'H:i' }}" class="flex h-full min-h-12 items-center justify-center rounded-control text-label text-muted opacity-0 hover:bg-mint/50 hover:opacity-100 focus:opacity-100">+ Book</a>
+                  {% endif %}
+                </td>
+              {% endfor %}
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="mt-4 flex flex-wrap gap-3 text-label text-muted">
+      <span class="inline-flex items-center gap-1"><span class="h-3 w-3 rounded bg-blue-soft"></span> Booked</span>
+      <span class="inline-flex items-center gap-1"><span class="h-3 w-3 rounded bg-amber-soft"></span> Arrived</span>
+      <span class="inline-flex items-center gap-1"><span class="h-3 w-3 rounded bg-mint"></span> Completed</span>
+      <span class="inline-flex items-center gap-1"><span class="h-3 w-3 rounded bg-page"></span> Closed / break</span>
+    </div>
+  {% else %}
+    {% include "components/empty_state.html" with icon_name="calendar" title="No clinics on this day" message="No doctor has clinic hours in this branch on this day. Set schedules in Settings → Doctors." %}
+  {% endif %}
+</section>
+{% endblock %}

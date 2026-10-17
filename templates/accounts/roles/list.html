@@ -1,0 +1,41 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}Roles{% endblock %}
+{% block page_title %}Roles &amp; permissions{% endblock %}
+{% block page_subtitle %}Control access by role, branch and assigned responsibilities.{% endblock %}
+{% block page_actions %}<a href="{% url 'accounts:role-create' %}" class="btn btn-primary">{% icon "plus" "h-4 w-4" %} New role</a>{% endblock %}
+{% block content %}
+{% include "partials/settings_tabs.html" %}
+<section class="card">
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th scope="col">Role</th><th scope="col">Type</th><th scope="col">Permissions</th><th scope="col">Staff</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            <td><p class="font-medium">{{ row.role.name }}</p><p class="text-label text-muted">{{ row.role.description }}</p></td>
+            <td>{% if row.role.is_locked %}<span class="chip chip-neutral">{% icon "lock" "h-3 w-3" %} Locked</span>{% elif row.role.is_system %}<span class="chip chip-info">System</span>{% else %}<span class="chip chip-neutral">Custom</span>{% endif %}</td>
+            <td>{{ row.perm_count }}</td>
+            <td>{{ row.member_count }}</td>
+            <td>{% if row.role.is_active %}{% status_chip "active" %}{% else %}{% status_chip "inactive" %}{% endif %}</td>
+            <td class="text-right whitespace-nowrap">
+              {% if not row.role.is_locked %}
+                <a href="{% url 'accounts:role-edit' row.role.pk %}" class="btn btn-ghost btn-sm">Edit</a>
+                <form method="post" action="{% url 'accounts:role-toggle-active' row.role.pk %}" class="inline">
+                  {% csrf_token %}
+                  {% if row.role.is_active %}
+                    <button class="btn btn-ghost btn-sm text-red" data-confirm="Staff with only this role lose its access until it is reactivated." data-confirm-title="Deactivate {{ row.role.name }}?" data-confirm-action="Deactivate" data-confirm-danger="true">Deactivate</button>
+                  {% else %}
+                    <button class="btn btn-ghost btn-sm">Activate</button>
+                  {% endif %}
+                </form>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="mt-4 text-label text-muted">System roles are starting points and can be edited. Admin roles do not get clinical access automatically.</p>
+</section>
+{% endblock %}

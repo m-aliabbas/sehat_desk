@@ -1,0 +1,42 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}Refund · {{ invoice.number }}{% endblock %}
+{% block page_title %}Refund{% endblock %}
+{% block page_subtitle %}Preserve the original invoice and create an auditable adjustment.{% endblock %}
+{% block content %}
+<div class="grid gap-6 xl:grid-cols-3">
+  <section class="card xl:col-span-2">
+    <h2 class="section-title mb-4">Details</h2>
+    <form method="post" novalidate>
+      {% csrf_token %}
+      {{ form.key }}
+      {% for e in form.non_field_errors %}{% include "components/alert.html" with level="danger" title="Refund not recorded" message=e %}{% endfor %}
+      <dl class="mb-5 grid gap-4 text-body md:grid-cols-3">
+        <div><dt class="text-label text-muted">Original invoice</dt><dd class="font-mono font-medium"><a class="hover:underline" href="{% url 'billing:invoice-detail' invoice.pk %}">{{ invoice.number }}</a></dd></div>
+        <div><dt class="text-label text-muted">Patient</dt><dd>{{ invoice.bill_to }} <span class="font-mono text-label text-muted">{{ invoice.patient.mrn }}</span></dd></div>
+        <div><dt class="text-label text-muted">Paid · still refundable</dt><dd>{{ organization.currency }} {{ invoice.amount_paid|floatformat:"2g" }} · {{ invoice.refundable|floatformat:"2g" }}</dd></div>
+      </dl>
+      <div class="grid gap-5 md:grid-cols-2">
+        {% include "components/field.html" with field=form.payment wide=True %}
+        {% include "components/field.html" with field=form.amount %}
+        {% include "components/field.html" with field=form.method %}
+        {% include "components/field.html" with field=form.reason wide=True %}
+        {% include "components/field.html" with field=form.reference %}
+      </div>
+      <div class="mt-6 flex gap-3">
+        <button class="btn btn-danger" data-confirm="Money is returned to the patient and recorded against the original payment. This cannot be undone." data-confirm-title="Issue refund?" data-confirm-action="Issue refund" data-confirm-danger="true">Issue refund</button>
+        <a href="{% url 'billing:invoice-detail' invoice.pk %}" class="btn btn-secondary">Cancel</a>
+      </div>
+    </form>
+  </section>
+  <aside class="card h-fit">
+    <h2 class="section-title mb-3">Refund limits</h2>
+    <ul class="space-y-2 text-body text-muted">
+      <li>A refund cannot exceed what is left of the original payment.</li>
+      <li>The original invoice and payment stay in history unchanged.</li>
+      <li>You are recorded as the authorising user, with the reason, in the audit log.</li>
+      <li>Refunds count against the day's collection on the daily payment list.</li>
+    </ul>
+  </aside>
+</div>
+{% endblock %}

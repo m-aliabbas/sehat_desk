@@ -1,0 +1,14 @@
+{% load ui %}
+{# Patient identity strip with allergies (design kit clinical rule). Context: patient, allergies #}
+<div class="flex flex-wrap items-center gap-4">
+  <span class="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-mint text-section-title font-bold text-teal-deep">{{ patient.initials }}</span>
+  <div class="min-w-0">
+    <p class="text-section-title font-bold"><a href="{% url 'patients:detail' patient.pk %}" class="hover:underline">{{ patient.full_name }}</a></p>
+    <p class="text-label text-muted">{{ patient.age_label }} · {{ patient.get_gender_display }} · <span class="font-mono">{{ patient.mrn }}</span>{% if patient.blood_group %} · {{ patient.blood_group }}{% endif %}</p>
+  </div>
+  <div class="flex flex-wrap gap-2">
+    {% if patient.allergy_status == "unknown" %}<span class="chip chip-warning">Allergy status not recorded</span>
+    {% elif patient.allergy_status == "none" and not allergies %}<span class="chip chip-success">No known allergies</span>{% endif %}
+    {% for al in allergies %}<span class="chip chip-danger">{% icon "alert-triangle" "h-3 w-3" %} {{ al.substance }}</span>{% endfor %}
+  </div>
+</div>

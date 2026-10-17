@@ -1,0 +1,37 @@
+{% load reports %}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>{{ report.title }} · {{ organization.name }}</title>
+<style>
+  @page { size: A4 landscape; margin: 12mm; @bottom-right { content: "Page " counter(page) " of " counter(pages); font-size: 8pt; color: #64748b; } }
+  body { font-family: Inter, "DejaVu Sans", Arial, sans-serif; color: #0f2a3d; font-size: 9pt; margin: 0; }
+  h1 { font-size: 15pt; margin: 0; } .muted { color: #64748b; }
+  header { display: flex; justify-content: space-between; border-bottom: 2px solid #0f766e; padding-bottom: 6px; margin-bottom: 10px; }
+  .cards { display: flex; gap: 8px; margin-bottom: 10px; } .cards div { border: 1px solid #dbe4ea; border-radius: 6px; padding: 6px 10px; }
+  .cards b { display: block; font-size: 12pt; }
+  table { width: 100%; border-collapse: collapse; } th, td { padding: 4px 6px; border-bottom: 1px solid #e5edf2; text-align: left; vertical-align: top; }
+  th { background: #f1f6f9; font-weight: 600; } .num { text-align: right; white-space: nowrap; } tfoot td { font-weight: 700; border-top: 2px solid #0f2a3d; }
+  thead { display: table-header-group; } tr { page-break-inside: avoid; }
+  .banner { background: #fff7e6; border: 1px solid #f5c26b; padding: 8px 12px; margin-bottom: 10px; border-radius: 6px; }
+  @media print { .banner { display: none; } }
+</style>
+</head>
+<body>
+{% if pdf_unavailable %}<div class="banner">PDF export needs the WeasyPrint system libraries on this computer. Use your browser's <strong>Print → Save as PDF</strong> (landscape) instead. <button onclick="window.print()">Print</button></div>{% endif %}
+<header>
+  <div><h1>{{ report.title }}</h1><div class="muted">{{ scope }}</div></div>
+  <div style="text-align:right"><strong>{{ organization.name }}</strong><div class="muted">Generated {{ generated_at|date:"d M Y H:i" }} by {{ request.user.get_full_name|default:request.user.get_username }}</div></div>
+</header>
+{% if result.cards %}<div class="cards">{% for c in result.cards %}<div><span class="muted">{{ c.label }}</span><b>{% if c.kind == "money" %}{{ organization.currency }} {% endif %}{{ c.value|fmt:c.kind }}</b></div>{% endfor %}</div>{% endif %}
+<table>
+  <thead><tr>{% for c in result.columns %}<th {% if c.kind != "text" and c.kind != "date" and c.kind != "datetime" %}class="num"{% endif %}>{{ c.label }}</th>{% endfor %}</tr></thead>
+  <tbody>
+    {% for row in result.rows %}<tr>{% for c in result.columns %}<td {% if c.kind != "text" and c.kind != "date" and c.kind != "datetime" %}class="num"{% endif %}>{{ row|cell:c }}</td>{% endfor %}</tr>
+    {% empty %}<tr><td colspan="{{ result.columns|length }}" class="muted">No records match these filters.</td></tr>{% endfor %}
+  </tbody>
+  {% if result.totals %}<tfoot><tr>{% for c in result.columns %}<td {% if c.kind != "text" and c.kind != "date" and c.kind != "datetime" %}class="num"{% endif %}>{% if c.key in result.totals %}{{ result.totals|cell:c }}{% endif %}</td>{% endfor %}</tr></tfoot>{% endif %}
+</table>
+{% if result.note %}<p class="muted">{{ result.note }}</p>{% endif %}
+</body>
+</html>

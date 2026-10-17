@@ -1,0 +1,4 @@
+# PostgreSQL driver. Only needed when SEHATDESK_DATABASE_URL points at PostgreSQL
+# (Docker / future multi-branch servers). Customer installers stay on SQLite.
+-r requirements.txt
+psycopg[binary]>=3.2,<4.0

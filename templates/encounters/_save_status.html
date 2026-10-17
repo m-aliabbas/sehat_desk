@@ -1,0 +1,5 @@
+{# Autosave reply: status text plus the new revision (swapped out-of-band into the form). #}
+<span id="save-status" class="text-label {% if error %}text-red{% else %}text-muted{% endif %}" role="status">
+  {% if error %}{{ error }}{% elif encounter.last_saved_at %}Draft saved {{ encounter.last_saved_at|time:"H:i:s" }}{% else %}Draft{% endif %}
+</span>
+<input type="hidden" name="revision" id="revision" value="{{ encounter.revision }}" hx-swap-oob="true">

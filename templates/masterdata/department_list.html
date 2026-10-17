@@ -1,0 +1,51 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}Departments{% endblock %}
+{% block page_title %}Departments &amp; specialties{% endblock %}
+{% block page_subtitle %}Clinical departments used for doctors, appointments, queues and reports.{% endblock %}
+{% block page_actions %}<a href="{% url 'masterdata:department-create' %}" class="btn btn-primary">{% icon "plus" "h-4 w-4" %} New department</a>{% endblock %}
+{% block content %}
+{% include "partials/settings_tabs.html" %}
+<div class="grid gap-6 xl:grid-cols-3">
+  <section class="card xl:col-span-2">
+    <h2 class="section-title mb-4">Departments</h2>
+    {% if departments %}
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th scope="col">Department</th><th scope="col">Code</th><th scope="col">Doctors</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+        <tbody>
+          {% for d in departments %}
+            <tr>
+              <td><p class="font-medium">{{ d.name }}</p>{% if d.description %}<p class="text-label text-muted">{{ d.description }}</p>{% endif %}</td>
+              <td class="font-mono text-label">{{ d.code }}</td>
+              <td>{{ d.doctors.count }}</td>
+              <td>{% if d.is_active %}{% status_chip "active" %}{% else %}{% status_chip "inactive" %}{% endif %}</td>
+              <td class="text-right whitespace-nowrap">
+                <a href="{% url 'masterdata:department-edit' d.pk %}" class="btn btn-ghost btn-sm">Edit</a>
+                <form method="post" action="{% url 'masterdata:department-toggle' d.pk %}" class="inline">{% csrf_token %}
+                  {% if d.is_active %}<button class="btn btn-ghost btn-sm text-red" data-confirm="It will no longer be offered for new doctors or appointments. Existing records keep it." data-confirm-title="Deactivate {{ d.name }}?" data-confirm-action="Deactivate" data-confirm-danger="true">Deactivate</button>{% else %}<button class="btn btn-ghost btn-sm">Activate</button>{% endif %}
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      {% url 'masterdata:department-create' as create_url %}
+      {% include "components/empty_state.html" with icon_name="building" title="No departments yet" message="Add departments such as General medicine, Cardiology or Pediatrics." action_url=create_url action_label="New department" %}
+    {% endif %}
+  </section>
+  <section class="card h-fit">
+    <h2 class="section-title mb-4">Specialties</h2>
+    <div class="flex flex-wrap gap-2">
+      {% for s in specialties %}<span class="chip chip-neutral">{{ s.name }}</span>{% empty %}<p class="text-label text-muted">No specialties yet.</p>{% endfor %}
+    </div>
+    <form method="post" action="{% url 'masterdata:specialty-create' %}" class="mt-5 flex items-end gap-2">
+      {% csrf_token %}
+      <div class="field flex-1"><label class="field-label" for="id_name">Add specialty</label><input id="id_name" name="name" class="input" required maxlength="100" placeholder="e.g. Cardiologist"></div>
+      <button class="btn btn-secondary">Add</button>
+    </form>
+  </section>
+</div>
+{% endblock %}

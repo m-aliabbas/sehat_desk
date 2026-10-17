@@ -1,0 +1,132 @@
+{% extends "layouts/app.html" %}
+{% load ui vitals %}
+{% block title %}{{ encounter.number }} · Consultation{% endblock %}
+{% block page_title %}Consultation{% endblock %}
+{% block page_subtitle %}OPD · <span class="font-mono">{{ encounter.number }}</span>{% if encounter.token %} · Token {{ encounter.token.label }}{% endif %} · {{ encounter.doctor }} · {% if encounter.is_amendment %}Amendment in progress{% elif encounter.is_draft %}Draft until completed{% else %}Completed {{ encounter.completed_at|date:"d M Y, H:i" }}{% endif %}{% endblock %}
+{% block page_actions %}
+  {% if encounter.is_amendment %}{% status_chip "pending" "Amending" %}{% else %}{% status_chip encounter.status encounter.get_status_display %}{% endif %}
+  {% if versions %}<a href="{% url 'encounters:history' encounter.pk %}" class="btn btn-secondary">Versions ({{ versions|length }})</a>{% endif %}
+  {% if can_reopen %}<a href="{% url 'encounters:reopen' encounter.pk %}" class="btn btn-secondary">Amend</a>{% endif %}
+{% endblock %}
+{% block content %}
+{# ---- Patient summary header (PRD §6.1). Wrong-patient check: name, MRN, age always visible. ---- #}
+<section class="card mb-6 grid gap-6 lg:grid-cols-[1.6fr_1.4fr_1fr]">
+  <div>
+    <p class="text-[22px] font-bold"><a class="hover:underline" href="{% url 'patients:detail' patient.pk %}">{{ patient.full_name }}</a></p>
+    <p class="text-body text-muted">{{ patient.age_label }} · {{ patient.get_gender_display }} · <span class="font-mono">{{ patient.mrn }}</span>{% if patient.blood_group %} · {{ patient.blood_group }}{% endif %}</p>
+    <div class="mt-2 flex flex-wrap gap-2">{% for a in alerts %}<span class="chip chip-warning">{% icon "alert-triangle" "h-3 w-3" %} {{ a.message }}</span>{% endfor %}</div>
+  </div>
+  <div>
+    <p class="text-label font-semibold tracking-wide text-muted uppercase">Allergies</p>
+    <div class="mt-2 flex flex-wrap gap-2">
+      {% if patient.allergy_status == "unknown" %}<span class="chip chip-warning">Allergy status not recorded</span>
+      {% elif patient.allergy_status == "none" %}<span class="chip chip-success">No known allergies</span>{% endif %}
+      {% for al in allergies %}<span class="chip chip-danger">{{ al.substance }}{% if al.reaction %} · {{ al.reaction }}{% endif %} · {{ al.get_severity_display|lower }}</span>{% endfor %}
+    </div>
+  </div>
+  <dl class="space-y-1 text-body">
+    <div><dt class="inline text-muted">Visit reason:</dt> <dd class="inline">{{ encounter.visit_reason|default:"—" }}</dd></div>
+    <div><dt class="inline text-muted">Last visit:</dt> <dd class="inline">{% if last_visit %}{{ last_visit.started_at|date:"d M Y" }} · {{ last_visit.doctor }}{% else %}First visit{% endif %}</dd></div>
+  </dl>
+  <div class="lg:col-span-3 border-t border-line pt-4">
+    <div class="flex flex-wrap items-center gap-2">
+      <span class="text-label font-semibold tracking-wide text-muted uppercase">Vitals</span>
+      {% if visit_vitals %}
+        {% with visit_vitals.0 as vv %}{% for row in vv.1 %}{% vital_chip row %}{% endfor %}<span class="text-label text-muted">{{ vv.0.recorded_at|time:"H:i" }} · {{ vv.0.recorded_by }}</span>{% endwith %}
+      {% elif last_vitals %}
+        <span class="text-label text-muted">None this visit. Last: {{ last_vitals.recorded_at|date:"d M Y" }} · {{ last_vitals.bp|default:"" }}{% if last_vitals.weight_kg %} · {{ last_vitals.weight_kg }} kg{% endif %}</span>
+      {% else %}<span class="text-label text-muted">Not recorded.</span>{% endif %}
+      {% if can_record_vitals %}<a href="{% url 'vitals:record' %}?encounter={{ encounter.pk }}&next={{ request.get_full_path|urlencode }}" class="btn btn-ghost btn-sm">{% icon "plus" "h-4 w-4" %} Record vitals</a>{% endif %}
+      <a href="{% url 'patients:detail' patient.pk %}?tab=vitals" class="text-label font-medium text-teal-deep hover:underline">Trends →</a>
+    </div>
+  </div>
+</section>
+
+{% if encounter.is_amendment %}
+  <div class="mb-6 rounded-control bg-amber-soft p-4 text-body" role="status">
+    <p class="font-semibold text-amber">Amending a signed record</p>
+    <p class="text-ink/80">Reason: {{ encounter.reopen_reason }}. Completing saves a new version; the signed version{{ versions|length|pluralize }} stay{{ versions|length|pluralize:"s," }} unchanged for audit.</p>
+  </div>
+{% endif %}
+
+<div class="grid gap-6 xl:grid-cols-[1fr_320px]">
+  <div>
+  <form id="note-form" method="post" action="{% url 'encounters:detail' encounter.pk %}" novalidate>
+    {% csrf_token %}
+    <input type="hidden" name="revision" id="revision" value="{{ encounter.revision }}">
+    {% if writable %}
+    {# Autosave: posts the whole note 2 s after typing stops. #}
+    <div hx-post="{% url 'encounters:autosave' encounter.pk %}" hx-trigger="input delay:2s from:#note-form, change from:#note-form"
+         hx-include="#note-form" hx-target="#save-status" hx-swap="outerHTML"></div>
+    {% endif %}
+
+    <nav class="sticky top-0 z-10 mb-4 flex gap-1 overflow-x-auto rounded-card border border-line bg-white p-2 shadow-sm" aria-label="Consultation sections">
+      {% for s in sections %}<a href="#sec-{{ s.key }}" class="rounded-control px-3 py-1.5 text-body font-medium text-muted hover:bg-mint hover:text-teal-deep"><span class="mr-1 inline-flex h-6 w-6 items-center justify-center rounded-full bg-mint text-label text-teal-deep">{{ forloop.counter }}</span>{{ s.label }}</a>{% endfor %}
+      <a href="#sec-diagnoses" class="rounded-control px-3 py-1.5 text-body font-medium text-muted hover:bg-mint hover:text-teal-deep"><span class="mr-1 inline-flex h-6 w-6 items-center justify-center rounded-full bg-mint text-label text-teal-deep">{{ sections|length|add:1 }}</span>Diagnoses</a>
+      <a href="#sec-prescription" class="rounded-control px-3 py-1.5 text-body font-medium text-muted hover:bg-mint hover:text-teal-deep"><span class="mr-1 inline-flex h-6 w-6 items-center justify-center rounded-full bg-mint text-label text-teal-deep">{{ sections|length|add:2 }}</span>Prescription</a>
+      <a href="#sec-lab" class="rounded-control px-3 py-1.5 text-body font-medium text-muted hover:bg-mint hover:text-teal-deep"><span class="mr-1 inline-flex h-6 w-6 items-center justify-center rounded-full bg-mint text-label text-teal-deep">{{ sections|length|add:3 }}</span>Lab</a>
+    </nav>
+
+    <div class="space-y-6">
+      {% for s in sections %}
+      <section class="card scroll-mt-20" id="sec-{{ s.key }}">
+        <h2 class="section-title mb-4">{{ s.label }}</h2>
+        <div class="grid gap-5 md:grid-cols-2">
+          {% for field in s.fields %}
+            {% if writable %}
+              {% include "components/field.html" with field=field wide=True %}
+            {% else %}
+              <div class="md:col-span-2"><p class="field-label">{{ field.label }}</p><p class="mt-1 text-body whitespace-pre-line">{{ field.value|default:"—" }}</p></div>
+            {% endif %}
+          {% endfor %}
+        </div>
+        {% if s.key == "history" %}<p class="field-help mt-3">Structured allergies live on the patient record: <a class="text-teal-deep underline" href="{% url 'patients:detail' patient.pk %}">add or correct allergies</a>.</p>{% endif %}
+      </section>
+      {% endfor %}
+    </div>
+
+  </form>
+    <div class="mt-6 space-y-6">
+      {% include "encounters/_diagnoses.html" %}
+      {% include "prescriptions/_panel.html" %}
+      {% if features.lab %}{% include "lab/_encounter_panel.html" %}{% endif %}
+      {% if doc_can_view %}<section class="card scroll-mt-20" id="sec-documents">{% include "documents/_panel.html" %}</section>{% endif %}
+    </div>
+    {% if writable %}
+    <div class="sticky bottom-0 z-10 mt-6 flex flex-wrap items-center gap-3 rounded-card border border-line bg-white p-4 shadow-lg">
+      <button type="submit" form="note-form" class="btn btn-secondary">Save draft</button>
+      <button type="submit" form="note-form" name="exit" value="1" class="btn btn-secondary">Save &amp; exit</button>
+      <span id="save-status" class="text-label text-muted" role="status">{% if encounter.last_saved_at %}Draft saved {{ encounter.last_saved_at|time:"H:i:s" }}{% else %}Draft · saves as you type{% endif %}</span>
+      {% if can_sign %}
+      <button type="submit" form="note-form" formaction="{% url 'encounters:complete' encounter.pk %}" class="btn btn-primary ml-auto"
+              data-confirm="Signing records you as the author with the time. The note becomes read-only; later corrections are audited amendments." data-confirm-title="Complete and sign {{ encounter.number }}?" data-confirm-action="Complete &amp; sign">Complete &amp; sign</button>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+
+  <aside class="space-y-6">
+    <section class="card">
+      <h2 class="section-title mb-3">Encounter</h2>
+      <dl class="space-y-2 text-body">
+        <div><dt class="text-label text-muted">Clinician</dt><dd>{{ encounter.doctor }} · {{ encounter.department }}</dd></div>
+        <div><dt class="text-label text-muted">Started</dt><dd>{{ encounter.started_at|date:"d M Y, H:i" }}</dd></div>
+        {% if encounter.completed_at %}<div><dt class="text-label text-muted">Last signed</dt><dd>{{ encounter.completed_at|date:"d M Y, H:i" }} by {{ encounter.completed_by }}</dd></div>{% endif %}
+        {% if encounter.appointment %}<div><dt class="text-label text-muted">Appointment</dt><dd>{{ encounter.appointment.number }} · {{ encounter.appointment.get_visit_type_display }}</dd></div>{% endif %}
+      </dl>
+      {% if not writable and encounter.is_draft %}<p class="mt-3 text-label text-muted">Read-only: only {{ encounter.doctor }} can edit this draft.</p>{% endif %}
+    </section>
+    <section class="card">
+      <h2 class="section-title mb-3">Previous visits</h2>
+      <ul class="space-y-3">
+        {% for e in previous %}
+          <li class="text-body">
+            <a href="{% url 'encounters:detail' e.pk %}" class="font-medium hover:underline">{{ e.started_at|date:"d M Y" }}</a> <span class="text-label text-muted">· {{ e.doctor }}{% if e.branch_id != encounter.branch_id %} · {{ e.branch.name }}{% endif %}</span>
+            <p class="text-label text-muted">{{ e.final_diagnosis|default:e.provisional_diagnosis|truncatechars:80|default:"No diagnosis recorded" }}</p>
+          </li>
+        {% empty %}<li class="text-label text-muted">No earlier consultations.</li>{% endfor %}
+      </ul>
+    </section>
+  </aside>
+</div>
+{% endblock %}

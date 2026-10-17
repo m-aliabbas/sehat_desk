@@ -1,0 +1,6 @@
+{# Staging installs look like production; this strip stops staff mistaking one for the other. #}
+{% if workspace_env == "staging" %}
+  <div role="status" class="bg-amber px-4 py-1.5 text-center text-label font-semibold text-white">
+    Staging — test system with demo data only. Do not enter real patients.
+  </div>
+{% endif %}

@@ -1,0 +1,55 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}Lab test catalogue{% endblock %}
+{% block page_title %}Test catalogue{% endblock %}
+{% block page_subtitle %}Tests, reference ranges and panels used for ordering, result entry and billing.{% endblock %}
+{% block page_actions %}
+  <a href="{% url 'lab:panel-create' %}" class="btn btn-secondary">{% icon "plus" "h-4 w-4" %} New panel</a>
+  <a href="{% url 'lab:test-create' %}" class="btn btn-primary">{% icon "plus" "h-4 w-4" %} New test</a>
+{% endblock %}
+{% block content %}
+<div class="grid gap-6 xl:grid-cols-3">
+  <section class="card xl:col-span-2">
+    <form class="mb-4" method="get"><label class="sr-only" for="lt-q">Search tests</label><input id="lt-q" name="q" value="{{ q }}" type="search" class="input" placeholder="Search by code or name"></form>
+    {% if tests %}
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th scope="col">Test</th><th scope="col">Category · sample</th><th scope="col">Result · range</th><th scope="col" class="text-right">Price</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+        <tbody>
+          {% for t in tests %}
+          <tr>
+            <td><p class="font-medium">{{ t.name }}</p><p class="font-mono text-label text-muted">{{ t.code }} · {{ t.turnaround_hours }} h</p></td>
+            <td>{{ t.category }}<p class="text-label text-muted">{{ t.get_sample_type_display }}</p></td>
+            <td>{{ t.get_result_type_display }}{% if t.unit %} · {{ t.unit }}{% endif %}<p class="text-label text-muted">{% for r in t.ranges.all %}{{ r.label }}{% if not forloop.last %}; {% endif %}{% empty %}{{ t.normal_value|default:"No range" }}{% endfor %}</p></td>
+            <td class="text-right">{{ t.price|floatformat:"0g" }}</td>
+            <td>{% if t.is_active %}{% status_chip "active" %}{% else %}{% status_chip "inactive" %}{% endif %}</td>
+            <td class="text-right whitespace-nowrap"><a href="{% url 'lab:test-edit' t.pk %}" class="btn btn-ghost btn-sm">Edit</a>
+              <form method="post" action="{% url 'lab:test-toggle' t.pk %}" class="inline">{% csrf_token %}{% if t.is_active %}<button class="btn btn-ghost btn-sm text-red">Deactivate</button>{% else %}<button class="btn btn-ghost btn-sm">Activate</button>{% endif %}</form></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}{% url 'lab:test-create' as create_url %}{% include "components/empty_state.html" with icon_name="flask" title="No tests yet" message="Add a category, then tests such as CBC, Blood glucose or Urine RE." action_url=create_url action_label="New test" %}{% endif %}
+  </section>
+  <div class="space-y-6">
+    <section class="card">
+      <h2 class="section-title mb-3">Panels</h2>
+      <ul class="space-y-3">
+        {% for p in panels %}
+        <li class="text-body"><div class="flex items-center justify-between gap-2"><a href="{% url 'lab:panel-edit' p.pk %}" class="font-medium hover:underline">{{ p.name }}</a><span class="text-label">{{ organization.currency }} {{ p.price|floatformat:"0g" }}</span></div>
+          <p class="text-label text-muted"><span class="font-mono">{{ p.code }}</span> · {% for t in p.tests.all %}{{ t.code }}{% if not forloop.last %}, {% endif %}{% endfor %}{% if not p.is_active %} · inactive{% endif %}</p></li>
+        {% empty %}<li class="text-label text-muted">No panels yet.</li>{% endfor %}
+      </ul>
+    </section>
+    <section class="card">
+      <h2 class="section-title mb-3">Categories</h2>
+      <div class="flex flex-wrap gap-2">{% for c in categories %}<span class="chip chip-neutral">{{ c.name }} · {{ c.n }}</span>{% empty %}<p class="text-label text-muted">No categories yet.</p>{% endfor %}</div>
+      <form method="post" class="mt-4 flex items-end gap-2">{% csrf_token %}
+        <div class="field flex-1"><label class="field-label" for="cat-name">Add category</label><input id="cat-name" name="name" class="input" required maxlength="80" placeholder="e.g. Haematology"></div>
+        <button class="btn btn-secondary">Add</button>
+      </form>
+    </section>
+  </div>
+</div>
+{% endblock %}

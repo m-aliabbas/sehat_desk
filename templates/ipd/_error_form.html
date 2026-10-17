@@ -1,0 +1,9 @@
+{# Mark a clinical entry as entered in error. Context: action (URL); optional label. #}
+<details class="relative inline-block">
+  <summary class="btn btn-ghost btn-sm cursor-pointer">{{ label|default:"Mark error" }}</summary>
+  <form method="post" action="{{ action }}" class="absolute right-0 z-20 mt-2 w-72 space-y-2 rounded-card border border-line bg-white p-3 text-left shadow-lg">{% csrf_token %}
+    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+    <input name="reason" class="input" required maxlength="200" placeholder="Why is this entry wrong?" aria-label="Reason">
+    <button class="btn btn-danger btn-sm">Mark as entered in error</button>
+  </form>
+</details>

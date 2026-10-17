@@ -1,0 +1,87 @@
+{% load ui %}
+<div class="grid gap-6 xl:grid-cols-3">
+  <section class="card">
+    <h2 class="section-title mb-4">Current patient</h2>
+    {% if current %}
+      <div class="rounded-card bg-mint p-5">
+        <p class="text-label font-medium tracking-wide text-teal-deep uppercase">{{ current.room|default:"Room" }} · {{ current.get_status_display }}</p>
+        <p class="mt-2 font-mono text-[44px] leading-none font-bold text-teal">{{ current.label }}</p>
+        <a href="{% url 'patients:detail' current.patient_id %}" class="mt-2 block text-section-title hover:underline">{{ current.patient.full_name }}</a>
+        <p class="text-label text-muted">{{ current.patient.age_label }} · {{ current.patient.get_gender_display }} · {{ current.patient.mrn }}</p>
+      </div>
+      {% if can_operate %}
+      <form method="post" class="mt-4 grid grid-cols-2 gap-2">
+        {% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}">
+        {% if current.encounter %}
+          <a href="{% url 'encounters:detail' current.encounter.pk %}" class="btn btn-primary col-span-2">Continue consultation</a>
+        {% elif is_own_queue %}
+          <button formaction="{% url 'encounters:start' %}" name="token" value="{{ current.pk }}" class="btn btn-primary col-span-2">Start consultation</button>
+        {% endif %}
+        {% if current.status == "called" %}
+          {% if not is_own_queue and not current.encounter %}<button formaction="{% url 'queue:start' current.pk %}" class="btn btn-primary col-span-2">Mark in consultation</button>{% endif %}
+          <button formaction="{% url 'queue:recall' current.pk %}" class="btn btn-secondary">Recall</button>
+          <button formaction="{% url 'queue:skip' current.pk %}" class="btn btn-secondary">Skip (no response)</button>
+        {% else %}
+          {% if not current.encounter %}<button formaction="{% url 'queue:complete' current.pk %}" class="btn btn-secondary col-span-2">Complete visit without notes</button>{% endif %}
+        {% endif %}
+      </form>
+      {% if current.encounter %}<p class="mt-3 text-label text-muted">Completing the consultation also completes this token.</p>{% endif %}
+      {% endif %}
+    {% else %}
+      <p class="text-body text-muted">No patient called.</p>
+      {% if can_operate %}
+      <form method="post" action="{% url 'queue:call-next' %}" class="mt-4">
+        {% csrf_token %}<input type="hidden" name="doctor" value="{{ doctor.pk }}"><input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <button class="btn btn-primary w-full" {% if not waiting %}disabled{% endif %}>Call next{% if waiting %} · {{ waiting.0.label }}{% endif %}</button>
+      </form>
+      {% endif %}
+    {% endif %}
+  </section>
+
+  <section class="card xl:col-span-2">
+    <div class="card-header">
+      <h2 class="section-title">Waiting ({{ waiting|length }})</h2>
+    </div>
+    {% if waiting %}
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th scope="col">Token</th><th scope="col">Patient / ID</th><th scope="col">Visit</th><th scope="col">Waiting</th><th scope="col">Status</th></tr></thead>
+        <tbody>
+          {% for t in waiting %}
+            <tr>
+              <td class="font-mono font-bold">{{ t.label }}{% if t.priority != "normal" %} <span class="chip {% if t.priority == 'emergency' %}chip-danger{% else %}chip-warning{% endif %}">{{ t.get_priority_display }}</span>{% endif %}</td>
+              <td>{{ t.patient.full_name }} · <span class="font-mono text-label text-muted">{{ t.patient.mrn }}</span></td>
+              <td>{% if t.appointment %}{{ t.appointment.get_visit_type_display }}{% else %}Walk-in{% endif %}{% if not t.doctor_id %} <span class="text-label text-muted">(department)</span>{% endif %}</td>
+              <td>{{ t.wait_minutes }} min</td>
+              <td>{% if forloop.first %}{% status_chip "confirmed" "Next" %}{% else %}{% status_chip t.status t.get_status_display %}{% endif %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      {% include "components/empty_state.html" with icon_name="ticket" title="No one waiting" compact=True %}
+    {% endif %}
+    {% if skipped %}
+      <h3 class="mt-6 mb-2 text-body font-semibold">Skipped</h3>
+      <ul class="divide-y divide-line">
+        {% for t in skipped %}
+          <li class="flex items-center justify-between py-2">
+            <span><span class="font-mono font-semibold">{{ t.label }}</span> {{ t.patient.full_name }} <span class="text-label text-muted">skipped {{ t.skipped_at|time:"H:i" }}</span></span>
+            {% if can_operate %}<form method="post" action="{% url 'queue:requeue' t.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="btn btn-secondary btn-sm">Back in line</button></form>{% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+    <div class="mt-6 rounded-card bg-blue-soft p-4">
+      <p class="font-semibold">Token lifecycle</p>
+      <p class="text-label text-muted">Complete, skip, or start the current patient explicitly before calling the next one. Queue history is kept.</p>
+    </div>
+  </section>
+</div>
+{% if done %}
+<section class="card mt-6">
+  <h2 class="section-title mb-3">Seen today</h2>
+  <div class="flex flex-wrap gap-2">{% for t in done %}<span class="chip {% if t.status == 'completed' %}chip-success{% else %}chip-neutral{% endif %}">{{ t.label }} · {{ t.patient.full_name }}</span>{% endfor %}</div>
+</section>
+{% endif %}

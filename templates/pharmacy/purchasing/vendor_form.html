@@ -1,0 +1,24 @@
+{% extends "layouts/app.html" %}
+{% block title %}{% if creating %}New supplier{% else %}{{ vendor.name }}{% endif %}{% endblock %}
+{% block page_title %}{% if creating %}New supplier{% else %}Edit {{ vendor.name }}{% endif %}{% endblock %}
+{% block content %}
+<form method="post" novalidate class="card max-w-4xl">
+  {% csrf_token %}
+  {% for e in form.non_field_errors %}{% include "components/alert.html" with level="danger" message=e %}{% endfor %}
+  <div class="grid gap-5 md:grid-cols-2">
+    {% include "components/field.html" with field=form.name wide=True %}
+    {% include "components/field.html" with field=form.contact_person %}
+    {% include "components/field.html" with field=form.phone %}
+    {% include "components/field.html" with field=form.email %}
+    {% include "components/field.html" with field=form.tax_number %}
+    {% include "components/field.html" with field=form.address wide=True %}
+    {% include "components/field.html" with field=form.payment_terms_days %}
+    {% if form.opening_balance %}{% include "components/field.html" with field=form.opening_balance %}{% endif %}
+    {% include "components/field.html" with field=form.notes wide=True %}
+  </div>
+  <div class="mt-6 flex gap-3">
+    <button class="btn btn-primary">Save supplier</button>
+    <a href="{% if creating %}{% url 'pharmacy:vendor-list' %}{% else %}{% url 'pharmacy:vendor-detail' vendor.pk %}{% endif %}" class="btn btn-ghost">Cancel</a>
+  </div>
+</form>
+{% endblock %}

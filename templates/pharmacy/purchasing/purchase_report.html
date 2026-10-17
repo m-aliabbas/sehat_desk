@@ -1,0 +1,54 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}Purchase report{% endblock %}
+{% block page_title %}Purchase report{% endblock %}
+{% block page_subtitle %}{{ current_branch.name }} · goods received and returned {{ start|date:"d M Y" }} – {{ end|date:"d M Y" }}.{% endblock %}
+{% block page_actions %}<a href="?from={{ start|date:'Y-m-d' }}&to={{ end|date:'Y-m-d' }}&vendor={{ vendor_id }}&format=csv" class="btn btn-secondary">Export CSV</a>{% endblock %}
+{% block content %}
+{% if "pharmacy.inventory.manage" in sd_perms %}{% include "pharmacy/purchasing/_tabs.html" with active="report" %}{% endif %}
+<form method="get" class="card mb-6 flex flex-wrap items-end gap-3">
+  <div><label class="field-label" for="r-from">From</label><input id="r-from" type="date" name="from" value="{{ start|date:'Y-m-d' }}" class="input mt-1.5"></div>
+  <div><label class="field-label" for="r-to">To</label><input id="r-to" type="date" name="to" value="{{ end|date:'Y-m-d' }}" class="input mt-1.5"></div>
+  <div><label class="field-label" for="r-vendor">Supplier</label><select id="r-vendor" name="vendor" class="select mt-1.5"><option value="">All suppliers</option>{% for v in vendors %}<option value="{{ v.pk }}" {% if v.pk|stringformat:"s" == vendor_id %}selected{% endif %}>{{ v.name }}</option>{% endfor %}</select></div>
+  <button class="btn btn-primary">Show</button>
+</form>
+<div class="mb-6 grid gap-4 md:grid-cols-3">
+  <div class="stat-card bg-mint"><p class="text-body text-ink">Purchased</p><p class="mt-2 text-[28px] font-bold text-ink">{{ organization.currency }} {{ purchased|floatformat:"2g" }}</p><p class="text-label text-muted">{{ purchases|length }} purchase{{ purchases|length|pluralize }} · {{ units }} units bought</p></div>
+  <div class="stat-card bg-amber-soft"><p class="text-body text-ink">Returned to suppliers</p><p class="mt-2 text-[28px] font-bold text-ink">{{ organization.currency }} {{ returned|floatformat:"2g" }}</p><p class="text-label text-muted">{{ returns|length }} return{{ returns|length|pluralize }}</p></div>
+  <div class="stat-card bg-blue-soft"><p class="text-body text-ink">Net purchases</p><p class="mt-2 text-[28px] font-bold text-ink">{{ organization.currency }} {{ net|floatformat:"2g" }}</p></div>
+</div>
+<div class="grid gap-6 xl:grid-cols-3">
+  <section class="card">
+    <h2 class="section-title mb-3">By supplier</h2>
+    <ul class="divide-y divide-line">
+      {% for v in by_vendor %}<li class="py-2"><p class="flex justify-between font-medium"><span>{{ v.name }}</span><span>{{ v.net|floatformat:"2g" }}</span></p><p class="text-label text-muted">{{ v.count }} purchase{{ v.count|pluralize }} · {{ v.purchased|floatformat:"2g" }}{% if v.returned %} − {{ v.returned|floatformat:"2g" }} returned{% endif %}</p></li>
+      {% empty %}<li class="py-2 text-label text-muted">Nothing received in this period.</li>{% endfor %}
+    </ul>
+  </section>
+  <section class="card xl:col-span-2">
+    <h2 class="section-title mb-3">Purchases received</h2>
+    {% if purchases %}
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th scope="col">Received</th><th scope="col">Purchase</th><th scope="col">Supplier</th><th scope="col">Invoice</th><th scope="col" class="text-right">Total</th></tr></thead>
+        <tbody>
+          {% for p in purchases %}
+          <tr>
+            <td class="whitespace-nowrap">{{ p.received_at|date:"d M Y" }}</td>
+            <td>{% if "pharmacy.inventory.manage" in sd_perms %}<a class="font-mono hover:underline" href="{% url 'pharmacy:purchase-detail' p.pk %}">{{ p.number }}</a>{% else %}<span class="font-mono">{{ p.number }}</span>{% endif %}</td>
+            <td>{{ p.vendor }}</td>
+            <td>{{ p.supplier_invoice_number }}</td>
+            <td class="text-right">{{ p.grand_total|floatformat:"2g" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}<p class="text-label text-muted">No goods received in this period.</p>{% endif %}
+    {% if returns %}
+    <h3 class="mt-6 mb-2 font-semibold">Returns</h3>
+    <ul class="divide-y divide-line text-body">{% for r in returns %}<li class="flex justify-between py-2"><span>{{ r.created_at|date:"d M Y" }} · <span class="font-mono">{{ r.number }}</span> · {{ r.vendor }} · {{ r.reason }}</span><span>−{{ r.amount|floatformat:"2g" }}</span></li>{% endfor %}</ul>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

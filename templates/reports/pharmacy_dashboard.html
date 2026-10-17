@@ -1,0 +1,55 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}Pharmacy dashboard{% endblock %}
+{% block page_title %}Pharmacy at a glance{% endblock %}
+{% block page_subtitle %}{{ current_branch.name }} · {{ today|date:"l j F" }}.{% endblock %}
+{% block page_actions %}
+  {% if "pharmacy.sale" in sd_perms %}<a href="{% url 'pharmacy:pos' %}" class="btn btn-primary">{% icon "pill" "h-4 w-4" %} Open till</a>{% endif %}
+  {% if "pharmacy.inventory.manage" in sd_perms or "pharmacy.sale" in sd_perms %}<a href="{% url 'pharmacy:dashboard' %}" class="btn btn-secondary">Inventory</a>{% endif %}
+{% endblock %}
+{% block content %}
+<div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+  <div class="stat-card bg-mint">
+    <p class="text-body text-ink">Sales today</p>
+    <p class="mt-2 text-[32px] font-bold text-ink">{% if show_money %}{{ organization.currency }} {{ k.sales_total|floatformat:"0g" }}{% else %}{{ k.sales_count }}{% endif %}</p>
+    <p class="text-label text-muted">{{ k.sales_count }} completed sale{{ k.sales_count|pluralize }}</p>
+  </div>
+  <div class="stat-card bg-amber-soft"><p class="text-body text-ink">Low stock</p><p class="mt-2 text-[32px] font-bold text-ink">{{ k.low_stock }}</p><p class="text-label text-muted">At or below reorder level</p></div>
+  <div class="stat-card {% if k.out_of_stock %}bg-red-soft{% else %}bg-blue-soft{% endif %}"><p class="text-body text-ink">Out of stock</p><p class="mt-2 text-[32px] font-bold text-ink">{{ k.out_of_stock }}</p><p class="text-label text-muted">Stocked before, none saleable now</p></div>
+  <div class="stat-card bg-violet-soft"><p class="text-body text-ink">Near expiry</p><p class="mt-2 text-[32px] font-bold text-ink">{{ k.near_expiry }}</p><p class="text-label text-muted">Batches within 90 days</p></div>
+  <div class="stat-card {% if k.expired %}bg-red-soft{% else %}bg-mint{% endif %}"><p class="text-body text-ink">Expired on shelf</p><p class="mt-2 text-[32px] font-bold text-ink">{{ k.expired }}</p><p class="text-label text-muted">Batches to write off</p></div>
+</div>
+
+<div class="mt-6 grid gap-6 xl:grid-cols-3">
+  <section class="card xl:col-span-1">
+    <h2 class="section-title mb-3">Top products · last 30 days</h2>
+    {% if k.top_products %}
+    <ol class="divide-y divide-line">
+      {% for p in k.top_products %}
+      <li class="flex justify-between gap-3 py-2"><span>{{ p.product__brand_name }} {{ p.product__strength }}</span><span class="text-right font-medium whitespace-nowrap">{{ p.units }} units{% if show_money %}<span class="block text-label font-normal text-muted">{{ organization.currency }} {{ p.revenue|floatformat:"0g" }}</span>{% endif %}</span></li>
+      {% endfor %}
+    </ol>
+    {% else %}{% include "components/empty_state.html" with icon_name="pill" title="No sales in the last 30 days" compact=True %}{% endif %}
+  </section>
+  <section class="card">
+    <h2 class="section-title mb-3">Reorder now</h2>
+    {% if k.out_list or k.low_list %}
+    <ul class="divide-y divide-line">
+      {% for p in k.out_list %}<li class="flex justify-between gap-3 py-2"><span>{{ p.display_name }}</span>{% status_chip "failed" "Out of stock" %}</li>{% endfor %}
+      {% for p in k.low_list %}<li class="flex justify-between gap-3 py-2"><span>{{ p.display_name }}</span><span class="text-label text-muted whitespace-nowrap">{{ p.stock }} left · reorder at {{ p.reorder_level }}</span></li>{% endfor %}
+    </ul>
+    {% else %}{% include "components/empty_state.html" with icon_name="package" title="Stock levels are healthy" compact=True %}{% endif %}
+  </section>
+  <section class="card">
+    <h2 class="section-title mb-3">Expiring soon</h2>
+    {% if k.expiry_list %}
+    <ul class="divide-y divide-line">
+      {% for b in k.expiry_list %}<li class="flex justify-between gap-3 py-2"><span>{{ b.product.display_name }}<span class="block text-label text-muted">Batch {{ b.batch_number }} · {{ b.quantity_available }} units</span></span><span class="text-label whitespace-nowrap">{{ b.expiry_date|date:"d M Y" }}</span></li>{% endfor %}
+    </ul>
+    {% else %}{% include "components/empty_state.html" with icon_name="check-circle" title="Nothing expiring in 90 days" compact=True %}{% endif %}
+  </section>
+</div>
+{% if "reports.view" in sd_perms or "pharmacy.inventory.manage" in sd_perms %}
+<p class="mt-6 text-label text-muted">More detail: <a class="text-teal-deep hover:underline" href="{% url 'reports:report' 'current-stock' %}">Current stock</a> · <a class="text-teal-deep hover:underline" href="{% url 'reports:report' 'product-movement' %}">Product movement</a> · <a class="text-teal-deep hover:underline" href="{% url 'reports:report' 'expiry' %}">Expiry report</a></p>
+{% endif %}
+{% endblock %}

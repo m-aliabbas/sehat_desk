@@ -1,0 +1,9 @@
+{% extends "layouts/app.html" %}
+{% block title %}{{ module.label }}{% endblock %}
+{% block page_title %}{{ module.label }}{% endblock %}
+{% block page_subtitle %}This module is part of the SehatDesk build plan.{% endblock %}
+{% block content %}
+<section class="card">
+  {% include "components/empty_state.html" with icon_name=module.icon title="Coming in a later phase" message="This area is not built yet. It will appear here once its phase in the build checklist is complete." %}
+</section>
+{% endblock %}

@@ -1,0 +1,7 @@
+{% extends "layouts/auth.html" %}
+{% block title %}Access not assigned{% endblock %}
+{% block card %}
+<h1 class="section-title text-[22px]">Access not assigned</h1>
+{% include "components/alert.html" with level="info" message="Your account is signed in, but it has no active role in any active branch yet. Ask your hospital administrator to assign you a role." %}
+<form method="post" action="{% url 'accounts:logout' %}" class="mt-6">{% csrf_token %}<button class="btn btn-primary w-full">Back to sign in</button></form>
+{% endblock %}

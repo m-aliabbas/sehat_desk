@@ -1,0 +1,137 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}Doctor workspace{% endblock %}
+{% block page_title %}Doctor workspace{% endblock %}
+{% block page_subtitle %}{% if doctor %}{{ doctor }} · {{ doctor.department }}{% if current.room %} · {{ current.room }}{% endif %}{% else %}{{ organization.name }}{% endif %}{% endblock %}
+{% block page_actions %}<a href="{% url 'queue:doctor' %}" class="btn btn-secondary">{% icon "ticket" "h-4 w-4" %} Patient queue</a>{% endblock %}
+{% block content %}
+{% if not doctor %}
+  <section class="card">
+    {% include "components/empty_state.html" with icon_name="stethoscope" title="No doctor profile linked" message="The doctor workspace is for doctors. Ask an administrator to link your account to a doctor profile under Settings → Doctors." %}
+  </section>
+{% else %}
+<div class="mb-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+  <a href="{% url 'queue:doctor' %}" class="stat-card bg-mint hover:ring-2 hover:ring-teal/20">
+    <p class="text-body text-ink">Waiting</p>
+    <p class="mt-2 text-[32px] font-bold text-ink">{{ waiting_count }}</p>
+    <p class="text-label text-muted">{{ doctor.department }} queue</p>
+  </a>
+  <div class="stat-card bg-blue-soft">
+    <p class="text-body text-ink">Current token</p>
+    <p class="mt-2 font-mono text-[32px] font-bold text-ink">{{ current.label|default:"—" }}</p>
+    <p class="text-label text-muted">{% if current %}{{ current.patient.full_name }} · {{ current.get_status_display }}{% else %}No patient called{% endif %}</p>
+  </div>
+  <div class="stat-card bg-violet-soft">
+    <p class="text-body text-ink">Completed</p>
+    <p class="mt-2 text-[32px] font-bold text-ink">{{ completed_today }}</p>
+    <p class="text-label text-muted">Consultations signed today</p>
+  </div>
+  <a href="#drafts" class="stat-card bg-amber-soft hover:ring-2 hover:ring-amber/20">
+    <p class="text-body text-ink">Pending drafts</p>
+    <p class="mt-2 text-[32px] font-bold text-ink">{{ drafts|length }}</p>
+    <p class="text-label text-muted">Unsigned consultation notes</p>
+  </a>
+</div>
+
+{% if critical_results %}
+<section class="mb-6 rounded-card border border-red bg-red-soft p-4" role="alert">
+  <h2 class="flex items-center gap-2 font-semibold text-red">{% icon "alert-triangle" "h-5 w-5" %} Critical lab results for your patients</h2>
+  <ul class="mt-2 space-y-2 text-body">
+    {% for r in critical_results %}
+    <li class="flex flex-wrap items-center justify-between gap-2">
+      <span><a class="font-medium underline" href="{% url 'lab:order-detail' r.item.order_id %}">{{ r.item.order.patient.full_name }}</a> · {{ r.item.test_name }} <span class="font-bold">{{ r.display_value }} {{ r.unit }}</span> ({{ r.get_flag_display }}) · {{ r.entered_at|date:"d M H:i" }}</span>
+      <form method="post" action="{% url 'lab:acknowledge' r.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="btn btn-danger btn-sm">Acknowledge</button></form>
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+<div class="grid gap-6 xl:grid-cols-3">
+  <div class="space-y-6 xl:col-span-2">
+    <section class="card">
+      <h2 class="section-title mb-4">Current patient</h2>
+      {% if current %}
+        <div class="flex flex-wrap items-center justify-between gap-4 rounded-card bg-mint p-5">
+          <div>
+            <p class="font-mono text-[32px] leading-none font-bold text-teal">{{ current.label }}</p>
+            <p class="mt-2 text-section-title">{{ current.patient.full_name }}</p>
+            <p class="text-label text-muted">{{ current.patient.age_label }} · {{ current.patient.get_gender_display }} · <span class="font-mono">{{ current.patient.mrn }}</span>{% if current.appointment.reason %} · {{ current.appointment.reason }}{% endif %}</p>
+          </div>
+          {% if current_encounter %}
+            <a href="{% url 'encounters:detail' current_encounter.pk %}" class="btn btn-primary">Continue consultation</a>
+          {% elif can_write %}
+            <form method="post" action="{% url 'encounters:start' %}">{% csrf_token %}<input type="hidden" name="token" value="{{ current.pk }}"><button class="btn btn-primary">Start consultation</button></form>
+          {% endif %}
+        </div>
+      {% else %}
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <p class="text-body text-muted">No patient called.{% if waiting_count %} {{ waiting_count }} waiting.{% endif %}</p>
+          {% if can_write %}
+          <form method="post" action="{% url 'queue:call-next' %}">{% csrf_token %}<input type="hidden" name="doctor" value="{{ doctor.pk }}"><input type="hidden" name="next" value="{{ request.get_full_path }}">
+            <button class="btn btn-primary" {% if not waiting_count %}disabled{% endif %}>Call next{% if waiting %} · {{ waiting.0.label }}{% endif %}</button>
+          </form>
+          {% endif %}
+        </div>
+      {% endif %}
+    </section>
+
+    <section class="card">
+      <div class="card-header"><h2 class="section-title">Today's clinic</h2><a href="{% url 'queue:doctor' %}" class="text-label font-medium text-teal-deep hover:underline">Full queue →</a></div>
+      {% if waiting or appointments %}
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th scope="col">Token / time</th><th scope="col">Patient</th><th scope="col">Visit</th><th scope="col">Status</th></tr></thead>
+          <tbody>
+            {% for t in waiting %}
+              <tr>
+                <td class="font-mono font-semibold">{{ t.label }}</td>
+                <td>{{ t.patient.full_name }} <span class="font-mono text-label text-muted">{{ t.patient.mrn }}</span></td>
+                <td>{% if t.appointment %}{{ t.appointment.get_visit_type_display }}{% else %}Walk-in{% endif %} · waiting {{ t.wait_minutes }} min</td>
+                <td>{% if forloop.first %}{% status_chip "confirmed" "Next" %}{% else %}{% status_chip t.status t.get_status_display %}{% endif %}</td>
+              </tr>
+            {% endfor %}
+            {% for a in appointments %}{% if a.status == "scheduled" or a.status == "confirmed" %}
+              <tr>
+                <td>{{ a.start_time|time:"H:i" }}</td>
+                <td>{{ a.patient.full_name }} <span class="font-mono text-label text-muted">{{ a.patient.mrn }}</span></td>
+                <td>{{ a.get_visit_type_display }}{% if a.reason %} · {{ a.reason }}{% endif %}</td>
+                <td>{% status_chip a.status "Not arrived" %}</td>
+              </tr>
+            {% endif %}{% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+        {% include "components/empty_state.html" with icon_name="calendar" title="No patients waiting" message="Checked-in patients and today's appointments appear here." compact=True %}
+      {% endif %}
+    </section>
+  </div>
+
+  <div class="space-y-6">
+    <section class="card" id="drafts">
+      <h2 class="section-title mb-3">Pending drafts</h2>
+      <ul class="divide-y divide-line">
+        {% for e in drafts %}
+          <li class="py-3">
+            <a href="{% url 'encounters:detail' e.pk %}" class="font-medium hover:underline">{{ e.patient.full_name }}</a>
+            <p class="text-label text-muted"><span class="font-mono">{{ e.number }}</span> · {% if e.is_amendment %}amendment{% else %}started {{ e.started_at|date:"d M, H:i" }}{% endif %}</p>
+          </li>
+        {% empty %}<li class="py-2 text-label text-muted">No unsigned notes.</li>{% endfor %}
+      </ul>
+    </section>
+    <section class="card">
+      <h2 class="section-title mb-3">Follow-ups</h2>
+      <ul class="divide-y divide-line">
+        {% for e in follow_ups %}
+          <li class="flex items-start justify-between gap-3 py-3">
+            <span><a href="{% url 'patients:detail' e.patient.pk %}" class="font-medium hover:underline">{{ e.patient.full_name }}</a><span class="block text-label text-muted">{{ e.follow_up_instructions|truncatechars:60|default:e.number }}</span></span>
+            {% if e.follow_up_date < today %}<span class="chip chip-danger">Overdue {{ e.follow_up_date|date:"d M" }}</span>{% elif e.follow_up_date == today %}<span class="chip chip-warning">Today</span>{% else %}<span class="chip chip-info">{{ e.follow_up_date|date:"d M" }}</span>{% endif %}
+          </li>
+        {% empty %}<li class="py-2 text-label text-muted">No follow-ups due this week.</li>{% endfor %}
+      </ul>
+    </section>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

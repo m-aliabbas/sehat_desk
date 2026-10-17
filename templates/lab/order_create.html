@@ -1,0 +1,47 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}New lab order{% endblock %}
+{% block page_title %}New lab order{% endblock %}
+{% block page_subtitle %}Choose the patient and tests. An invoice is created for payment at any billing desk.{% endblock %}
+{% block content %}
+<form method="post" novalidate x-data="{ patientId: '{{ form.patient.value|default_if_none:'' }}', patientLabel: '{% if patient %}{{ patient.full_name|escapejs }} · {{ patient.mrn|escapejs }}{% endif %}', search: '' }"
+      @patient-picked="patientId = $event.detail.id; patientLabel = $event.detail.label; search = ''">
+  {% csrf_token %}
+  {% for e in form.non_field_errors %}{% include "components/alert.html" with level="danger" message=e %}{% endfor %}
+  <div class="grid gap-6 xl:grid-cols-[1fr_340px]">
+    <div class="space-y-6">
+      <section class="card">
+        <h2 class="section-title mb-4">1 · Patient</h2>
+        <input type="hidden" name="patient" :value="patientId">
+        <div x-show="patientId" class="flex items-center justify-between gap-3 rounded-control bg-mint p-3">
+          <span class="font-medium" x-text="patientLabel"></span>
+          <button type="button" class="btn btn-ghost btn-sm" @click="patientId = ''; patientLabel = ''">Change</button>
+        </div>
+        <div x-show="!patientId" class="relative">
+          <label class="field-label" for="patient-search">Find patient</label>
+          <input id="patient-search" type="search" class="input mt-1.5" placeholder="MRN, mobile, CNIC or name" autocomplete="off" x-model="search" name="q"
+                 hx-get="{% url 'patients:lookup' %}" hx-trigger="input changed delay:250ms" hx-target="#patient-results">
+          <div id="patient-results" class="absolute z-20 mt-1 w-full" x-show="search.length >= 2"></div>
+        </div>
+        {% if form.patient.errors %}<p class="field-error mt-2">Choose a patient.</p>{% endif %}
+      </section>
+      <section class="card">
+        <h2 class="section-title mb-4">2 · Tests</h2>
+        {% include "lab/_test_picker.html" %}
+      </section>
+    </div>
+    <aside class="space-y-6">
+      <section class="card">
+        <h2 class="section-title mb-4">3 · Details</h2>
+        <div class="space-y-4">
+          {% include "components/field.html" with field=form.priority %}
+          {% include "components/field.html" with field=form.doctor %}
+          {% include "components/field.html" with field=form.clinical_notes %}
+        </div>
+        <p class="mt-4 text-label text-muted">Urgent and STAT samples can be collected before payment. Routine samples wait for payment unless you record a reason.</p>
+        <div class="mt-5 flex gap-3"><button class="btn btn-primary">Create order</button><a href="{% url 'lab:worklist' %}" class="btn btn-secondary">Cancel</a></div>
+      </section>
+    </aside>
+  </div>
+</form>
+{% endblock %}

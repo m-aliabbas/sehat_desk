@@ -1,0 +1,8 @@
+{# {% include "print/_thermal_header.html" with org=request.organization branch=payment.branch unit="Pharmacy" doc_title="Payment receipt" %} #}
+<div class="text-center">
+  <p class="font-bold">{{ org.name }}</p>
+  <p class="text-label text-muted">{{ branch.name }}{% if unit %} · {{ unit }}{% endif %}</p>
+  {% with phone=branch.phone|default:org.phone %}{% if phone %}<p class="text-[10px] text-muted">{{ phone }}</p>{% endif %}{% endwith %}
+  {% if doc_title %}<p class="mt-2 text-label font-semibold uppercase">{{ doc_title }}</p>{% endif %}
+</div>
+<hr class="my-3 border-dashed border-line">

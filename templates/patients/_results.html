@@ -1,0 +1,34 @@
+{% load ui %}
+{% if page_obj.object_list %}
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th scope="col">Patient</th><th scope="col">MRN</th><th scope="col">Age / gender</th><th scope="col">Mobile</th><th scope="col">CNIC</th><th scope="col"><span class="sr-only">Open</span></th></tr></thead>
+      <tbody>
+        {% for p in page_obj %}
+          <tr>
+            <td><a href="{% url 'patients:detail' p.pk %}" class="flex items-center gap-3"><span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-mint text-label font-bold text-teal-deep">{{ p.initials }}</span><span class="font-medium hover:underline">{{ p.full_name }}</span></a></td>
+            <td class="font-mono text-label">{{ p.mrn }}</td>
+            <td>{{ p.age_label }} · {{ p.get_gender_display }}</td>
+            <td>{{ p.phone_display|default:"—" }}</td>
+            <td class="font-mono text-label">{{ p.cnic_display|default:"—" }}</td>
+            <td class="text-right"><a href="{% url 'patients:detail' p.pk %}" class="font-medium text-teal-deep hover:underline">Open →</a></td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% include "components/pagination.html" with page_obj=page_obj hx_target="#patient-results" %}
+{% elif q %}
+  {% url 'patients:register' as reg_url %}
+  {% include "components/empty_state.html" with icon_name="search" title="No patient found" message="Check the spelling or try the mobile number or CNIC. If the patient is new, register them." action_url=reg_url action_label="Register new patient" %}
+  {% if suggestions %}
+    <div class="mx-auto max-w-md">
+      <p class="mb-2 text-label font-medium text-muted">Did you mean</p>
+      <ul class="divide-y divide-line rounded-card border border-line">
+        {% for p in suggestions %}<li><a href="{% url 'patients:detail' p.pk %}" class="flex justify-between px-4 py-3 hover:bg-page"><span class="font-medium">{{ p.full_name }}</span><span class="font-mono text-label text-muted">{{ p.mrn }}</span></a></li>{% endfor %}
+      </ul>
+    </div>
+  {% endif %}
+{% else %}
+  {% include "components/empty_state.html" with icon_name="user" title="No patients yet" message="Registered patients appear here. Search first to avoid duplicate records." %}
+{% endif %}
