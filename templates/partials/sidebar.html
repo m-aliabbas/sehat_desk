@@ -9,7 +9,10 @@
   <div class="flex h-topbar items-center justify-between gap-2 px-6">
     <a href="{% url 'core:dashboard' %}" class="flex items-center gap-2 text-ink">
       {% if organization.logo %}<img src="{{ organization.logo.url }}" alt="" class="h-9 w-9 rounded-control object-contain">{% else %}<span class="text-teal">{% icon "heart-pulse" "h-9 w-9" %}</span>{% endif %}
-      <span class="text-[24px] font-bold tracking-tight">SehatDesk</span>
+      <span class="flex flex-col leading-tight">
+        <span class="text-[24px] font-bold tracking-tight">SehatDesk</span>
+        <span class="text-[11px] font-medium text-muted">by vibe.exe</span>
+      </span>
     </a>
     <button type="button" class="btn btn-ghost btn-icon lg:hidden" @click="sidebarOpen = false" aria-label="Close menu">
       {% icon "x" %}

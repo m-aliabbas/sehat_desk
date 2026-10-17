@@ -6,7 +6,10 @@
   <div class="w-full {% block width %}max-w-md{% endblock %}">
     <div class="mb-8 flex items-center justify-center gap-2 text-ink">
       <span class="text-teal">{% icon "heart-pulse" "h-10 w-10" %}</span>
-      <span class="text-[28px] font-bold tracking-tight">SehatDesk</span>
+      <span class="flex flex-col leading-tight">
+        <span class="text-[28px] font-bold tracking-tight">SehatDesk</span>
+        <span class="text-[12px] font-medium text-muted">by vibe.exe</span>
+      </span>
     </div>
     <div class="card p-8">
       {% block card %}{% endblock %}
