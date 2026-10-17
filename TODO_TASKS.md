@@ -33,7 +33,7 @@ Legend:
 - [x] Provision PostgreSQL. (optional via SEHATDESK_DATABASE_URL; full suite passes on PostgreSQL 16 locally and in CI; SQLite stays the default)
 - [x] Select ORM/query layer.
 - [x] Configure migrations.
-- [~] Configure seed framework. (permissions/default roles seeded; demo data in Phase 31)
+- [x] Configure seed framework. (permissions/default roles seeded; demo data: `seed_demo`, Phase 31)
 - [x] Add created_at / updated_at conventions.
 - [x] Add soft-delete/archive conventions.
 - [x] Define organization/tenant scoping standard.
@@ -1042,24 +1042,24 @@ Legend:
 
 # PHASE 31 — Demo Data (we will do this in future on demand)
 
-Create realistic demo data for:
-- [ ] 1 hospital.
-- [ ] 2 branches.
-- [ ] 5 departments.
-- [ ] 8 doctors.
-- [ ] 4 reception/cash users.
-- [ ] 2 lab users.
-- [ ] 2 pharmacy users.
-- [ ] 50 patients.
-- [ ] 30 appointments.
-- [ ] 20 completed consultations.
-- [ ] 15 prescriptions.
-- [ ] 20 lab orders.
-- [ ] 50 pharmacy products.
-- [ ] 100 stock batches/transactions.
-- [ ] 20 invoices/payments.
-- [ ] 10 IPD beds.
-- [ ] 3 active admissions.
+Create realistic demo data for: (`python manage.py seed_demo`; catalogue in `apps/core/demo_data.py`)
+- [x] 1 hospital.
+- [x] 2 branches.
+- [x] 5 departments.
+- [x] 8 doctors.
+- [x] 4 reception/cash users.
+- [x] 2 lab users.
+- [x] 2 pharmacy users.
+- [x] 50 patients.
+- [x] 30 appointments.
+- [x] 20 completed consultations.
+- [x] 15 prescriptions.
+- [x] 20 lab orders.
+- [x] 50 pharmacy products.
+- [x] 100 stock batches/transactions.
+- [x] 20 invoices/payments.
+- [x] 10 IPD beds.
+- [x] 3 active admissions.
 
 ---
 

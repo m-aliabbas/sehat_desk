@@ -510,3 +510,16 @@ Tooling:
 - Commands: `backup`, `backup --list | --verify FILE | --generate-key`, `restore FILE --yes` (server stopped;
   current files moved to `DATA_DIR/pre-restore-<timestamp>/`, then migrate).
 - CI restore drill (`test_backup.py`): plain and encrypted backup → data loss → restore → data back.
+
+## 22. Demo data (Phase 31)
+- `python manage.py seed_demo` loads "SehatDesk Demo Hospital": 2 branches (Main Campus, Gulberg Clinic),
+  5 departments, 8 doctors with weekly clinics, staff for every role (logins `demo.*`), 50 patients, lab
+  catalogue, 50 pharmacy products with suppliers and stock, 10 IPD beds. Catalogue: `apps/core/demo_data.py`.
+- It plays the last ~2 weeks through the real services (booking, tokens, vitals, consultations,
+  prescriptions, lab orders/results, billing, POS dispensing, admissions) with `timezone.now` moved to each
+  step's demo time, so dashboards and reports show history. Today has a doctor mid-consultation, a walk-in
+  waiting, lab desk work pending and 3 inpatients. Nothing is dated after the real time.
+- Safety: refuses if the demo hospital exists, or if any other hospital exists unless `--alongside`
+  (development only). Use it on an empty data folder, e.g. staging (`SEHATDESK_ENV_FILE=deploy/staging.env
+  python manage.py seed_demo` after migrate). One password for every demo login (random, or `--password`),
+  written to `DATA_DIR/DEMO_LOGIN.txt`, never printed.
