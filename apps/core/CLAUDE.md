@@ -11,6 +11,8 @@ management commands.
 - `features.py` — module switches (lab, pharmacy, ipd) for nav and URL namespaces.
 - `observability.py`, `monitoring.py` — request IDs, JSON logs, PHI redaction, error reports.
 - `security.py` — CSP and headers (no external hosts). `icons.py` — inline Lucide SVGs.
+- `pdf.py` — `weasyprint_html()`: loads WeasyPrint (adds Homebrew/MacPorts lib dirs on macOS),
+  None if unavailable. Every PDF export uses it.
 - `backup.py` — backup/restore (docs/BACKUP_AND_RECOVERY.md).
 - `demo_data.py` — catalogue for `seed_demo`.
 - `management/commands/` — `backup`, `restore`, `tailwind`, `loadtest`, `seed_demo`.

@@ -304,8 +304,9 @@ Tooling:
   unpaid invoice (`billing.void_unpaid`); paid ones must be refunded first.
   New permission `lab.catalog.manage` (Lab technician role gets it).
 - **PDF:** lab report `?format=pdf` uses WeasyPrint when its native libraries load; otherwise it shows
-  "use Print → Save as PDF". On this dev Mac WeasyPrint's GTK/Pango libraries are **not** installed
-  (`brew install pango` would fix it); Windows installers must bundle them (§3).
+  "use Print → Save as PDF". On macOS, Pango from `brew install pango` sits in /opt/homebrew/lib, which
+  conda/python.org Python does not search; `apps/core/pdf.py` adds the Homebrew/MacPorts lib folders to
+  DYLD_FALLBACK_LIBRARY_PATH before importing WeasyPrint. Windows installers must bundle them (§3).
 - **Pharmacy inventory (`apps/pharmacy`):** `Product` (links to Medicine), branch-scoped `InventoryBatch`,
   append-only `StockTransaction`. All stock changes go through `pharmacy/stock.py` (row lock, negative-stock
   check, ledger row in one transaction); `InventoryBatch.save()` refuses quantity edits and a DB check

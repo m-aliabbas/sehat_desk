@@ -16,6 +16,7 @@ from django.views.decorators.http import require_GET, require_POST
 
 from apps.accounts.decorators import has_perm, permission_required
 from apps.audit import services as audit
+from apps.core.pdf import weasyprint_html
 from apps.core.scoping import get_scoped_or_404, scoped
 from apps.documents.services import panel_context as document_panel
 from apps.encounters import services as encounter_services
@@ -664,9 +665,8 @@ def report(request, pk):
     audit.record(request, "lab.report.view", order, summary=order.number)
     if request.GET.get("format") == "pdf":
         html = render_to_string("lab/report.html", {**ctx, "pdf": True}, request=request)
-        try:
-            from weasyprint import HTML
-        except (ImportError, OSError):
+        HTML = weasyprint_html()
+        if HTML is None:
             messages.error(
                 request,
                 "PDF export needs the WeasyPrint system libraries on this computer. "

@@ -10,6 +10,8 @@ from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.text import slugify
 
+from apps.core.pdf import weasyprint_html
+
 FORMATS = ("csv", "xlsx", "pdf")
 
 
@@ -127,9 +129,8 @@ def to_xlsx(rdef, filters, result, organization) -> HttpResponse:
 def to_pdf(request, rdef, filters, result, context) -> HttpResponse:
     """A4 landscape PDF. Without WeasyPrint's native libraries, return the print page instead."""
     html = render_to_string("reports/print.html", {**context, "pdf": True}, request=request)
-    try:
-        from weasyprint import HTML
-    except (ImportError, OSError):
+    HTML = weasyprint_html()
+    if HTML is None:
         page = render_to_string(
             "reports/print.html", {**context, "pdf_unavailable": True}, request=request
         )
