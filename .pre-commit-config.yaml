@@ -21,7 +21,7 @@ repos:
         name: never commit .env files, databases or the data folder
         language: fail
         entry: "Local secrets/patient data must not be committed (see .gitignore)"
-        files: (^|/)\.env$|^deploy/.*\.env$|\.sqlite3$|^data(-staging)?/
+        files: (^|/)\.env$|^deploy/.*\.env$|\.sqlite3$|^data(-staging|-demo)?/
 
       - id: ruff-check
         name: ruff check

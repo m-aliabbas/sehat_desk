@@ -23,3 +23,5 @@ build/
 # Staging / production env files (templates are deploy/*.env.example)
 deploy/*.env
 data-staging/
+# Demo hospital data folder (manage.py seed_demo)
+data-demo/
