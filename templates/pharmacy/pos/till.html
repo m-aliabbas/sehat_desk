@@ -14,7 +14,7 @@
      @keydown.f4.window.prevent="document.getElementById('pos-hold')?.click()"
      @keydown.f8.window.prevent="document.getElementById('pos-pay')?.click()">
   <section class="card mb-6" x-data="{ q: '' }" @click.outside="q = ''">
-    <form hx-post="{% url 'pharmacy:pos-add' %}" hx-target="#pos-cart" hx-swap="outerHTML" @htmx:after-request="if ($event.detail.successful) { q = ''; $refs.search.value = '' }" class="flex flex-wrap items-end gap-3">
+    <form hx-post="{% url 'pharmacy:pos-add' %}" hx-target="#pos-cart" hx-swap="outerHTML" @htmx:after-request="if ($event.detail.successful && $event.detail.requestConfig.verb === 'post') { q = ''; $refs.search.value = '' }" class="flex flex-wrap items-end gap-3">
       {% csrf_token %}
       <div class="relative min-w-[16rem] flex-1">
         <label class="field-label" for="pos-search">Scan barcode / search product</label>
