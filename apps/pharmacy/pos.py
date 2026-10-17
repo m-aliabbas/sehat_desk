@@ -138,14 +138,24 @@ def _link_rx(sale, product, rx_item=None, substitution_reason=""):
     return rx_item, True, substitution_reason.strip()[:200]
 
 
+def _check_available(batch, quantity):
+    if quantity > batch.quantity_available:
+        raise PosError(
+            f"Only {batch.product.describe_quantity(batch.quantity_available)} left in batch "
+            f"{batch.batch_number}."
+        )
+
+
+def _check_loose(product, quantity):
+    if error := product.loose_sale_error(quantity):
+        raise PosError(error)
+
+
 def _put(sale, batch, quantity, **link) -> PharmacySaleItem:
     """Add units of one batch to the cart, merging with its existing line."""
     item = sale.items.filter(batch=batch).first()
     total = quantity + (item.quantity if item else 0)
-    if total > batch.quantity_available:
-        raise PosError(
-            f"Only {batch.quantity_available} unit(s) left in batch {batch.batch_number}."
-        )
+    _check_available(batch, total)
     if item:
         item.quantity = total
         update = ["quantity", "updated_at"]
@@ -176,6 +186,7 @@ def add_product(
         raise PosError("That product is not available.")
     if quantity <= 0:
         raise PosError("Enter a quantity greater than zero.")
+    _check_loose(product, quantity)
     rx_item, substituted, reason = _link_rx(sale, product, rx_item, substitution_reason)
     link = {"prescription_item": rx_item, "substituted": substituted,
             "substitution_reason": reason}  # fmt: skip
@@ -195,13 +206,17 @@ def add_product(
             break
     if remaining:
         have = quantity - remaining
-        raise PosError(f"Only {have} more unit(s) of {product} in saleable stock.")
+        raise PosError(
+            f"Only {have} more {product.unit_label(have)} of {product} in saleable stock."
+        )
     return [_put(sale, b, take, **link) for b, take in plan]
 
 
 def _lock_item(item, request) -> PharmacySaleItem:
     _lock_cart(item.sale, request)
-    return PharmacySaleItem.objects.select_related("batch", "sale").get(pk=item.pk)
+    return PharmacySaleItem.objects.select_related("batch__product", "sale", "product").get(
+        pk=item.pk
+    )
 
 
 @transaction.atomic
@@ -210,10 +225,8 @@ def set_quantity(item, *, request, quantity: int) -> PharmacySaleItem | None:
     if quantity <= 0:
         item.delete()  # an unpaid cart line; nothing financial or stock-related yet
         return None
-    if quantity > item.batch.quantity_available:
-        raise PosError(
-            f"Only {item.batch.quantity_available} unit(s) left in batch {item.batch.batch_number}."
-        )
+    _check_loose(item.product, quantity)
+    _check_available(item.batch, quantity)
     item.quantity = quantity
     item.save(update_fields=["quantity", "updated_at"])
     return item
@@ -229,10 +242,7 @@ def change_batch(item, *, request, batch) -> PharmacySaleItem:
     batch = InventoryBatch.objects.get(pk=batch.pk)
     other = item.sale.items.filter(batch=batch).first()
     quantity = item.quantity + (other.quantity if other else 0)
-    if quantity > batch.quantity_available:
-        raise PosError(
-            f"Only {batch.quantity_available} unit(s) left in batch {batch.batch_number}."
-        )
+    _check_available(batch, quantity)
     if other:
         other.delete()
     item.batch = batch
@@ -404,9 +414,11 @@ def checkout_problems(sale) -> list[str]:
             problems.append(f"Batch {item.batch.batch_number} of {item.product} has expired.")
         elif item.quantity > item.batch.quantity_available:
             problems.append(
-                f"Only {item.batch.quantity_available} unit(s) of {item.product} left in batch "
-                f"{item.batch.batch_number}."
+                f"Only {item.product.describe_quantity(item.batch.quantity_available)} of "
+                f"{item.product} left in batch {item.batch.batch_number}."
             )
+        if error := item.product.loose_sale_error(item.quantity):
+            problems.append(error)
     return problems
 
 
@@ -556,6 +568,11 @@ def prescription_lines(rx, branch) -> list[dict]:
         ]  # fmt: skip
         remaining = max(prescribed - dispensed, 0) if prescribed else (0 if dispensed else 1)
         in_stock = sum(p.stock for p in exact)
+        suggest = min(remaining, in_stock)
+        if len(exact) == 1 and exact[0].loose_sale_error(suggest):
+            # Whole packs only: round up to full packs, but no more than whole packs on hand.
+            size = exact[0].pack_size
+            suggest = min(-(-remaining // size) * size, in_stock // size * size)
         lines.append(
             {
                 "item": item,
@@ -565,7 +582,7 @@ def prescription_lines(rx, branch) -> list[dict]:
                 "exact": exact,
                 "substitutes": substitutes,
                 "in_stock": in_stock,
-                "suggest": min(remaining, in_stock),
+                "suggest": suggest,
                 "status": (
                     "done"
                     if remaining == 0
@@ -645,7 +662,10 @@ def return_items(sale, *, request, quantities: dict[int, int], reason: str):
             raise PosError("That item is not on this sale.")
         left = item.quantity - item.returned_quantity
         if qty < 0 or qty > left:
-            raise PosError(f"Only {left} unit(s) of {item.product} can still be returned.")
+            raise PosError(
+                f"Only {item.product.describe_quantity(left)} of {item.product} can still be "
+                "returned."
+            )
         try:
             txn = stock.sale_return(item.stock_txn, request=request, quantity=qty, reason=reason)
         except stock.StockError as err:

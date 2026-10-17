@@ -1,5 +1,5 @@
 {% extends "layouts/app.html" %}
-{% load ui %}
+{% load ui pharmacy %}
 {% block title %}Products{% endblock %}
 {% block page_title %}Medicine &amp; product catalogue{% endblock %}
 {% block page_subtitle %}Stock shown for {{ current_branch.name }} (saleable, unexpired batches).{% endblock %}
@@ -23,8 +23,8 @@
         <tr>
           <td><a href="{% url 'pharmacy:product-detail' p.pk %}" class="font-medium hover:underline">{{ p.display_name }}</a><p class="text-label text-muted">{{ p.generic_name|default:"—" }} · <span class="font-mono">{{ p.sku }}</span>{% if p.requires_prescription %} · Rx only{% endif %}</p></td>
           <td>{{ p.category|default:"—" }}</td>
-          <td class="text-right">{{ p.sale_price|floatformat:"2g" }}<p class="text-label text-muted">{{ p.get_unit_display|lower }}{% if p.pack_size > 1 %}, pack of {{ p.pack_size }}{% endif %}</p></td>
-          <td class="text-right font-semibold">{{ p.stock }}{% if p.expired_stock %}<p class="text-label font-normal text-red">+{{ p.expired_stock }} expired</p>{% endif %}</td>
+          <td class="text-right">{{ p.sale_price|floatformat:"2g" }}<p class="text-label text-muted">{{ p|unit_label }}{% if p.has_packs %}, {{ p|pack_label }} of {{ p.pack_size }}{% endif %}</p></td>
+          <td class="text-right font-semibold">{{ p.stock }}{% with packs=p.stock|as_packs:p %}{% if packs %}<p class="text-label font-normal text-muted">{{ packs }}</p>{% endif %}{% endwith %}{% if p.expired_stock %}<p class="text-label font-normal text-red">+{{ p.expired_stock }} expired</p>{% endif %}</td>
           <td>{% if not p.is_active %}{% status_chip "inactive" %}{% elif p.stock == 0 %}<span class="chip chip-danger">Out of stock</span>{% elif p.reorder_level and p.stock <= p.reorder_level %}<span class="chip chip-warning">Reorder</span>{% else %}<span class="chip chip-success">In stock</span>{% endif %}</td>
         </tr>
         {% endfor %}

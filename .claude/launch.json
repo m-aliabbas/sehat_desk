@@ -20,6 +20,19 @@
         "8011"
       ],
       "port": 8011
+    },
+    {
+      "name": "sehatdesk-demo",
+      "runtimeExecutable": "/opt/miniconda3/envs/agent_dev311/bin/python",
+      "runtimeArgs": [
+        "manage.py",
+        "runserver",
+        "8012"
+      ],
+      "env": {
+        "SEHATDESK_DATA_DIR": "data-demo"
+      },
+      "port": 8012
     }
   ]
 }

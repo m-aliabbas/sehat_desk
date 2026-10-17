@@ -18,8 +18,8 @@ class ProductForm(StyledFormMixin, forms.ModelForm):
         model = Product
         fields = [
             "brand_name", "generic_name", "strength", "medicine", "manufacturer", "category",
-            "sku", "barcode", "unit", "pack_size", "purchase_price", "sale_price",
-            "tax_percent", "reorder_level", "requires_prescription",
+            "sku", "barcode", "unit", "pack_size", "pack_unit", "allow_loose_sale",
+            "purchase_price", "sale_price", "tax_percent", "reorder_level", "requires_prescription",
         ]  # fmt: skip
         labels = {"sku": "SKU (blank = automatic)", "medicine": "Medicine master entry"}
 
@@ -27,6 +27,7 @@ class ProductForm(StyledFormMixin, forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.organization = request.organization
         self.fields["sku"].required = False
+        self.fields["pack_unit"].required = False
         self.fields["category"].queryset = scoped(ProductCategory, request)
         self.fields["medicine"].queryset = scoped(Medicine, request).filter(is_active=True)
 
@@ -44,6 +45,10 @@ class ProductForm(StyledFormMixin, forms.ModelForm):
         return self._unique(
             "sku", self.cleaned_data["sku"].strip().upper(), "Another product uses this SKU."
         )
+
+    def clean_pack_unit(self):
+        unit = self.cleaned_data.get("unit", "")
+        return self.cleaned_data["pack_unit"] or Product.PACK_FOR_UNIT.get(unit, "strip")
 
     def clean_barcode(self):
         return self._unique(

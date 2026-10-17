@@ -1,4 +1,4 @@
-{% load ui %}
+{% load ui pharmacy %}
 {# The till: cart lines and the sale summary. Every till action re-renders this block. #}
 <div id="pos-cart" class="grid gap-6 xl:grid-cols-3">
   <section class="card xl:col-span-2">
@@ -21,7 +21,7 @@
               {% if i.substituted %}<p class="text-label text-amber">Substitute — {{ i.substitution_reason }}</p>{% endif %}
               <p class="mt-1 flex flex-wrap gap-1">
                 {% if i.near_expiry %}<span class="chip chip-warning">Expires {{ i.batch.expiry_date|date:"d M Y" }}</span>{% endif %}
-                {% if i.low_after %}<span class="chip chip-neutral">Low stock: {{ i.left_after }} left</span>{% endif %}
+                {% if i.low_after %}<span class="chip chip-neutral">Low stock: {{ i.left_after|in_packs:i.product }} left</span>{% endif %}
               </p>
             </td>
             <td>
@@ -32,9 +32,11 @@
             </td>
             <td>
               <label class="sr-only" for="qty-{{ i.pk }}">Quantity of {{ i.product.display_name }}</label>
-              <input id="qty-{{ i.pk }}" name="quantity" type="number" min="0" value="{{ i.quantity }}" class="input w-20" hx-post="{% url 'pharmacy:pos-item' i.pk %}" hx-trigger="change" hx-target="#pos-cart" hx-swap="outerHTML">
+              <input id="qty-{{ i.pk }}" name="quantity" type="number" min="0" value="{{ i.quantity }}" {% if not i.product.allow_loose_sale and i.product.has_packs %}step="{{ i.product.pack_size }}"{% endif %} class="input w-20" hx-post="{% url 'pharmacy:pos-item' i.pk %}" hx-trigger="change" hx-target="#pos-cart" hx-swap="outerHTML">
+              <p class="mt-1 text-label text-muted whitespace-nowrap">{{ i.product|unit_label:i.quantity }}{% with packs=i.quantity|as_packs:i.product %}{% if packs %} · {{ packs }}{% endif %}{% endwith %}</p>
+              {% if i.product.has_packs %}<button type="button" class="btn btn-ghost btn-sm mt-1 px-1" hx-post="{% url 'pharmacy:pos-item' i.pk %}" hx-vals='{"quantity": "{{ i.quantity|add:i.product.pack_size }}"}' hx-target="#pos-cart" hx-swap="outerHTML">+1 {{ i.product|pack_label }}</button>{% endif %}
             </td>
-            <td class="text-right">{{ i.unit_price|floatformat:"2g" }}{% if i.tax_percent %}<p class="text-label text-muted">+{{ i.tax_percent|floatformat:"-2" }}% tax</p>{% endif %}</td>
+            <td class="text-right">{{ i.unit_price|floatformat:"2g" }}<p class="text-label text-muted">/ {{ i.product|unit_label }}</p>{% if i.tax_percent %}<p class="text-label text-muted">+{{ i.tax_percent|floatformat:"-2" }}% tax</p>{% endif %}</td>
             <td class="text-right font-medium">{{ i.line_total|floatformat:"2g" }}</td>
             <td class="text-right">
               <button type="button" class="btn btn-ghost btn-icon btn-sm text-red" aria-label="Remove {{ i.product.display_name }}" hx-post="{% url 'pharmacy:pos-item' i.pk %}" hx-vals='{"action": "remove"}' hx-target="#pos-cart" hx-swap="outerHTML">{% icon "trash" "h-4 w-4" %}</button>

@@ -26,6 +26,8 @@
     <div class="grid gap-5 md:grid-cols-3">
       {% include "components/field.html" with field=form.unit %}
       {% include "components/field.html" with field=form.pack_size %}
+      {% include "components/field.html" with field=form.pack_unit %}
+      {% include "components/field.html" with field=form.allow_loose_sale %}
       {% include "components/field.html" with field=form.reorder_level %}
       {% include "components/field.html" with field=form.purchase_price %}
       {% include "components/field.html" with field=form.sale_price %}

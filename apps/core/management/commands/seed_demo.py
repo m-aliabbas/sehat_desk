@@ -378,7 +378,8 @@ class Command(BaseCommand):
             self.products[sku] = Product.objects.create(
                 organization=self.org, sku=sku, brand_name=brand, generic_name=generic,
                 medicine=medicine, strength=strength, category=categories[cat], unit=unit,
-                pack_size=pack, sale_price=price, purchase_price=self.cost(price),
+                pack_size=pack, pack_unit=Product.PACK_FOR_UNIT.get(unit, "strip"),
+                sale_price=price, purchase_price=self.cost(price),
                 requires_prescription=rx, reorder_level=reorder,
                 barcode=f"8964{self.rng.randint(10**8, 10**9 - 1)}",
             )  # fmt: skip

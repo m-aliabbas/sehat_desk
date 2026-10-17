@@ -153,6 +153,48 @@ def test_quantity_batch_change_and_remove(req, panadol, stocked):
     assert not cart.items.exists()
 
 
+def test_units_of_measure_wording(panadol, augmentin):
+    assert panadol.describe_quantity(25) == "25 tablets (2 strips + 5)"
+    assert panadol.describe_quantity(20) == "20 tablets (2 strips)"
+    assert panadol.describe_quantity(5) == "5 tablets"
+    assert panadol.describe_quantity(1) == "1 tablet"
+    assert augmentin.describe_quantity(3) == "3 tablets"  # pack of 1: no pack wording
+    panadol.pack_unit = Product.PackUnit.BOX
+    assert panadol.pack_breakdown(10) == "1 box" and panadol.pack_breakdown(35) == "3 boxes + 5"
+    assert panadol.pack_price == D("30.00")
+
+
+def test_loose_tablets_from_a_strip(req, panadol, stocked):
+    """A strip holds 10; the customer takes 5 loose. Stock and price are per tablet."""
+    cart = pos.open_cart(req)
+    pos.add_product(cart, request=req, product=panadol, quantity=5)
+    assert pos.totals(cart)["grand_total"] == D("15.00")
+
+
+def test_whole_packs_only(req, panadol, stocked):
+    panadol.allow_loose_sale = False
+    panadol.save()
+    cart = pos.open_cart(req)
+    with pytest.raises(pos.PosError, match="whole strips of 10"):
+        pos.add_product(cart, request=req, product=panadol, quantity=5)
+    [item] = pos.add_product(cart, request=req, product=panadol, quantity=20, batch=stocked["late"])
+    with pytest.raises(pos.PosError, match="multiple of 10"):
+        pos.set_quantity(item, request=req, quantity=15)
+    pos.set_quantity(item, request=req, quantity=10)
+    assert not pos.checkout_problems(cart)
+
+
+def test_add_full_packs_from_the_till(client, pharmacist, panadol, stocked):
+    client.force_login(pharmacist)
+    client.post(
+        reverse("pharmacy:pos-add"), {"product": panadol.pk, "quantity": "2", "qty_unit": "pack"}
+    )
+    cart = PharmacySale.objects.get(status=Status.OPEN)
+    assert pos.totals(cart)["units"] == 20
+    resp = client.get(reverse("pharmacy:pos"))
+    assert "1 strip + 5" in resp.content.decode()  # 5 from the first-expiry batch, 15 next
+
+
 def test_expired_batch_is_never_offered_or_sold(req, panadol, stocked):
     InventoryBatch.objects.filter(pk=stocked["early"].pk).update(
         expiry_date=TODAY - timedelta(days=1)

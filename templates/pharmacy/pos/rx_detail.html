@@ -1,5 +1,5 @@
 {% extends "layouts/app.html" %}
-{% load ui %}
+{% load ui pharmacy %}
 {% block title %}{{ rx.number }}{% endblock %}
 {% block page_title %}Prescription {{ rx.number }}{% endblock %}
 {% block page_subtitle %}{{ rx.patient.full_name }} · {{ rx.patient.mrn }} · {{ rx.doctor }} · signed {{ rx.signed_at|date:"d M Y, H:i" }}{% endblock %}
@@ -40,8 +40,8 @@
             <label class="field-label" for="product_{{ item.pk }}">Product</label>
             <select id="product_{{ item.pk }}" name="product_{{ item.pk }}" class="select mt-1" x-model="product">
               <option value="">— Do not dispense now —</option>
-              {% if l.exact %}<optgroup label="Prescribed">{% for p in l.exact %}<option value="{{ p.pk }}" {% if not p.stock %}disabled{% endif %}>{{ p.display_name }} · {{ p.stock }} in stock · {{ p.sale_price|floatformat:"2g" }}</option>{% endfor %}</optgroup>{% endif %}
-              {% if l.substitutes %}<optgroup label="Same generic (substitute)">{% for p in l.substitutes %}<option value="{{ p.pk }}" {% if not p.stock %}disabled{% endif %}>{{ p.display_name }} · {{ p.stock }} in stock · {{ p.sale_price|floatformat:"2g" }}</option>{% endfor %}</optgroup>{% endif %}
+              {% if l.exact %}<optgroup label="Prescribed">{% for p in l.exact %}<option value="{{ p.pk }}" {% if not p.stock %}disabled{% endif %}>{{ p.display_name }} · {{ p.stock|in_packs:p }} in stock · {{ p.sale_price|floatformat:"2g" }}/{{ p|unit_label }}{% if not p.allow_loose_sale and p.has_packs %} · whole {{ p|pack_label:2 }} of {{ p.pack_size }} only{% endif %}</option>{% endfor %}</optgroup>{% endif %}
+              {% if l.substitutes %}<optgroup label="Same generic (substitute)">{% for p in l.substitutes %}<option value="{{ p.pk }}" {% if not p.stock %}disabled{% endif %}>{{ p.display_name }} · {{ p.stock|in_packs:p }} in stock · {{ p.sale_price|floatformat:"2g" }}/{{ p|unit_label }}{% if not p.allow_loose_sale and p.has_packs %} · whole {{ p|pack_label:2 }} of {{ p.pack_size }} only{% endif %}</option>{% endfor %}</optgroup>{% endif %}
             </select>
           </div>
           <div class="md:col-span-2">

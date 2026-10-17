@@ -10,6 +10,8 @@ must work offline on the hospital LAN (no CDNs, fonts or icons from other hosts;
   `layouts/auth.html`; error pages `layouts/error.html`.
 - Load `{% load ui %}` for `{% icon "name" "h-4 w-4" %}`, `{% status_chip status label %}` and the
   `initials`, `get_item`, `sum_values` filters (`apps/core/templatetags/ui.py`).
+  Pharmacy quantities: `{% load pharmacy %}` → `{{ qty|in_packs:product }}` ("25 tablets (2 strips + 5)"),
+  `as_packs`, `unit_label`, `pack_label` (`apps/pharmacy/templatetags/pharmacy.py`).
 - Folder per app (`templates/<app>/`). Partials returned to htmx requests start with `_`
   (e.g. `procedures/_encounter_panel.html`).
 - Shared pieces: `components/` (alert, drawer_base, modal_base, empty_state, error_state, field,

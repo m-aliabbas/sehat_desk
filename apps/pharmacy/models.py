@@ -47,6 +47,20 @@ class Product(OrgScopedModel):
         PIECE = "piece", "Piece"
         PACK = "pack", "Pack"
 
+    class PackUnit(models.TextChoices):
+        STRIP = "strip", "Strip"
+        BOX = "box", "Box"
+        BOTTLE = "bottle", "Bottle"
+        PACK = "pack", "Pack"
+        TUBE = "tube", "Tube"
+        CARTON = "carton", "Carton"
+
+    # What a pack of each base unit is usually called (tablets come in strips, vials in boxes).
+    PACK_FOR_UNIT = {
+        "bottle": "bottle", "tube": "tube", "inhaler": "box", "vial": "box",
+        "ampoule": "box", "sachet": "box", "piece": "pack", "pack": "pack",
+    }  # fmt: skip
+
     sku = models.CharField("SKU", max_length=30)
     barcode = models.CharField(max_length=40, blank=True)
     brand_name = models.CharField(max_length=120)
@@ -69,6 +83,14 @@ class Product(OrgScopedModel):
     )
     pack_size = models.PositiveIntegerField(
         default=1, help_text="Base units in one pack/strip/box, e.g. 10 tablets."
+    )
+    pack_unit = models.CharField(
+        max_length=10, choices=PackUnit.choices, default=PackUnit.STRIP,
+        help_text="What one pack is called, e.g. strip or box.",
+    )  # fmt: skip
+    allow_loose_sale = models.BooleanField(
+        default=True,
+        help_text="Can be sold loose (e.g. 5 tablets from a strip of 10). Off = whole packs only.",
     )
     purchase_price = models.DecimalField(
         **money, default=Decimal("0"), help_text="Default cost per unit."
@@ -105,6 +127,53 @@ class Product(OrgScopedModel):
     @property
     def display_name(self) -> str:
         return " ".join(p for p in [self.brand_name, self.strength] if p)
+
+    # --- Units of measure: stock is counted in the base unit; a pack holds pack_size of them.
+
+    def unit_label(self, count: int = 1) -> str:
+        return _plural(self.get_unit_display().lower(), count)
+
+    def pack_label(self, count: int = 1) -> str:
+        return _plural(self.get_pack_unit_display().lower(), count)
+
+    @property
+    def has_packs(self) -> bool:
+        return self.pack_size > 1
+
+    @property
+    def pack_price(self) -> Decimal:
+        return (self.sale_price * self.pack_size).quantize(Decimal("0.01"))
+
+    def pack_breakdown(self, quantity: int) -> str:
+        """Base units as packs: 25 -> "2 strips + 5"; "" when under one pack."""
+        if not self.has_packs:
+            return ""
+        packs, loose = divmod(abs(quantity or 0), self.pack_size)
+        if not packs:
+            return ""
+        return f"{packs} {self.pack_label(packs)}" + (f" + {loose}" if loose else "")
+
+    def describe_quantity(self, quantity: int) -> str:
+        """Base units in words: "25 tablets (2 strips + 5)", "5 tablets"."""
+        quantity = quantity or 0
+        text = f"{quantity} {self.unit_label(quantity)}"
+        packs = self.pack_breakdown(quantity)
+        return f"{text} ({packs})" if packs else text
+
+    def loose_sale_error(self, quantity: int) -> str:
+        """Why this quantity cannot be sold, or "" when it can."""
+        if self.allow_loose_sale or not self.has_packs or quantity % self.pack_size == 0:
+            return ""
+        return (
+            f"{self} is sold in whole {self.pack_label(2)} of {self.pack_size} "
+            f"{self.unit_label(self.pack_size)} only. Enter a multiple of {self.pack_size}."
+        )
+
+
+def _plural(word: str, count: int) -> str:
+    if abs(count) == 1:
+        return word
+    return word + ("es" if word.endswith(("s", "x", "ch", "sh")) else "s")
 
 
 class InventoryBatch(BranchScopedModel):

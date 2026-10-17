@@ -86,6 +86,9 @@ Goal: a customer installs one package, gets a desktop shortcut, double-clicks it
 - Procedures (Phase 33) reuse Settings → Services (`is_procedure`, `price_editable`). A per-patient price needs `procedure.price.override` and a reason; the list price is kept.
 - Doctor commission (Phase 35) is earned only when a bill is fully paid, and reversed in proportion to refunds. Rows are append-only and keep the rate they were earned at. `InvoiceItem.performed_by` names the doctor (consultation, procedure, or referring doctor for lab).
 - Payroll deducts only days explicitly marked absent (half for a half day); unmarked days are paid, so clinics that do not mark attendance still pay full salaries. Finalizing locks that month's attendance.
+- Pharmacy units of measure: one base unit per product (stock, price, ledger); packs are a display and
+  entry convenience (`pack_size`, `pack_unit`), with an optional "whole packs only" switch. No separate pack
+  price, so a loose tablet always costs pack price ÷ pack size.
 - P&L (Phase 36) is accrual: income by invoice issue date, before tax, invoice discounts shared across lines; refunds on the day given. Salaries count for each month the period touches, from finalized payroll only. Segments: Doctors/OPD, Laboratory, Pharmacy, Hospital (system).
 
 ## 7. Repository layout and conventions (Phase 0, updated Phase 1)
@@ -337,6 +340,14 @@ Tooling:
 - **Returns:** per-line quantities up to sold − already returned; stock goes back to the original batch
   (`stock.sale_return`), money is refunded from the original payment(s) pro rata to any sale discount.
   Returned packs are restocked; damaged ones must be written off from Inventory.
+- **Units of measure (loose sale):** stock, prices and sale lines stay in the product's base unit
+  (tablet, capsule, bottle...). `Product.pack_size` + `pack_unit` (strip, box, bottle, pack, tube, carton)
+  name the pack, so a strip of 10 can be sold whole or 5 tablets loose; both come off the same stock.
+  The till's "Sold as" picker adds full packs (qty × pack size); quantities are shown as
+  "25 tablets (2 strips + 5)" (`Product.describe_quantity`, `{% load pharmacy %}` filters `in_packs` /
+  `as_packs`). `Product.allow_loose_sale = False` makes the till refuse anything but whole packs
+  (`Product.loose_sale_error`), and prescription suggestions round up to whole packs. Receiving and
+  purchases already took packs + loose units.
 - **Receipt:** `/pharmacy/sales/<id>/receipt/`, 80 mm. Keyboard on the till: F2 search, F4 hold, F8 pay.
 - **Purchasing (`apps/pharmacy/purchasing.py`, screens under `/inventory/`):** `Vendor` (org-wide),
   `Purchase` (branch): draft → ordered (optional) → received, or cancelled before receipt. Lines carry

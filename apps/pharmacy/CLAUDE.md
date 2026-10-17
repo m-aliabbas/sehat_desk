@@ -11,14 +11,18 @@ PRD §9. Phases 12–14. PROJECT_NOTES §12–13.
   `prescription_lines`, `close_prescription`.
 - `purchasing.py` — suppliers and purchases: `create_purchase`, `add_item`, `mark_ordered`,
   `receive` (posts stock + supplier ledger), `cancel`, `return_items`, `post_opening_balance`.
-- `models.py` — `Product` (base unit, pack size, reorder level, link to `prescriptions.Medicine`),
+- `models.py` — `Product` (base unit, pack size + pack unit, `allow_loose_sale`, reorder level,
+  link to `prescriptions.Medicine`; `describe_quantity`/`pack_breakdown`/`loose_sale_error`),
   `InventoryBatch`, `StockTransaction` (ledger), `PharmacySale`, `Vendor`, `Purchase`,
   `VendorLedgerEntry`.
 - Views split: `views.py` (inventory), `views_pos.py` (till, htmx), `views_purchasing.py`.
+- `templatetags/pharmacy.py` — `in_packs`, `as_packs`, `unit_label`, `pack_label` filters.
 
 ## Rules
 - Quantities are in the product's base unit. Every change locks the batch and writes a
   `StockTransaction`; balances must equal the ledger sum. No negative stock, no selling expired.
+- Loose sale: a pack (strip/box) can be split; the till's "Sold as: full pack" multiplies by
+  `pack_size`. If `allow_loose_sale` is off, the POS service refuses non-multiples of `pack_size`.
 - Checkout is all-or-nothing: stock-out, invoice, payments in one transaction; paid in full.
 - Prescription-only products need an attached prescription line.
 - Discounts need `pharmacy.discount` (not in the default pharmacist role).

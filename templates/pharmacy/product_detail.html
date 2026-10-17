@@ -1,5 +1,5 @@
 {% extends "layouts/app.html" %}
-{% load ui %}
+{% load ui pharmacy %}
 {% block title %}{{ product.display_name }}{% endblock %}
 {% block page_title %}{{ product.display_name }}{% endblock %}
 {% block page_subtitle %}{{ product.generic_name|default:"No generic name" }} · <span class="font-mono">{{ product.sku }}</span>{% if product.barcode %} · barcode {{ product.barcode }}{% endif %}{% if product.manufacturer %} · {{ product.manufacturer }}{% endif %}{% endblock %}
@@ -9,9 +9,9 @@
 {% endblock %}
 {% block content %}
 <div class="mb-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-  <div class="stat-card {% if on_hand == 0 %}bg-red-soft{% elif product.reorder_level and on_hand <= product.reorder_level %}bg-amber-soft{% else %}bg-mint{% endif %}"><p class="text-body text-ink">Saleable stock</p><p class="mt-2 text-[28px] font-bold text-ink">{{ on_hand }}</p><p class="text-label text-muted">{{ product.get_unit_display|lower }}s · reorder at {{ product.reorder_level }}</p></div>
+  <div class="stat-card {% if on_hand == 0 %}bg-red-soft{% elif product.reorder_level and on_hand <= product.reorder_level %}bg-amber-soft{% else %}bg-mint{% endif %}"><p class="text-body text-ink">Saleable stock</p><p class="mt-2 text-[28px] font-bold text-ink">{{ on_hand }}</p><p class="text-label text-muted">{{ product|unit_label:on_hand }}{% with packs=on_hand|as_packs:product %}{% if packs %} ({{ packs }}){% endif %}{% endwith %} · reorder at {{ product.reorder_level }}</p></div>
   <div class="stat-card bg-blue-soft"><p class="text-body text-ink">Next to dispense (FEFO)</p><p class="mt-2 text-[22px] font-bold text-ink">{{ next_batch.batch_number|default:"—" }}</p><p class="text-label text-muted">{% if next_batch %}expires {{ next_batch.expiry_date|date:"d M Y" }}{% else %}No saleable batch{% endif %}</p></div>
-  <div class="stat-card bg-violet-soft"><p class="text-body text-ink">Price</p><p class="mt-2 text-[22px] font-bold text-ink">{{ organization.currency }} {{ product.sale_price|floatformat:"2g" }}</p><p class="text-label text-muted">per {{ product.get_unit_display|lower }}{% if product.pack_size > 1 %} · pack of {{ product.pack_size }}{% endif %}</p></div>
+  <div class="stat-card bg-violet-soft"><p class="text-body text-ink">Price</p><p class="mt-2 text-[22px] font-bold text-ink">{{ organization.currency }} {{ product.sale_price|floatformat:"2g" }}</p><p class="text-label text-muted">per {{ product|unit_label }}{% if product.has_packs %} · {{ product.pack_price|floatformat:"2g" }} per {{ product|pack_label }} of {{ product.pack_size }}{% if not product.allow_loose_sale %} · whole {{ product|pack_label:2 }} only{% endif %}{% endif %}</p></div>
   <div class="stat-card bg-page"><p class="text-body text-ink">Medicine master</p><p class="mt-2 text-body font-semibold text-ink">{{ product.medicine|default:"Not linked" }}</p><p class="text-label text-muted">{% if product.requires_prescription %}Prescription only{% else %}Over the counter{% endif %}</p></div>
 </div>
 

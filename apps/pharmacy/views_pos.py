@@ -162,6 +162,8 @@ def add(request):
             )
     if product is None:
         return _cart_reply(request, error="Choose a product.")
+    if request.POST.get("qty_unit") == "pack":
+        quantity *= product.pack_size
     try:
         cart = pos.open_cart(request)
         pos.add_product(cart, request=request, product=product, quantity=quantity)

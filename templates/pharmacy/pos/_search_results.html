@@ -1,18 +1,19 @@
-{% load ui %}
+{% load ui pharmacy %}
 {% if results %}
   <ul class="divide-y divide-line overflow-hidden rounded-card border border-line bg-white shadow-lg" role="listbox">
     {% for p in results %}
       <li role="option">
         <button type="button" class="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-mint/50 disabled:cursor-not-allowed disabled:opacity-60"
-                hx-post="{% url 'pharmacy:pos-add' %}" hx-vals='{"product": "{{ p.pk }}"}' hx-include="#pos-qty" hx-target="#pos-cart" hx-swap="outerHTML"
+                hx-post="{% url 'pharmacy:pos-add' %}" hx-vals='{"product": "{{ p.pk }}"}' hx-include="#pos-qty, #pos-qty-unit" hx-target="#pos-cart" hx-swap="outerHTML"
                 {% if not p.stock %}disabled{% endif %}>
           <span>
             <span class="font-medium">{{ p.display_name }}</span>{% if p.requires_prescription %} <span class="chip chip-warning">Rx only</span>{% endif %}
             <span class="block text-label text-muted">{{ p.generic_name|default:"—" }} · {{ p.sku }}{% if p.barcode %} · {{ p.barcode }}{% endif %}</span>
           </span>
           <span class="text-right">
-            <span class="block font-semibold">{{ organization.currency }} {{ p.sale_price|floatformat:"2g" }}</span>
-            <span class="block text-label {% if not p.stock %}text-red{% elif p.reorder_level and p.stock <= p.reorder_level %}text-amber{% else %}text-muted{% endif %}">{% if p.stock %}{{ p.stock }} in stock{% else %}Out of stock{% endif %}</span>
+            <span class="block font-semibold">{{ organization.currency }} {{ p.sale_price|floatformat:"2g" }} <span class="text-label font-normal text-muted">/ {{ p|unit_label }}</span></span>
+            {% if p.has_packs %}<span class="block text-label text-muted">{{ p.pack_price|floatformat:"2g" }} / {{ p|pack_label }} of {{ p.pack_size }}{% if not p.allow_loose_sale %} · whole {{ p|pack_label:2 }} only{% endif %}</span>{% endif %}
+            <span class="block text-label {% if not p.stock %}text-red{% elif p.reorder_level and p.stock <= p.reorder_level %}text-amber{% else %}text-muted{% endif %}">{% if p.stock %}{{ p.stock|in_packs:p }} in stock{% else %}Out of stock{% endif %}</span>
           </span>
         </button>
       </li>

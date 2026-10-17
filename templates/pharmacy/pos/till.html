@@ -27,6 +27,13 @@
         <label class="field-label" for="pos-qty">Qty</label>
         <input id="pos-qty" name="quantity" type="number" min="1" value="1" class="input mt-1.5">
       </div>
+      <div class="w-48">
+        <label class="field-label" for="pos-qty-unit">Sold as</label>
+        <select id="pos-qty-unit" name="qty_unit" class="select mt-1.5">
+          <option value="unit">Loose units</option>
+          <option value="pack">Full packs (strip, box)</option>
+        </select>
+      </div>
       <button class="btn btn-primary">{% icon "plus" "h-4 w-4" %} Add</button>
     </form>
   </section>

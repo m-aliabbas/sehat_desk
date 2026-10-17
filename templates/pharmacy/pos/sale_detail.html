@@ -1,5 +1,5 @@
 {% extends "layouts/app.html" %}
-{% load ui %}
+{% load ui pharmacy %}
 {% block title %}{{ sale.number }}{% endblock %}
 {% block page_title %}Sale {{ sale.number }}{% endblock %}
 {% block page_subtitle %}{{ sale.bill_to }} · {{ sale.completed_at|date:"j F Y, H:i" }} · {{ sale.cashier }}{% endblock %}
@@ -29,7 +29,7 @@
               {% if i.substituted %}<p class="text-label text-amber">Substitute — {{ i.substitution_reason }}</p>{% endif %}
               {% if i.returned %}<p class="text-label text-red">{{ i.returned }} returned</p>{% endif %}</td>
             <td class="font-mono text-label">{{ i.batch.batch_number }}<p class="text-muted">exp {{ i.batch.expiry_date|date:"m/Y" }}</p></td>
-            <td class="text-right">{{ i.quantity }}</td>
+            <td class="text-right">{{ i.quantity|in_packs:i.product }}</td>
             <td class="text-right">{{ i.unit_price|floatformat:"2g" }}</td>
             <td class="text-right">{{ i.line_total|floatformat:"2g" }}</td>
           </tr>

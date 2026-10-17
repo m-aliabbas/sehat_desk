@@ -1,4 +1,5 @@
 {% extends "print/thermal.html" %}
+{% load pharmacy %}
 {% block title %}Receipt {{ sale.number }}{% endblock %}
 {% block print_label %}Print receipt{% endblock %}
 {% block document %}
@@ -18,7 +19,7 @@
         {% for i in items %}
         <tr class="align-top">
           <td class="pt-1">{{ i.product.display_name }}<br><span class="text-[10px] text-muted">B {{ i.batch.batch_number }} · exp {{ i.batch.expiry_date|date:"m/Y" }} · {{ i.unit_price|floatformat:"2g" }}</span></td>
-          <td class="pt-1 text-right">{{ i.quantity }}</td>
+          <td class="pt-1 text-right">{{ i.quantity }}{% with packs=i.quantity|as_packs:i.product %}{% if packs %}<br><span class="text-[10px] text-muted">{{ packs }}</span>{% endif %}{% endwith %}</td>
           <td class="pt-1 text-right">{{ i.line_total|floatformat:"2g" }}</td>
         </tr>
         {% endfor %}
