@@ -21,6 +21,9 @@ urlpatterns = [
     path("", include("apps.notifications.urls")),
     path("", include("apps.reports.urls")),
     path("", include("apps.search.urls")),
+    path("", include("apps.procedures.urls")),
+    path("", include("apps.hr.urls")),
+    path("", include("apps.finance.urls")),
     path("", include("apps.audit.urls")),
     path("", include("apps.core.urls")),
     # Uploaded files (logos now, documents later). There is no separate web server on the

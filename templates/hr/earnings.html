@@ -1,0 +1,37 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}My earnings{% endblock %}
+{% block page_title %}My earnings{% endblock %}
+{% block page_subtitle %}Commission is earned when the patient's bill is fully paid, and reversed if it is refunded.{% endblock %}
+{% block content %}
+{% include "hr/_tabs.html" with hr_tab="earnings" %}
+<div class="mb-6 grid gap-4 md:grid-cols-2">
+  <div class="stat-card bg-mint"><p class="text-body text-ink">Commission not yet in payroll</p><p class="mt-2 text-[28px] font-bold">{{ organization.currency }} {{ unsettled|floatformat:"2g" }}</p></div>
+  <div class="stat-card bg-blue-soft"><p class="text-body text-ink">Balance owed to me</p><p class="mt-2 text-[28px] font-bold">{{ organization.currency }} {{ balance|floatformat:"2g" }}</p><p class="text-label text-muted">After finalized payroll and payouts</p></div>
+</div>
+<div class="grid gap-6 xl:grid-cols-3">
+  <section class="card xl:col-span-2">
+    <h2 class="section-title mb-4">Commission</h2>
+    {% if page_obj.object_list %}
+    <div class="table-wrap"><table class="table">
+      <thead><tr><th scope="col">Date</th><th scope="col">Bill line</th><th scope="col" class="text-right">Line amount</th><th scope="col" class="text-right">Rate</th><th scope="col" class="text-right">My share</th><th scope="col">Status</th></tr></thead>
+      <tbody>{% for e in page_obj %}
+        <tr><td>{{ e.created_at|date:"d M Y" }}</td><td>{{ e.invoice_item.description }}<p class="font-mono text-label text-muted">{{ e.invoice.number }}{% if e.kind == "adjustment" %} · adjustment{% endif %}</p></td>
+          <td class="text-right">{% if e.basis %}{{ e.basis|floatformat:"2g" }}{% else %}—{% endif %}</td>
+          <td class="text-right">{{ e.percent|floatformat:"-2" }}%{% if e.fixed_amount %} + {{ e.fixed_amount|floatformat:"2g" }}{% endif %}</td>
+          <td class="text-right font-semibold {% if e.amount < 0 %}text-red{% endif %}">{{ e.amount|floatformat:"2g" }}</td>
+          <td>{% if e.payslip_id %}<span class="chip chip-success">In payroll</span>{% else %}<span class="chip chip-warning">Pending</span>{% endif %}</td></tr>
+      {% endfor %}</tbody></table></div>
+    {% include "components/pagination.html" with page_obj=page_obj %}
+    {% else %}{% include "components/empty_state.html" with icon_name="credit-card" title="No commission yet" message="Your share appears here once a bill you are named on is fully paid." compact=True %}{% endif %}
+  </section>
+  <div class="space-y-6">
+    <section class="card"><h2 class="section-title mb-3">Payslips</h2>
+      <ul class="divide-y divide-line">{% for s in payslips %}<li class="flex justify-between py-2"><span>{{ s.run.label }}</span><a href="{% url 'hr:payslip-print' s.pk %}" target="_blank" class="font-semibold hover:underline">{{ s.net_pay|floatformat:"2g" }}</a></li>{% empty %}<li class="text-label text-muted">No finalized payslips.</li>{% endfor %}</ul>
+    </section>
+    <section class="card"><h2 class="section-title mb-3">Ledger</h2>
+      <ul class="divide-y divide-line text-label">{% for l in ledger %}<li class="flex justify-between py-1.5"><span>{{ l.created_at|date:"d M" }} · {{ l.get_kind_display }}</span><span class="{% if l.amount < 0 %}text-red{% endif %}">{{ l.amount|floatformat:"2g" }}</span></li>{% empty %}<li class="text-muted">No entries.</li>{% endfor %}</ul>
+    </section>
+  </div>
+</div>
+{% endblock %}

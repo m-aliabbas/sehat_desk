@@ -1,0 +1,27 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}Pay suppliers{% endblock %}
+{% block page_title %}Pay suppliers{% endblock %}
+{% block page_subtitle %}Payments reduce the supplier balance and appear in the Pharmacy ledger.{% endblock %}
+{% block content %}
+{% include "finance/_tabs.html" with fin_tab="suppliers" %}
+<div class="grid gap-6 xl:grid-cols-3">
+  <section class="card xl:col-span-2">
+    <h2 class="section-title mb-4">Supplier balances</h2>
+    {% if vendors %}
+    <div class="table-wrap"><table class="table">
+      <thead><tr><th scope="col">Supplier</th><th scope="col" class="text-right">Owed</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+      <tbody>{% for v in vendors %}<tr><td class="font-medium">{{ v.name }}</td><td class="text-right font-semibold">{{ v.balance_total|floatformat:"2g" }}</td><td class="text-right"><a href="?vendor={{ v.pk }}" class="btn btn-ghost btn-sm">Pay</a></td></tr>{% endfor %}</tbody>
+    </table></div>
+    {% else %}{% include "components/empty_state.html" with icon_name="package" title="No suppliers" message="Add suppliers under Inventory → Suppliers." compact=True %}{% endif %}
+    <h2 class="section-title mb-3 mt-6">Recent payments</h2>
+    <ul class="divide-y divide-line text-label">{% for r in recent %}<li class="flex justify-between py-2"><span>{{ r.created_at|date:"d M Y" }} · {{ r.vendor }} · {{ r.method|default:"" }}{% if r.reference %} · {{ r.reference }}{% endif %}</span><span class="font-semibold">{{ r.amount|floatformat:"2g"|slice:"1:" }}</span></li>{% empty %}<li class="text-muted">No supplier payments yet.</li>{% endfor %}</ul>
+  </section>
+  <form method="post" class="card h-fit space-y-4" novalidate>{% csrf_token %}
+    <h2 class="section-title">Record payment</h2>
+    {% for e in form.non_field_errors %}{% include "components/alert.html" with level="danger" message=e %}{% endfor %}
+    {% for f in form %}{% include "components/field.html" with field=f %}{% endfor %}
+    <button class="btn btn-primary" data-confirm="Record this supplier payment?">Record payment</button>
+  </form>
+</div>
+{% endblock %}

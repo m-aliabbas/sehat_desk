@@ -1093,6 +1093,153 @@ Initial mobile scope should remain restricted to workflows that benefit from mob
 
 ---
 
+# PHASE 33 — Billable Procedures (ECG, EEG, ECHO, Ultrasound, operations, dental)
+
+Procedures are services marked "procedure" in Settings → Services. Adding one to a patient
+issues an invoice line (kind "procedure") that reception collects like any other bill.
+
+## Catalogue
+- [x] Mark a service as a procedure (ECG, EEG, ECHO, Ultrasound, operation, dental work...).
+- [x] "Price can be changed per patient" switch per procedure.
+- [x] Default price + branch prices (reuses service pricing).
+- [x] Procedure catalogue filter in Settings → Services. (Settings → Services → "Procedures only")
+
+## Patient procedures
+- [x] Patient procedure model (patient, visit, procedure, performed by, quantity, list price, charged price, status).
+- [x] Procedure numbering (PRC-00001).
+- [x] Add procedure from the consultation (doctor workspace).
+- [x] Add procedure from the patient profile / procedures desk.
+- [x] Change the price for this patient (needs permission + reason; list price kept).
+- [x] Performing doctor recorded on the invoice line (drives commission).
+- [x] Issues an invoice the patient pays at any billing desk.
+- [x] Mark procedure done (with findings/notes).
+- [x] Cancel procedure (voids the unpaid invoice; paid ones must be refunded first).
+- [x] Procedures list (status/date filters) and detail.
+- [x] Audit every order, price change, completion and cancellation.
+
+## Permissions
+- [x] procedure.view, procedure.order, procedure.perform, procedure.price.override.
+
+## Tests
+- [x] Price override needs permission and reason; non-editable procedures refuse it.
+- [x] Invoice line carries kind "procedure" and performing doctor.
+- [x] Cancel blocked when money is held.
+- [x] Branch/organization isolation.
+
+---
+
+# PHASE 34 — Staff Attendance
+
+## Data
+- [x] Attendance record per staff per day (present, late, half day, absent, leave, off/holiday).
+- [x] Check-in / check-out times.
+- [x] Who marked it (self or admin) and a note.
+- [x] Work start time + late grace minutes + weekly off day per staff.
+
+## Self service
+- [x] My attendance page: check in / check out button.
+- [x] Late auto-detected from the staff start time and grace. (default 09:00 + 15 min without a pay profile)
+- [x] My month at a glance.
+
+## Admin
+- [x] Daily register: every active staff member, mark status in one save.
+- [x] Monthly sheet: staff × days grid with totals.
+- [x] Attendance in a finalized payroll month is locked.
+- [x] Audit attendance changes.
+
+## Permissions
+- [x] hr.self (all staff), hr.attendance.manage.
+
+## Tests
+- [x] Check-in twice is refused; check-out before check-in refused.
+- [x] Late detection.
+- [x] Locked after payroll finalization.
+- [x] Branch isolation.
+
+---
+
+# PHASE 35 — Staff Pay, Doctor Commission & Payroll
+
+## Pay profiles
+- [x] Pay profile per staff: monthly salary / daily wage / commission only.
+- [x] Deduct absences from salary (on/off).
+- [x] Doctor commission with the clinic: % of consultation, % of procedures, % of lab referrals.
+- [x] Per-procedure commission override (percent or fixed amount).
+- [x] Changes audit-logged; earned commission keeps the rate it was earned at.
+
+## Commission earnings
+- [x] Earned automatically when an invoice line with a doctor is fully paid. (partly paid bills earn nothing yet)
+- [x] Reversed automatically on refund / cancellation (proportional for partial refunds).
+- [x] Doctor share vs clinic share per line.
+- [x] My earnings page for doctors (unsettled + settled).
+
+## Payroll
+- [x] Monthly payroll run per branch (draft → finalized).
+- [x] Payslip per staff: base, attendance days, absence deduction, commission, bonus, other deduction, net.
+- [x] Edit bonus/deduction on drafts; recalculate.
+- [x] Finalize posts the staff ledger and settles commissions (transactional).
+- [x] Print payslip.
+
+## Staff ledger
+- [x] Append-only ledger per staff (salary, commission, bonus, deduction, advance, payment, adjustment).
+- [x] Pay staff (salary payout or advance) with payment method.
+- [x] Balance owed to each staff member.
+
+## Permissions
+- [x] hr.pay.manage.
+
+## Tests
+- [x] Commission earned only when fully paid; reversal on refund; idempotent.
+- [x] Payslip math (absence deduction, commission, bonus).
+- [x] Finalize is transactional and only once.
+- [x] Staff ledger balance.
+
+---
+
+# PHASE 36 — Expenses, Ledgers & Profit/Loss Dashboard
+
+Segments used everywhere: Hospital (system), Doctors/OPD, Laboratory, Pharmacy.
+
+## Expenses
+- [x] Expense categories (seeded defaults, editable).
+- [x] Record expense (date, category, segment, amount, method, payee, reference).
+- [x] Expense numbering (EXP-00001); double-submit safe.
+- [x] Void expense with reason (never deleted).
+- [x] Expense list with filters and totals.
+- [x] Pay supplier (posts to the supplier ledger).
+
+## Ledgers
+- [x] Complete cash ledger: every money movement (payments, refunds, deposits, expenses, staff pay, supplier pay) with running balance.
+- [x] Ledger by segment: Pharmacy, Doctors, Laboratory, Hospital (system).
+- [x] Ledger per staff (Phase 35) and per doctor (commission + payouts).
+- [x] Supplier ledger link (Phase 14).
+- [x] CSV export.
+
+## Profit & loss
+- [x] Income by segment (issued invoices, discounts allocated, refunds deducted). (accrual, before tax)
+- [x] Pharmacy cost of goods sold (from stock movements) and write-offs.
+- [x] Staff salaries + doctor commission. (salaries from finalized payroll only)
+- [x] Expenses by category and segment.
+- [x] Net profit per segment and overall.
+
+## Admin finance dashboard
+- [x] Period picker (today, this month, last month, custom) and branch / all branches.
+- [x] Net income, expenses, profit, collections, outstanding.
+- [x] 12-month income vs expense trend.
+- [x] Top expense categories.
+- [x] Doctor share vs clinic share.
+
+## Permissions
+- [x] finance.view, finance.expense.manage.
+
+## Tests
+- [x] P&L math across segments.
+- [x] Ledger running balance.
+- [x] Void excluded from totals.
+- [x] Isolation and permission checks.
+
+---
+
 # MVP CUT LINE
 
 The first customer-testable MVP should include only:

@@ -1,0 +1,49 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}Add procedure{% endblock %}
+{% block page_title %}Add procedure{% endblock %}
+{% block page_subtitle %}The patient pays the procedure invoice at any billing desk.{% endblock %}
+{% block content %}
+<form method="post" class="grid gap-6 xl:grid-cols-3" novalidate
+      x-data="{ patientId: '{{ form.patient.value|default:'' }}', patientLabel: '{% if patient %}{{ patient.full_name|escapejs }} · {{ patient.mrn }}{% endif %}', search: '' }"
+      @patient-picked="patientId = $event.detail.id; patientLabel = $event.detail.label; search = ''">
+  {% csrf_token %}
+  <input type="hidden" name="patient" :value="patientId">
+  <div class="space-y-6 xl:col-span-2">
+    {% for e in form.non_field_errors %}{% include "components/alert.html" with level="danger" title="Could not add the procedure" message=e %}{% endfor %}
+    <section class="card">
+      <h2 class="section-title mb-4">Patient</h2>
+      <template x-if="patientId">
+        <div class="flex items-center justify-between rounded-control border border-teal/30 bg-mint/40 p-3">
+          <span class="font-medium" x-text="patientLabel"></span>
+          <button type="button" class="btn btn-ghost btn-sm" @click="patientId = ''">Change</button>
+        </div>
+      </template>
+      <div x-show="!patientId" class="relative">
+        <label class="field-label" for="patient-search">Find patient</label>
+        <input id="patient-search" type="search" class="input mt-1.5" placeholder="MRN, mobile, CNIC or name" autocomplete="off"
+               x-model="search" name="q" hx-get="{% url 'patients:lookup' %}" hx-trigger="input changed delay:250ms" hx-target="#patient-results">
+        <div id="patient-results" class="absolute z-20 mt-1 w-full" x-show="search.length >= 2"></div>
+      </div>
+      {% if form.patient.errors %}<p class="field-error mt-2">Choose a patient.</p>{% endif %}
+    </section>
+    <section class="card">
+      <h2 class="section-title mb-4">Procedure</h2>
+      {% include "procedures/_order_fields.html" %}
+    </section>
+    <div class="flex gap-3">
+      <button class="btn btn-primary">Add and bill</button>
+      <a href="{% url 'procedures:procedure-list' %}" class="btn btn-secondary">Cancel</a>
+    </div>
+  </div>
+  <aside class="card h-fit">
+    <h2 class="section-title mb-3">Prices</h2>
+    <ul class="space-y-2 text-body text-muted">
+      <li>Each procedure shows its list price for this branch.</li>
+      <li>A different price needs the price-change permission and a reason. The list price stays on record.</li>
+      <li>Some procedures have a fixed price (Settings → Services).</li>
+      <li>The performing doctor earns the commission in their pay profile once the bill is paid.</li>
+    </ul>
+  </aside>
+</form>
+{% endblock %}

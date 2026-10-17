@@ -296,12 +296,18 @@ def service_list(request):
     q = request.GET.get("q", "").strip()
     if q:
         services = services.filter(name__icontains=q) | services.filter(code__icontains=q.upper())
+    kind = request.GET.get("kind", "")
+    if kind == "procedure":
+        services = services.filter(is_procedure=True)
+    elif kind == "service":
+        services = services.filter(is_procedure=False)
     return render(
         request,
         "masterdata/service_list.html",
         {
             "services": services,
             "q": q,
+            "kind": kind,
             "categories": scoped(ServiceCategory, request),
             "category_form": ServiceCategoryForm(organization=request.organization),
             "settings_tab": "services",

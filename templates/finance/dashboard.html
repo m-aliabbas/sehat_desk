@@ -1,0 +1,66 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}Finance dashboard{% endblock %}
+{% block page_title %}Finance &amp; profit/loss{% endblock %}
+{% block page_subtitle %}Net income, expenses and profit across Doctors, Laboratory, Pharmacy and Hospital.{% endblock %}
+{% block page_actions %}{% if can_expense %}<a href="{% url 'finance:expense-create' %}" class="btn btn-primary">{% icon "plus" "h-4 w-4" %} Record expense</a>{% endif %}{% endblock %}
+{% block content %}
+{% include "finance/_tabs.html" with fin_tab="dashboard" %}
+{% include "finance/_period.html" %}
+<div class="mb-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+  <div class="stat-card bg-mint"><p class="text-body text-ink">Net income</p><p class="mt-2 text-[28px] font-bold">{{ organization.currency }} {{ st.total_income|floatformat:"0g" }}</p><p class="text-label text-muted">Billed, after discounts and refunds</p></div>
+  <div class="stat-card bg-amber-soft"><p class="text-body text-ink">Expenses &amp; costs</p><p class="mt-2 text-[28px] font-bold">{{ organization.currency }} {{ st.total_costs|floatformat:"0g" }}</p><p class="text-label text-muted">Incl. salaries, commission, medicines sold</p></div>
+  <div class="stat-card {% if st.net_profit < 0 %}bg-amber-soft{% else %}bg-blue-soft{% endif %}"><p class="text-body text-ink">{% if st.net_profit < 0 %}Net loss{% else %}Net profit{% endif %}</p><p class="mt-2 text-[28px] font-bold {% if st.net_profit < 0 %}text-red{% endif %}">{{ organization.currency }} {{ st.net_profit|floatformat:"0g" }}</p><p class="text-label text-muted">{% if st.margin is not None %}{{ st.margin }}% margin{% else %}No income in this period{% endif %}</p></div>
+  <a href="{% url 'billing:invoice-list' %}?view=outstanding" class="stat-card bg-white ring-1 ring-line hover:ring-2 hover:ring-teal/20"><p class="text-body text-ink">Cash in / out</p><p class="mt-2 text-[22px] font-bold">{{ cash.money_in|floatformat:"0g" }} / {{ cash.money_out|floatformat:"0g" }}</p><p class="text-label text-muted">{{ outstanding.count }} unpaid invoice{{ outstanding.count|pluralize }} · {{ outstanding.total|floatformat:"0g" }} outstanding</p></a>
+</div>
+
+<div class="grid gap-6 xl:grid-cols-3">
+  <section class="card xl:col-span-2">
+    <div class="card-header"><h2 class="section-title">Profit &amp; loss by segment</h2><a href="{% url 'finance:pnl' %}{% querystring %}" class="text-label font-medium text-teal-deep hover:underline">Full statement →</a></div>
+    <div class="table-wrap"><table class="table">
+      <thead><tr><th scope="col">Segment</th><th scope="col" class="text-right">Income</th><th scope="col" class="text-right">Costs</th><th scope="col" class="text-right">Profit</th><th scope="col"><span class="sr-only">Ledger</span></th></tr></thead>
+      <tbody>{% for key, label in segments %}
+        <tr><td class="font-medium">{{ label }}</td>
+          <td class="text-right">{{ st.income|get_item:key|floatformat:"2g" }}</td>
+          <td class="text-right">{{ st.costs|get_item:key|floatformat:"2g" }}</td>
+          {% with pr=st.profit|get_item:key %}<td class="text-right font-semibold {% if pr < 0 %}text-red{% endif %}">{{ pr|floatformat:"2g" }}</td>{% endwith %}
+          <td class="text-right"><a href="{% url 'finance:ledger' %}{% querystring segment=key %}" class="btn btn-ghost btn-sm">Ledger</a></td></tr>
+      {% endfor %}</tbody>
+      <tfoot><tr class="font-semibold"><td>Total</td><td class="text-right">{{ st.total_income|floatformat:"2g" }}</td><td class="text-right">{{ st.total_costs|floatformat:"2g" }}</td><td class="text-right {% if st.net_profit < 0 %}text-red{% endif %}">{{ st.net_profit|floatformat:"2g" }}</td><td></td></tr></tfoot>
+    </table></div>
+  </section>
+  <section class="card">
+    <h2 class="section-title mb-4">Biggest costs</h2>
+    {% if cost_lines %}
+    <ul class="space-y-3">{% for label, amount, pct in cost_lines %}
+      <li><div class="flex justify-between text-label"><span>{{ label }}</span><span class="font-semibold">{{ amount|floatformat:"0g" }}</span></div>
+        <div class="mt-1 h-2 rounded-full bg-mint"><div class="h-2 rounded-full bg-amber" style="width: {{ pct }}%"></div></div></li>
+    {% endfor %}</ul>
+    {% else %}<p class="text-label text-muted">No costs in this period.</p>{% endif %}
+  </section>
+
+  <section class="card xl:col-span-2">
+    <h2 class="section-title mb-1">Last 12 months</h2>
+    <p class="mb-4 text-label text-muted"><span class="mr-1 inline-block h-2 w-3 rounded bg-teal align-middle"></span>Income <span class="ml-3 mr-1 inline-block h-2 w-3 rounded bg-amber align-middle"></span>Costs</p>
+    <div class="flex h-48 items-end gap-2" role="img" aria-label="Monthly income and costs for the last 12 months">
+      {% for m in trend %}
+      <div class="flex h-full flex-1 flex-col justify-end" title="{{ m.label }}: income {{ m.income|floatformat:'0g' }}, costs {{ m.costs|floatformat:'0g' }}, profit {{ m.profit|floatformat:'0g' }}">
+        <div class="flex flex-1 items-end gap-0.5">
+          <div class="flex-1 rounded-t bg-teal" style="height: {{ m.income_pct }}%"></div>
+          <div class="flex-1 rounded-t bg-amber" style="height: {{ m.costs_pct }}%"></div>
+        </div>
+        <p class="mt-1 text-center text-[10px] text-muted">{{ m.label }}</p>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+  <section class="card">
+    <div class="card-header"><h2 class="section-title">Doctor share vs clinic</h2><a href="{% url 'finance:ledger-doctors' %}{% querystring %}" class="text-label font-medium text-teal-deep hover:underline">All →</a></div>
+    {% if doctors %}
+    <ul class="divide-y divide-line">{% for d in doctors %}
+      <li class="py-2"><p class="font-medium">{{ d.name }}</p><p class="text-label text-muted">Brought in {{ d.income|floatformat:"0g" }} · doctor {{ d.commission|floatformat:"0g" }} · clinic {{ d.clinic|floatformat:"0g" }}</p></li>
+    {% endfor %}</ul>
+    {% else %}<p class="text-label text-muted">No doctor-attributed income in this period.</p>{% endif %}
+  </section>
+</div>
+{% endblock %}

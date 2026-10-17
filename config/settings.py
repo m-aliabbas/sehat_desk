@@ -124,6 +124,9 @@ INSTALLED_APPS = [
     "apps.notifications",
     "apps.reports",
     "apps.search",
+    "apps.procedures",
+    "apps.hr",
+    "apps.finance",
 ]
 
 AUTH_USER_MODEL = "accounts.User"

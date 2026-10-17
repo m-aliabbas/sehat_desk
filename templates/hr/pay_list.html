@@ -1,0 +1,27 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}Staff pay{% endblock %}
+{% block page_title %}Staff pay &amp; commission{% endblock %}
+{% block page_subtitle %}Salaries, daily wages and doctor commission for staff in {{ request.branch.name }}.{% endblock %}
+{% block content %}
+{% include "hr/_tabs.html" with hr_tab="pay" %}
+<section class="card">
+  {% if rows %}
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th scope="col">Staff</th><th scope="col">Pay</th><th scope="col">Commission</th><th scope="col" class="text-right">Unsettled commission</th><th scope="col" class="text-right">Balance owed</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+    <tbody>{% for r in rows %}{% with p=r.profile %}
+      <tr>
+        <td><p class="font-medium">{{ r.user }}</p><p class="text-label text-muted">{{ r.user.designation|default:r.user.username }}</p></td>
+        <td>{% if p %}{{ p.get_pay_type_display }}{% if p.pay_type == "monthly" %} · {{ p.monthly_salary|floatformat:"0g" }}{% elif p.pay_type == "daily" %} · {{ p.daily_rate|floatformat:"0g" }}/day{% endif %}{% if not p.is_active %} {% status_chip "inactive" %}{% endif %}{% if p.branch_id != request.branch.pk %}<p class="text-label text-muted">Paid from {{ p.branch.name }}</p>{% endif %}{% else %}<span class="text-label text-muted">No pay profile</span>{% endif %}</td>
+        <td class="text-label">{% if p %}{% if p.consultation_percent %}OPD {{ p.consultation_percent|floatformat:"-2" }}% {% endif %}{% if p.procedure_percent %}Proc {{ p.procedure_percent|floatformat:"-2" }}% {% endif %}{% if p.lab_referral_percent %}Lab {{ p.lab_referral_percent|floatformat:"-2" }}%{% endif %}{% endif %}</td>
+        <td class="text-right">{{ r.unsettled|floatformat:"2g" }}</td>
+        <td class="text-right font-semibold">{{ r.balance|floatformat:"2g" }}</td>
+        <td class="whitespace-nowrap text-right">
+          {% if not p or p.branch_id == request.branch.pk %}<a href="{% url 'hr:pay-profile' r.user.pk %}" class="btn btn-ghost btn-sm">{% if p %}Edit pay{% else %}Set up pay{% endif %}</a>{% endif %}
+          <a href="{% url 'hr:staff-ledger' r.user.pk %}" class="btn btn-ghost btn-sm">Ledger</a>
+        </td>
+      </tr>
+    {% endwith %}{% endfor %}</tbody></table></div>
+  {% else %}{% include "components/empty_state.html" with icon_name="users" title="No staff in this branch" %}{% endif %}
+</section>
+{% endblock %}

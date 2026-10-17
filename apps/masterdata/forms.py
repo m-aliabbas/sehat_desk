@@ -164,7 +164,15 @@ class ServiceForm(StyledFormMixin, OrgUniqueMixin, forms.ModelForm):
 
     class Meta:
         model = Service
-        fields = ["category", "department", "code", "name", "price"]
+        fields = [
+            "category",
+            "department",
+            "code",
+            "name",
+            "price",
+            "is_procedure",
+            "price_editable",
+        ]
 
     def __init__(self, *args, organization, branches, **kwargs):
         super().__init__(*args, organization=organization, **kwargs)

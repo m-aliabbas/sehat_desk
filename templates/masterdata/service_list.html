@@ -8,7 +8,8 @@
 {% include "partials/settings_tabs.html" %}
 <div class="grid gap-6 xl:grid-cols-3">
   <section class="card xl:col-span-2">
-    <form class="mb-4" method="get"><label class="sr-only" for="svc-q">Search services</label><input id="svc-q" name="q" value="{{ q }}" type="search" class="input" placeholder="Search by name or code"></form>
+    <form class="mb-4 flex flex-wrap gap-2" method="get"><label class="sr-only" for="svc-q">Search services</label><input id="svc-q" name="q" value="{{ q }}" type="search" class="input flex-1" placeholder="Search by name or code">
+      <label class="sr-only" for="svc-kind">Type</label><select id="svc-kind" name="kind" class="select w-auto" onchange="this.form.submit()"><option value="">All types</option><option value="procedure" {% if kind == "procedure" %}selected{% endif %}>Procedures only</option><option value="service" {% if kind == "service" %}selected{% endif %}>Other services</option></select></form>
     {% if services %}
     <div class="table-wrap">
       <table class="table">
@@ -16,7 +17,7 @@
         <tbody>
           {% for s in services %}
             <tr>
-              <td><p class="font-medium">{{ s.name }}</p><p class="font-mono text-label text-muted">{{ s.code }}{% if s.department %} · {{ s.department }}{% endif %}</p></td>
+              <td><p class="font-medium">{{ s.name }}</p><p class="font-mono text-label text-muted">{{ s.code }}{% if s.department %} · {{ s.department }}{% endif %}</p>{% if s.is_procedure %}<span class="chip chip-info">Procedure{% if s.price_editable %} · price editable{% endif %}</span>{% endif %}</td>
               <td>{{ s.category }}</td>
               <td>{{ organization.currency }} {{ s.price|floatformat:"2g" }}{% if s.branch_prices.exists %} <span class="chip chip-info">Branch prices</span>{% endif %}</td>
               <td>{% if s.is_active %}{% status_chip "active" %}{% else %}{% status_chip "inactive" %}{% endif %}</td>

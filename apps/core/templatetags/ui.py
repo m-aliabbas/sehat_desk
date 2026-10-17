@@ -47,6 +47,13 @@ STATUS_VARIANTS = {
     "rejected": "danger",
     "signed": "success",
     "ordered": "info",
+    "finalized": "success",
+    "present": "success",
+    "late": "warning",
+    "half_day": "info",
+    "absent": "danger",
+    "leave": "info",
+    "off": "neutral",
     "received": "success",
     "held": "warning",
     "voided": "neutral",
@@ -110,3 +117,18 @@ def initials(user):
     if len(parts) >= 2:
         return (parts[0][0] + parts[-1][0]).upper()
     return source[:2].upper()
+
+
+@register.filter
+def get_item(mapping, key):
+    """{{ totals|get_item:key }}: a dict value by a variable key; empty when missing."""
+    try:
+        return mapping.get(key, "")
+    except AttributeError:
+        return ""
+
+
+@register.filter
+def sum_values(values):
+    """{{ row.values|sum_values }}: sum of an iterable of numbers."""
+    return sum(values, 0)

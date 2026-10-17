@@ -1,0 +1,46 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}Payroll {{ run.label }}{% endblock %}
+{% block page_title %}Payroll · {{ run.label }}{% endblock %}
+{% block page_subtitle %}{{ run.branch.name }} · {{ run.get_status_display }}{% if run.finalized_at %} {{ run.finalized_at|date:"d M Y, H:i" }} by {{ run.finalized_by }}{% endif %}{% endblock %}
+{% block page_actions %}
+  {% if run.is_draft %}
+    <form method="post" action="{% url 'hr:payroll-recalculate' run.pk %}">{% csrf_token %}<button class="btn btn-secondary">{% icon "refresh" "h-4 w-4" %} Recalculate</button></form>
+    <form method="post" action="{% url 'hr:payroll-finalize' run.pk %}">{% csrf_token %}<button class="btn btn-primary" data-confirm="Finalize {{ run.label }}? Payslips are posted to staff ledgers and attendance for the month is locked." data-confirm-danger="true">{% icon "lock" "h-4 w-4" %} Finalize</button></form>
+  {% endif %}
+{% endblock %}
+{% block content %}
+{% include "hr/_tabs.html" with hr_tab="payroll" %}
+<section class="card">
+  {% if slips %}
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th scope="col">Staff</th><th scope="col" class="text-right">Days</th><th scope="col" class="text-right">Base</th><th scope="col" class="text-right">Absence</th><th scope="col" class="text-right">Commission</th><th scope="col" class="text-right">Bonus</th><th scope="col" class="text-right">Deduction</th><th scope="col" class="text-right">Net pay</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+    <tbody>{% for s in slips %}
+      <tr x-data="{ edit: false }">
+        <td><p class="font-medium">{{ s.user }}</p><p class="text-label text-muted">{{ s.get_pay_type_display }}{% if s.adjustment_note %} · {{ s.adjustment_note }}{% endif %}</p></td>
+        <td class="text-right text-label">{{ s.present_days|floatformat:"-1" }} / {{ s.working_days }}{% if s.absent_days %}<p class="text-red">{{ s.absent_days|floatformat:"-1" }} absent</p>{% endif %}{% if s.late_count %}<p class="text-amber">{{ s.late_count }} late</p>{% endif %}</td>
+        <td class="text-right">{{ s.base_pay|floatformat:"2g" }}</td>
+        <td class="text-right">{% if s.absence_deduction %}−{{ s.absence_deduction|floatformat:"2g" }}{% else %}—{% endif %}</td>
+        <td class="text-right">{{ s.commission|floatformat:"2g" }}</td>
+        <td class="text-right">{{ s.bonus|floatformat:"2g" }}</td>
+        <td class="text-right">{% if s.deduction %}−{{ s.deduction|floatformat:"2g" }}{% else %}—{% endif %}</td>
+        <td class="text-right font-semibold">{{ s.net_pay|floatformat:"2g" }}</td>
+        <td class="whitespace-nowrap text-right">
+          {% if run.is_draft %}<button type="button" class="btn btn-ghost btn-sm" @click="edit = !edit">Bonus / deduction</button>{% endif %}
+          <a href="{% url 'hr:payslip-print' s.pk %}" target="_blank" class="btn btn-ghost btn-sm">Payslip</a>
+          {% if run.is_draft %}
+          <form x-show="edit" x-cloak method="post" action="{% url 'hr:payslip-adjust' s.pk %}" class="mt-2 flex flex-wrap items-end justify-end gap-2">{% csrf_token %}
+            <label class="sr-only" for="b-{{ s.pk }}">Bonus</label><input id="b-{{ s.pk }}" name="bonus" type="number" step="0.01" min="0" value="{{ s.bonus }}" class="input w-28" placeholder="Bonus">
+            <label class="sr-only" for="d-{{ s.pk }}">Deduction</label><input id="d-{{ s.pk }}" name="deduction" type="number" step="0.01" min="0" value="{{ s.deduction }}" class="input w-28" placeholder="Deduction">
+            <label class="sr-only" for="n-{{ s.pk }}">Reason</label><input id="n-{{ s.pk }}" name="note" value="{{ s.adjustment_note }}" maxlength="200" class="input w-48" placeholder="Reason">
+            <button class="btn btn-secondary btn-sm">Save</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+    {% endfor %}</tbody>
+    <tfoot><tr class="font-semibold"><td>Total</td><td></td><td class="text-right">{{ totals.base|floatformat:"2g" }}</td><td class="text-right">−{{ totals.absence|floatformat:"2g" }}</td><td class="text-right">{{ totals.commission|floatformat:"2g" }}</td><td class="text-right">{{ totals.bonus|floatformat:"2g" }}</td><td class="text-right">−{{ totals.deduction|floatformat:"2g" }}</td><td class="text-right">{{ totals.net|floatformat:"2g" }}</td><td></td></tr></tfoot>
+  </table></div>
+  {% else %}{% include "components/empty_state.html" with icon_name="users" title="No payslips" message="Give staff a pay profile in this branch, then recalculate." %}{% endif %}
+</section>
+{% endblock %}

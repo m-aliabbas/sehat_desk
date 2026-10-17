@@ -101,6 +101,7 @@ def create_order(
                 kind=InvoiceItem.Kind.LAB,
                 description=description,
                 unit_price=price,
+                performed_by=doctor.user if doctor else None,  # referring doctor
             )
         billing.issue(invoice, request=request)
         order.invoice = invoice

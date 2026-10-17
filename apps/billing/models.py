@@ -225,6 +225,15 @@ class InvoiceItem(models.Model):
     tax_percent = models.DecimalField(max_digits=5, decimal_places=2, default=ZERO)
     tax_amount = models.DecimalField(**money, default=ZERO)
     line_total = models.DecimalField(**money, default=ZERO)
+    performed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="+",
+        help_text="Doctor who saw the patient, performed the procedure or referred the test. "
+        "Drives doctor commission (apps.hr).",
+    )
     added_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+"
     )

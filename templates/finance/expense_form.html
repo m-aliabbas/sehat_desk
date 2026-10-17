@@ -1,0 +1,26 @@
+{% extends "layouts/app.html" %}
+{% block title %}Record expense{% endblock %}
+{% block page_title %}Record expense{% endblock %}
+{% block page_subtitle %}Expenses cannot be edited later. Void a mistake with a reason and record it again.{% endblock %}
+{% block content %}
+{% include "finance/_tabs.html" with fin_tab="expenses" %}
+<form method="post" class="card max-w-3xl" novalidate>{% csrf_token %}
+  {% for e in form.non_field_errors %}{% include "components/alert.html" with level="danger" message=e %}{% endfor %}
+  {{ form.idempotency_key }}
+  <div class="grid gap-5 md:grid-cols-2">
+    {% include "components/field.html" with field=form.date %}
+    {% include "components/field.html" with field=form.amount %}
+    {% include "components/field.html" with field=form.category %}
+    {% include "components/field.html" with field=form.segment %}
+    {% include "components/field.html" with field=form.method %}
+    {% include "components/field.html" with field=form.reference %}
+    {% include "components/field.html" with field=form.payee %}
+    {% include "components/field.html" with field=form.note %}
+  </div>
+  <div class="mt-6 flex flex-wrap gap-3">
+    <button class="btn btn-primary">Save expense</button>
+    <button class="btn btn-secondary" name="another" value="1">Save and add another</button>
+    <a href="{% url 'finance:expense-list' %}" class="btn btn-ghost">Cancel</a>
+  </div>
+</form>
+{% endblock %}

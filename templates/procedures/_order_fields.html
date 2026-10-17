@@ -1,0 +1,12 @@
+{# Procedure order fields. Context: form (ProcedureOrderForm), can_override. #}
+<div class="grid gap-5 md:grid-cols-2">
+  {% include "components/field.html" with field=form.service %}
+  {% include "components/field.html" with field=form.performed_by %}
+  {% include "components/field.html" with field=form.quantity %}
+  {% include "components/field.html" with field=form.notes %}
+  {% if can_override %}
+    {% include "components/field.html" with field=form.unit_price %}
+    {% include "components/field.html" with field=form.price_reason %}
+  {% endif %}
+</div>
+{% if not can_override %}<p class="mt-3 text-label text-muted">The list price is charged. Staff with the price-change permission can charge a different price.</p>{% endif %}

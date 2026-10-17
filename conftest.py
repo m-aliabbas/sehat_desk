@@ -132,3 +132,27 @@ def patient(org, branch, admin_user):
         user=admin_user,
         data={"full_name": "Ayesha Khan", "gender": "female", "phone": "03001234567"},
     )
+
+
+@pytest.fixture
+def make_request(rf, org, branch):
+    """make_request(user) -> a request-like object for calling services directly."""
+    from apps.accounts.services import effective_permissions
+
+    def _make(user, *, branch=branch):
+        req = rf.post("/")
+        req.user, req.organization, req.branch = user, org, branch
+        req.sd_perms = effective_permissions(user, branch)
+        req.META["REMOTE_ADDR"] = "127.0.0.1"
+        return req
+
+    return _make
+
+
+@pytest.fixture
+def cash(org):
+    from apps.billing.models import PaymentMethod
+    from apps.billing.services import ensure_payment_methods
+
+    ensure_payment_methods(org)
+    return PaymentMethod.objects.get(organization=org, code="cash")

@@ -1,0 +1,39 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}Expenses{% endblock %}
+{% block page_title %}Expenses{% endblock %}
+{% block page_subtitle %}Running costs by category and segment. Voided expenses stay on record but are not counted.{% endblock %}
+{% block page_actions %}{% if can_expense %}<a href="{% url 'finance:category-list' %}" class="btn btn-secondary">Categories</a><a href="{% url 'finance:expense-create' %}" class="btn btn-primary">{% icon "plus" "h-4 w-4" %} Record expense</a>{% endif %}{% endblock %}
+{% block content %}
+{% include "finance/_tabs.html" with fin_tab="expenses" %}
+{% include "finance/_period.html" %}
+<section class="card">
+  <form method="get" class="mb-5 grid gap-3 md:grid-cols-[1fr_220px_200px]" x-data @change="$el.submit()">
+    {% for k, v in request.GET.items %}{% if k in "period from to scope" %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endif %}{% endfor %}
+    <input type="search" name="q" value="{{ q }}" class="input" placeholder="Search number, payee or note" aria-label="Search">
+    <select name="category" class="select" aria-label="Category"><option value="">All categories</option>{% for c in categories %}<option value="{{ c.pk }}" {% if category == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>{% endfor %}</select>
+    <select name="segment" class="select" aria-label="Segment"><option value="">All segments</option>{% for k, l in segments %}<option value="{{ k }}" {% if segment == k %}selected{% endif %}>{{ l }}</option>{% endfor %}</select>
+  </form>
+  <p class="mb-3 text-body">Total: <span class="font-semibold">{{ organization.currency }} {{ total|floatformat:"2g" }}</span></p>
+  {% if page_obj.object_list %}
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th scope="col">Expense</th><th scope="col">Category</th><th scope="col">Paid to</th><th scope="col">Method</th><th scope="col" class="text-right">Amount</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+    <tbody>{% for e in page_obj %}
+      <tr class="{% if e.is_void %}opacity-60{% endif %}" x-data="{ v: false }">
+        <td><p class="font-mono font-medium">{{ e.number }}</p><p class="text-label text-muted">{{ e.date|date:"d M Y" }} · {{ e.created_by }}{% if scope == "all" %} · {{ e.branch.name }}{% endif %}</p></td>
+        <td>{{ e.category }}<p class="text-label text-muted">{{ e.get_segment_display }}</p></td>
+        <td>{{ e.payee|default:"—" }}{% if e.reference %}<p class="text-label text-muted">{{ e.reference }}</p>{% endif %}{% if e.note %}<p class="text-label text-muted">{{ e.note }}</p>{% endif %}</td>
+        <td>{{ e.method }}</td>
+        <td class="text-right font-semibold {% if e.is_void %}line-through{% endif %}">{{ e.amount|floatformat:"2g" }}</td>
+        <td class="text-right">
+          {% if e.is_void %}<span class="chip chip-neutral" title="{{ e.void_reason }}">Void</span>
+          {% elif can_expense and e.branch_id == request.branch.pk %}<button type="button" class="btn btn-ghost btn-sm text-red" @click="v = !v">Void</button>
+            <form x-show="v" x-cloak method="post" action="{% url 'finance:expense-void' e.pk %}" class="mt-2 flex gap-2">{% csrf_token %}<label class="sr-only" for="vr-{{ e.pk }}">Reason</label><input id="vr-{{ e.pk }}" name="reason" required maxlength="200" class="input" placeholder="Reason"><button class="btn btn-secondary btn-sm">Void</button></form>
+          {% endif %}
+        </td>
+      </tr>
+    {% endfor %}</tbody></table></div>
+  {% include "components/pagination.html" with page_obj=page_obj %}
+  {% else %}{% include "components/empty_state.html" with icon_name="credit-card" title="No expenses in this period" message="Record rent, utilities, supplies and other running costs." compact=True %}{% endif %}
+</section>
+{% endblock %}

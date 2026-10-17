@@ -1,0 +1,13 @@
+{# HR sub-navigation. Context: hr_tab #}
+<nav class="tabs mb-6 overflow-x-auto" aria-label="Attendance and pay sections">
+  <a class="tab" href="{% url 'hr:home' %}" {% if hr_tab == "home" %}aria-selected="true"{% endif %}>Overview</a>
+  {% if "hr.self" in sd_perms %}<a class="tab" href="{% url 'hr:earnings' %}" {% if hr_tab == "earnings" %}aria-selected="true"{% endif %}>My earnings</a>{% endif %}
+  {% if "hr.attendance.manage" in sd_perms %}
+    <a class="tab" href="{% url 'hr:attendance-register' %}" {% if hr_tab == "register" %}aria-selected="true"{% endif %}>Daily register</a>
+    <a class="tab" href="{% url 'hr:attendance-month' %}" {% if hr_tab == "month" %}aria-selected="true"{% endif %}>Monthly sheet</a>
+  {% endif %}
+  {% if "hr.pay.manage" in sd_perms %}
+    <a class="tab" href="{% url 'hr:pay-list' %}" {% if hr_tab == "pay" %}aria-selected="true"{% endif %}>Staff pay</a>
+    <a class="tab" href="{% url 'hr:payroll-list' %}" {% if hr_tab == "payroll" %}aria-selected="true"{% endif %}>Payroll</a>
+  {% endif %}
+</nav>

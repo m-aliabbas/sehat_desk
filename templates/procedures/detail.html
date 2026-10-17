@@ -1,0 +1,47 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}{{ proc.number }}{% endblock %}
+{% block page_title %}{{ proc.name }}{% endblock %}
+{% block page_subtitle %}<span class="font-mono">{{ proc.number }}</span> · {{ proc.patient.full_name }} · {{ proc.created_at|date:"d M Y, H:i" }}{% endblock %}
+{% block page_actions %}{% if can_bill and proc.invoice %}<a href="{% url 'billing:invoice-detail' proc.invoice.pk %}" class="btn btn-primary">{% icon "credit-card" "h-4 w-4" %} Invoice {{ proc.invoice.number }}</a>{% endif %}{% endblock %}
+{% block content %}
+<div class="grid gap-6 xl:grid-cols-3">
+  <section class="card xl:col-span-2">
+    <div class="card-header"><h2 class="section-title">Details</h2>{% status_chip proc.status proc.get_status_display %}</div>
+    <dl class="grid gap-4 md:grid-cols-2">
+      <div><dt class="text-label text-muted">Patient</dt><dd><a href="{% url 'patients:detail' proc.patient.pk %}" class="hover:underline">{{ proc.patient.full_name }}</a> · <span class="font-mono">{{ proc.patient.mrn }}</span></dd></div>
+      <div><dt class="text-label text-muted">Performed by</dt><dd>{{ proc.performed_by|default:"—" }}</dd></div>
+      <div><dt class="text-label text-muted">Quantity</dt><dd>{{ proc.quantity }}</dd></div>
+      <div><dt class="text-label text-muted">Price charged</dt><dd>{{ organization.currency }} {{ proc.unit_price|floatformat:"2g" }} each · total {{ proc.total|floatformat:"2g" }}</dd></div>
+      {% if proc.price_changed %}<div class="md:col-span-2"><dt class="text-label text-muted">Price change</dt><dd>List price {{ proc.list_price|floatformat:"2g" }} → {{ proc.unit_price|floatformat:"2g" }}: {{ proc.price_change_reason }}</dd></div>{% endif %}
+      {% if proc.notes %}<div><dt class="text-label text-muted">Site / notes</dt><dd>{{ proc.notes }}</dd></div>{% endif %}
+      {% if proc.encounter %}<div><dt class="text-label text-muted">Consultation</dt><dd><a href="{% url 'encounters:detail' proc.encounter.pk %}" class="font-mono hover:underline">{{ proc.encounter.number }}</a></dd></div>{% endif %}
+      <div><dt class="text-label text-muted">Bill</dt><dd>{% if proc.invoice %}<span class="font-mono">{{ proc.invoice.number }}</span> · {% status_chip proc.invoice.status proc.invoice.get_status_display %}{% else %}No charge{% endif %}</dd></div>
+      <div><dt class="text-label text-muted">Added by</dt><dd>{{ proc.created_by }}</dd></div>
+      {% if proc.completed_at %}<div class="md:col-span-2"><dt class="text-label text-muted">Done {{ proc.completed_at|date:"d M Y, H:i" }} by {{ proc.completed_by }}</dt><dd class="whitespace-pre-line">{{ proc.findings|default:"No findings recorded." }}</dd></div>{% endif %}
+      {% if proc.cancelled_at %}<div class="md:col-span-2"><dt class="text-label text-muted">Cancelled {{ proc.cancelled_at|date:"d M Y, H:i" }} by {{ proc.cancelled_by }}</dt><dd>{{ proc.cancel_reason }}</dd></div>{% endif %}
+    </dl>
+  </section>
+  <div class="space-y-6">
+    {% if can_perform %}
+    <section class="card">
+      <h2 class="section-title mb-3">Mark done</h2>
+      <form method="post" action="{% url 'procedures:procedure-complete' proc.pk %}">{% csrf_token %}
+        {% include "components/field.html" with field=complete_form.findings %}
+        <button class="btn btn-primary mt-3">{% icon "check-circle" "h-4 w-4" %} Mark done</button>
+      </form>
+    </section>
+    {% endif %}
+    {% if can_cancel %}
+    <section class="card">
+      <h2 class="section-title mb-3">Cancel</h2>
+      <p class="mb-3 text-label text-muted">Cancelling voids the unpaid invoice. A paid invoice must be refunded in Billing first.</p>
+      <form method="post" action="{% url 'procedures:procedure-cancel' proc.pk %}">{% csrf_token %}
+        {% include "components/field.html" with field=cancel_form.reason %}
+        <button class="btn btn-secondary mt-3 text-red" data-confirm="Cancel this procedure?" data-confirm-danger="true">Cancel procedure</button>
+      </form>
+    </section>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

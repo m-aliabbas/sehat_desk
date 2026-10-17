@@ -191,7 +191,8 @@ class ServiceCategory(OrgScopedModel):
 
 
 class Service(OrgScopedModel):
-    """A billable item (consultation, procedure, dressing...). Billing uses it from Phase 7."""
+    """A billable item (consultation, procedure, dressing...). Billing uses it from Phase 7.
+    Services marked is_procedure are ordered per patient from apps.procedures (Phase 33)."""
 
     category = models.ForeignKey(ServiceCategory, on_delete=models.PROTECT, related_name="services")
     department = models.ForeignKey(
@@ -200,6 +201,17 @@ class Service(OrgScopedModel):
     code = models.CharField(max_length=12, validators=[_code_validator])
     name = models.CharField(max_length=120)
     price = models.DecimalField(**money, help_text="Default price for every branch.")
+    is_procedure = models.BooleanField(
+        default=False,
+        help_text="A procedure added to a patient's visit, e.g. ECG, ECHO, ultrasound, an "
+        "operation or dental work.",
+    )
+    price_editable = models.BooleanField(
+        "Price can be changed per patient",
+        default=True,
+        help_text="Staff with the price-change permission may charge a different price "
+        "(with a reason). The list price is kept on record.",
+    )
     is_active = models.BooleanField(default=True)
 
     class Meta:

@@ -1,0 +1,42 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}Procedures{% endblock %}
+{% block page_title %}Procedures{% endblock %}
+{% block page_subtitle %}ECG, EEG, ECHO, ultrasound, operations and dental work added to patients in this branch.{% endblock %}
+{% block page_actions %}{% if can_order %}<a href="{% url 'procedures:procedure-create' %}" class="btn btn-primary">{% icon "plus" "h-4 w-4" %} Add procedure</a>{% endif %}{% endblock %}
+{% block content %}
+<section class="card">
+  <form method="get" class="mb-5 grid gap-3 md:grid-cols-[1fr_200px_180px]" x-data @change="$el.submit()">
+    <input type="search" name="q" value="{{ q }}" class="input" placeholder="Search by number, procedure, patient name or MRN" aria-label="Search">
+    <select name="status" class="select" aria-label="Status">
+      <option value="">All statuses</option>
+      {% for v, l in statuses %}<option value="{{ v }}" {% if status == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
+    </select>
+    <input type="date" name="date" value="{{ day }}" class="input" aria-label="Date">
+  </form>
+  {% if page_obj.object_list %}
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th scope="col">Procedure</th><th scope="col">Patient</th><th scope="col">Performed by</th><th scope="col" class="text-right">Charged</th><th scope="col">Bill</th><th scope="col">Status</th></tr></thead>
+      <tbody>
+        {% for p in page_obj %}
+        <tr>
+          <td><a href="{% url 'procedures:procedure-detail' p.pk %}" class="font-medium hover:underline">{{ p.name }}</a><p class="font-mono text-label text-muted">{{ p.number }} · {{ p.created_at|date:"d M Y, H:i" }}</p></td>
+          <td>{{ p.patient.full_name }}<p class="font-mono text-label text-muted">{{ p.patient.mrn }}</p></td>
+          <td>{{ p.performed_by|default:"—" }}</td>
+          <td class="text-right">{{ p.total|floatformat:"2g" }}{% if p.price_changed %}<p class="text-label text-muted">list {{ p.list_price|floatformat:"2g" }}</p>{% endif %}</td>
+          <td>{% if p.invoice %}{% status_chip p.invoice.status p.invoice.get_status_display %}{% else %}<span class="text-label text-muted">No charge</span>{% endif %}</td>
+          <td>{% status_chip p.status p.get_status_display %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% include "components/pagination.html" with page_obj=page_obj %}
+  {% elif q or status or day %}
+    {% include "components/empty_state.html" with icon_name="search" title="No procedures match" message="Try a different search or filter." %}
+  {% else %}
+    {% include "components/empty_state.html" with icon_name="clipboard" title="No procedures yet" message="Mark services as procedures in Settings → Services, then add them to patients here or from the consultation." %}
+  {% endif %}
+</section>
+{% endblock %}

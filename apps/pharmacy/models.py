@@ -547,7 +547,7 @@ class PurchaseReturnItem(models.Model):
 
 class VendorLedgerEntry(BranchScopedModel):
     """Append-only supplier account. amount > 0: the hospital owes more; < 0: owes less.
-    Balance = sum of amounts. Supplier payments (kind "payment") arrive in a later phase."""
+    Balance = sum of amounts. Supplier payments (kind "payment") are recorded in Finance."""
 
     class Kind(models.TextChoices):
         OPENING = "opening", "Opening balance"
@@ -566,6 +566,12 @@ class VendorLedgerEntry(BranchScopedModel):
         PurchaseReturn, on_delete=models.PROTECT, null=True, blank=True, related_name="+"
     )
     note = models.CharField(max_length=200, blank=True)
+    # Supplier payments (apps.finance): how the money left the hospital.
+    method = models.ForeignKey(
+        "billing.PaymentMethod", on_delete=models.PROTECT, null=True, blank=True, related_name="+"
+    )
+    reference = models.CharField(max_length=80, blank=True)
+    idempotency_key = models.CharField(max_length=40, blank=True)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+"
     )
@@ -573,6 +579,13 @@ class VendorLedgerEntry(BranchScopedModel):
     class Meta:
         ordering = ["created_at", "pk"]
         verbose_name_plural = "vendor ledger entries"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "idempotency_key"],
+                condition=~models.Q(idempotency_key=""),
+                name="uniq_vendor_ledger_idempotency_key",
+            )
+        ]
 
     def __str__(self):
         return f"{self.vendor} {self.get_kind_display()} {self.amount}"

@@ -1,0 +1,35 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}Attendance register{% endblock %}
+{% block page_title %}Daily attendance register{% endblock %}
+{% block page_subtitle %}{{ day|date:"l, j F Y" }} · {{ request.branch.name }}{% endblock %}
+{% block content %}
+{% include "hr/_tabs.html" with hr_tab="register" %}
+<section class="card">
+  <form method="get" class="mb-5 flex flex-wrap items-end gap-3" x-data @change="$el.submit()">
+    <div class="field"><label class="field-label" for="att-date">Date</label><input id="att-date" type="date" name="date" value="{{ day|date:'Y-m-d' }}" class="input"></div>
+    <p class="text-label text-muted">{{ summary.present }} present · {{ summary.late }} late · {{ summary.half_day }} half day · {{ summary.absent }} absent · {{ summary.leave }} leave</p>
+  </form>
+  {% if locked %}{% include "components/alert.html" with level="warning" message="Payroll for this month is finalized. Attendance is locked." %}{% endif %}
+  {% if is_future %}{% include "components/alert.html" with level="info" message="Attendance cannot be marked for a future date." %}{% endif %}
+  {% if rows %}
+  <form method="post">{% csrf_token %}<input type="hidden" name="date" value="{{ day|date:'Y-m-d' }}">
+    <div class="table-wrap"><table class="table">
+      <thead><tr><th scope="col">Staff</th><th scope="col">Check in / out</th><th scope="col">Status</th><th scope="col">Note</th></tr></thead>
+      <tbody>{% for u, rec in rows %}
+        <tr>
+          <td><p class="font-medium">{{ u }}</p><p class="text-label text-muted">{{ u.designation|default:u.username }}</p></td>
+          <td class="text-label">{% if rec.check_in %}{{ rec.check_in|time:"H:i" }}{% else %}—{% endif %}{% if rec.check_out %} – {{ rec.check_out|time:"H:i" }}{% endif %}{% if rec and rec.branch_id != request.branch.pk %}<p class="text-muted">at {{ rec.branch.name }}</p>{% endif %}</td>
+          <td><label class="sr-only" for="st-{{ u.pk }}">Status for {{ u }}</label>
+            <select id="st-{{ u.pk }}" name="status_{{ u.pk }}" class="select" {% if locked or is_future %}disabled{% endif %}>
+              <option value="">— Not marked —</option>
+              {% for v, l in statuses %}<option value="{{ v }}" {% if rec.status == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
+            </select></td>
+          <td><label class="sr-only" for="nt-{{ u.pk }}">Note for {{ u }}</label><input id="nt-{{ u.pk }}" name="note_{{ u.pk }}" value="{{ rec.note|default:'' }}" maxlength="200" class="input" {% if locked or is_future %}disabled{% endif %}></td>
+        </tr>
+      {% endfor %}</tbody></table></div>
+    {% if not locked and not is_future %}<button class="btn btn-primary mt-4">Save attendance</button>{% endif %}
+  </form>
+  {% else %}{% include "components/empty_state.html" with icon_name="users" title="No staff in this branch" message="Staff with a role in this branch appear here." %}{% endif %}
+</section>
+{% endblock %}

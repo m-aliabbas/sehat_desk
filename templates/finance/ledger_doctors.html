@@ -1,0 +1,21 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}Doctors ledger{% endblock %}
+{% block page_title %}Doctors ledger{% endblock %}
+{% block page_subtitle %}What each doctor brought in, their commission share, the clinic's share and what is still owed.{% endblock %}
+{% block content %}
+{% include "finance/_tabs.html" with fin_tab="doctors" %}
+{% include "finance/_period.html" %}
+<section class="card">
+  {% if rows %}
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th scope="col">Doctor</th><th scope="col" class="text-right">Income brought in</th><th scope="col" class="text-right">Doctor share</th><th scope="col" class="text-right">Clinic share</th><th scope="col" class="text-right">Unsettled commission</th><th scope="col" class="text-right">Balance owed</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+    <tbody>{% for r in rows %}
+      <tr><td class="font-medium">{{ r.name }}</td><td class="text-right">{{ r.income|floatformat:"2g" }}</td><td class="text-right">{{ r.commission|floatformat:"2g" }}</td><td class="text-right">{{ r.clinic|floatformat:"2g" }}</td><td class="text-right">{{ r.unsettled|floatformat:"2g" }}</td><td class="text-right font-semibold">{{ r.balance|floatformat:"2g" }}</td>
+        <td class="text-right">{% if can_pay %}<a href="{% url 'hr:staff-ledger' r.user_id %}" class="btn btn-ghost btn-sm">Ledger</a>{% endif %}</td></tr>
+    {% endfor %}</tbody>
+    <tfoot><tr class="font-semibold"><td>Total</td><td class="text-right">{{ totals.income|floatformat:"2g" }}</td><td class="text-right">{{ totals.commission|floatformat:"2g" }}</td><td class="text-right">{{ totals.clinic|floatformat:"2g" }}</td><td colspan="3"></td></tr></tfoot>
+  </table></div>
+  {% else %}{% include "components/empty_state.html" with icon_name="stethoscope" title="No doctor income in this period" message="Consultations, procedures and lab referrals naming a doctor appear here." compact=True %}{% endif %}
+</section>
+{% endblock %}

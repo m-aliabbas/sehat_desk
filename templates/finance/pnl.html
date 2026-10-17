@@ -1,0 +1,29 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}Profit & loss{% endblock %}
+{% block page_title %}Profit &amp; loss statement{% endblock %}
+{% block page_subtitle %}Income is counted when an invoice is issued; refunds on the day they are given.{% endblock %}
+{% block page_actions %}<a href="{% url 'finance:pnl' %}{% querystring export='csv' %}" class="btn btn-secondary">Export CSV</a>{% endblock %}
+{% block content %}
+{% include "finance/_tabs.html" with fin_tab="pnl" %}
+{% include "finance/_period.html" %}
+<section class="card">
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th scope="col">Line</th>{% for k, l in segments %}<th scope="col" class="text-right">{{ l }}</th>{% endfor %}<th scope="col" class="text-right">Total</th></tr></thead>
+    <tbody>
+      <tr class="bg-mint/40"><th scope="row" colspan="{{ segments|length|add:2 }}" class="text-left text-label font-semibold uppercase text-muted">Income</th></tr>
+      {% for label, values in st.income_lines.items %}
+        <tr><td>{{ label }}</td>{% for k, l in segments %}<td class="text-right {% if values|get_item:k < 0 %}text-red{% endif %}">{{ values|get_item:k|floatformat:"2g" }}</td>{% endfor %}<td class="text-right">{% with t=values.values|sum_values %}{{ t|floatformat:"2g" }}{% endwith %}</td></tr>
+      {% empty %}<tr><td colspan="{{ segments|length|add:2 }}" class="text-label text-muted">No income in this period.</td></tr>{% endfor %}
+      <tr class="font-semibold"><td>Total income</td>{% for k, l in segments %}<td class="text-right">{{ st.income|get_item:k|floatformat:"2g" }}</td>{% endfor %}<td class="text-right">{{ st.total_income|floatformat:"2g" }}</td></tr>
+      <tr class="bg-amber-soft/50"><th scope="row" colspan="{{ segments|length|add:2 }}" class="text-left text-label font-semibold uppercase text-muted">Costs &amp; expenses</th></tr>
+      {% for label, values in st.cost_lines.items %}
+        <tr><td>{{ label }}</td>{% for k, l in segments %}<td class="text-right">{{ values|get_item:k|floatformat:"2g" }}</td>{% endfor %}<td class="text-right">{% with t=values.values|sum_values %}{{ t|floatformat:"2g" }}{% endwith %}</td></tr>
+      {% empty %}<tr><td colspan="{{ segments|length|add:2 }}" class="text-label text-muted">No costs in this period.</td></tr>{% endfor %}
+      <tr class="font-semibold"><td>Total costs</td>{% for k, l in segments %}<td class="text-right">{{ st.costs|get_item:k|floatformat:"2g" }}</td>{% endfor %}<td class="text-right">{{ st.total_costs|floatformat:"2g" }}</td></tr>
+    </tbody>
+    <tfoot><tr class="text-[17px] font-bold"><td>{% if st.net_profit < 0 %}Net loss{% else %}Net profit{% endif %}</td>{% for k, l in segments %}{% with pr=st.profit|get_item:k %}<td class="text-right {% if pr < 0 %}text-red{% endif %}">{{ pr|floatformat:"2g" }}</td>{% endwith %}{% endfor %}<td class="text-right {% if st.net_profit < 0 %}text-red{% endif %}">{{ st.net_profit|floatformat:"2g" }}</td></tr></tfoot>
+  </table></div>
+  <p class="mt-4 text-label text-muted">Pharmacy cost of goods is the purchase cost of medicines sold. Salaries count for each month the period touches, once payroll is finalized. Doctor commission counts when the bill is paid.</p>
+</section>
+{% endblock %}

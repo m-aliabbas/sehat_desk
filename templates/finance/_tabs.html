@@ -1,0 +1,12 @@
+{# Finance sub-navigation. Context: fin_tab #}
+<nav class="tabs mb-6 overflow-x-auto" aria-label="Finance sections">
+  {% if "finance.view" in sd_perms %}
+  <a class="tab" href="{% url 'finance:dashboard' %}{% querystring %}" {% if fin_tab == "dashboard" %}aria-selected="true"{% endif %}>Dashboard</a>
+  <a class="tab" href="{% url 'finance:pnl' %}{% querystring %}" {% if fin_tab == "pnl" %}aria-selected="true"{% endif %}>Profit &amp; loss</a>
+  <a class="tab" href="{% url 'finance:ledger' %}{% querystring segment=None method=None page=None %}" {% if fin_tab == "ledger" %}aria-selected="true"{% endif %}>Complete ledger</a>
+  <a class="tab" href="{% url 'finance:ledger-doctors' %}{% querystring segment=None method=None page=None %}" {% if fin_tab == "doctors" %}aria-selected="true"{% endif %}>Doctors ledger</a>
+  {% if "hr.pay.manage" in sd_perms %}<a class="tab" href="{% url 'hr:pay-list' %}">Staff ledgers</a>{% endif %}
+  {% endif %}
+  <a class="tab" href="{% url 'finance:expense-list' %}{% querystring segment=None method=None page=None %}" {% if fin_tab == "expenses" %}aria-selected="true"{% endif %}>Expenses</a>
+  {% if "finance.expense.manage" in sd_perms %}<a class="tab" href="{% url 'finance:supplier-pay' %}" {% if fin_tab == "suppliers" %}aria-selected="true"{% endif %}>Pay suppliers</a>{% endif %}
+</nav>

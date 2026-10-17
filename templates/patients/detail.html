@@ -7,6 +7,7 @@
   <a href="{% url 'patients:slip' patient.pk %}" class="btn btn-secondary" target="_blank">Print slip</a>
   {% if can_edit %}<a href="{% url 'patients:edit' patient.pk %}" class="btn btn-secondary">Edit details</a>{% endif %}
   {% if can_consult %}<form method="post" action="{% url 'encounters:start' %}">{% csrf_token %}<input type="hidden" name="patient" value="{{ patient.pk }}"><input type="hidden" name="back" value="{{ request.get_full_path }}"><button class="btn btn-primary">{% icon "stethoscope" "h-4 w-4" %} Start consultation</button></form>{% endif %}
+  {% if can_add_procedure and patient.is_active %}<a href="{% url 'procedures:procedure-create' %}?patient={{ patient.pk }}" class="btn btn-secondary">{% icon "plus" "h-4 w-4" %} Add procedure</a>{% endif %}
   {% if can_book %}<a href="{% url 'appointments:book' %}?patient={{ patient.pk }}" class="btn btn-primary">{% icon "calendar" "h-4 w-4" %} Book appointment</a>{% endif %}
   {% if current_admission %}<a href="{% url 'ipd:admission-detail' current_admission.pk %}" class="btn btn-secondary">{% icon "bed" "h-4 w-4" %} Inpatient chart</a>
   {% elif can_admit and patient.is_active %}<a href="{% url 'ipd:admit' %}?patient={{ patient.pk }}" class="btn btn-secondary">{% icon "bed" "h-4 w-4" %} Admit</a>{% endif %}

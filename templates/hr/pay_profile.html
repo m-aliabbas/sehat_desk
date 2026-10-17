@@ -1,0 +1,52 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}Pay · {{ staff }}{% endblock %}
+{% block page_title %}Pay profile · {{ staff }}{% endblock %}
+{% block page_subtitle %}Changes apply to future payroll and new commission. Earned commission keeps its rate.{% endblock %}
+{% block page_actions %}<a href="{% url 'hr:staff-ledger' staff.pk %}" class="btn btn-secondary">Ledger</a>{% endblock %}
+{% block content %}
+{% include "hr/_tabs.html" with hr_tab="pay" %}
+<div class="grid gap-6 xl:grid-cols-3">
+  <form method="post" class="card xl:col-span-2" novalidate>{% csrf_token %}
+    {% for e in form.non_field_errors %}{% include "components/alert.html" with level="danger" message=e %}{% endfor %}
+    <h2 class="section-title mb-4">Salary</h2>
+    <div class="grid gap-5 md:grid-cols-3">
+      {% include "components/field.html" with field=form.pay_type %}
+      {% include "components/field.html" with field=form.monthly_salary %}
+      {% include "components/field.html" with field=form.daily_rate %}
+    </div>
+    <div class="mt-4">{% include "components/field.html" with field=form.deduct_absences %}</div>
+    <h2 class="section-title mb-4 mt-6">Working hours</h2>
+    <div class="grid gap-5 md:grid-cols-3">
+      {% include "components/field.html" with field=form.work_start %}
+      {% include "components/field.html" with field=form.late_grace_minutes %}
+      {% include "components/field.html" with field=form.weekly_off %}
+    </div>
+    <h2 class="section-title mb-1 mt-6">Doctor commission with the clinic</h2>
+    <p class="mb-4 text-label text-muted">The doctor's share of each fully paid bill line they are named on. The rest stays with the clinic.</p>
+    <div class="grid gap-5 md:grid-cols-3">
+      {% include "components/field.html" with field=form.consultation_percent %}
+      {% include "components/field.html" with field=form.procedure_percent %}
+      {% include "components/field.html" with field=form.lab_referral_percent %}
+    </div>
+    <div class="mt-4">{% include "components/field.html" with field=form.is_active %}</div>
+    <div class="mt-6 flex gap-3"><button class="btn btn-primary">Save pay profile</button><a href="{% url 'hr:pay-list' %}" class="btn btn-secondary">Back</a></div>
+  </form>
+  <section class="card h-fit">
+    <h2 class="section-title mb-1">Per-procedure commission</h2>
+    <p class="mb-4 text-label text-muted">Overrides the default % for one procedure, e.g. root canal 40% or an operation fixed 5,000.</p>
+    {% if profile %}
+      <ul class="mb-4 divide-y divide-line">{% for r in rules %}
+        <li class="flex items-center justify-between py-2"><span>{{ r.service.name }} <span class="text-label text-muted">· {{ r.percent|floatformat:"-2" }}%{% if r.fixed_amount %} + {{ r.fixed_amount|floatformat:"2g" }}{% endif %}</span></span>
+          <form method="post" action="{% url 'hr:pay-rule-remove' staff.pk r.pk %}">{% csrf_token %}<button class="btn btn-ghost btn-sm text-red">Remove</button></form></li>
+      {% empty %}<li class="py-2 text-label text-muted">No overrides.</li>{% endfor %}</ul>
+      <form method="post" action="{% url 'hr:pay-rule-add' staff.pk %}" class="space-y-3">{% csrf_token %}
+        {% include "components/field.html" with field=rule_form.service %}
+        {% include "components/field.html" with field=rule_form.percent %}
+        {% include "components/field.html" with field=rule_form.fixed_amount %}
+        <button class="btn btn-secondary">Save override</button>
+      </form>
+    {% else %}<p class="text-label text-muted">Save the pay profile first.</p>{% endif %}
+  </section>
+</div>
+{% endblock %}

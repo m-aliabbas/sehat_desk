@@ -1,0 +1,23 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}Attendance {{ month_label }}{% endblock %}
+{% block page_title %}Monthly attendance{% endblock %}
+{% block page_subtitle %}{{ month_label }} · {{ request.branch.name }}{% if locked %} · payroll finalized{% endif %}{% endblock %}
+{% block content %}
+{% include "hr/_tabs.html" with hr_tab="month" %}
+<section class="card">
+  <form method="get" class="mb-4 flex flex-wrap items-end gap-4" x-data @change="$el.submit()">
+    <div class="field"><label class="field-label" for="att-month">Month</label><input id="att-month" type="month" name="month" value="{{ month_value }}" class="input"></div>
+    <p class="text-label text-muted">{% for short, lbl in legend %}<span class="mr-3"><span class="font-mono font-semibold">{{ short }}</span> {{ lbl }}</span>{% endfor %}</p>
+  </form>
+  {% if rows %}
+  <div class="table-wrap"><table class="table text-label">
+    <thead><tr><th scope="col" class="sticky left-0 bg-white">Staff</th>{% for d in days %}<th scope="col" class="px-1 text-center {% if d.weekday == 6 %}text-muted{% endif %}">{{ d.day }}</th>{% endfor %}<th scope="col" class="text-right">Present</th><th scope="col" class="text-right">Late</th><th scope="col" class="text-right">Absent</th><th scope="col" class="text-right">Leave</th></tr></thead>
+    <tbody>{% for r in rows %}
+      <tr><td class="sticky left-0 whitespace-nowrap bg-white font-medium">{{ r.user }}</td>
+        {% for c in r.cells %}<td class="px-1 text-center font-mono {% if c.status == 'absent' %}text-red font-semibold{% elif c.status == 'late' %}text-amber{% endif %}" {% if c %}title="{{ c.get_status_display }}"{% endif %}>{{ c.short|default:"·" }}</td>{% endfor %}
+        <td class="text-right">{{ r.totals.present_days|floatformat:"-1" }}</td><td class="text-right">{{ r.totals.late }}</td><td class="text-right">{{ r.totals.absent_days|floatformat:"-1" }}</td><td class="text-right">{{ r.totals.leave }}</td></tr>
+    {% endfor %}</tbody></table></div>
+  {% else %}{% include "components/empty_state.html" with icon_name="users" title="No staff in this branch" %}{% endif %}
+</section>
+{% endblock %}

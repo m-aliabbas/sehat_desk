@@ -1,0 +1,39 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}Ledger{% endblock %}
+{% block page_title %}Complete ledger · {{ segment_label }}{% endblock %}
+{% block page_subtitle %}Every money movement: payments, refunds, deposits, expenses, staff pay and supplier payments.{% endblock %}
+{% block page_actions %}<a href="{% url 'finance:ledger' %}{% querystring export='csv' %}" class="btn btn-secondary">Export CSV</a>{% endblock %}
+{% block content %}
+{% include "finance/_tabs.html" with fin_tab="ledger" %}
+<nav class="mb-4 flex flex-wrap gap-2" aria-label="Ledger segment">
+  <a href="{% querystring segment=None %}" class="chip {% if not segment %}chip-info{% else %}chip-neutral{% endif %}">All</a>
+  {% for k, l in segments %}<a href="{% querystring segment=k %}" class="chip {% if segment == k %}chip-info{% else %}chip-neutral{% endif %}">{{ l }}</a>{% endfor %}
+</nav>
+{% include "finance/_period.html" %}
+<div class="mb-6 grid gap-4 md:grid-cols-4">
+  <div class="stat-card bg-white ring-1 ring-line"><p class="text-label text-muted">Opening balance</p><p class="mt-1 text-[22px] font-bold">{{ opening|floatformat:"2g" }}</p></div>
+  <div class="stat-card bg-mint"><p class="text-label text-muted">Money in</p><p class="mt-1 text-[22px] font-bold">{{ money_in|floatformat:"2g" }}</p></div>
+  <div class="stat-card bg-amber-soft"><p class="text-label text-muted">Money out</p><p class="mt-1 text-[22px] font-bold">{{ money_out|floatformat:"2g" }}</p></div>
+  <div class="stat-card bg-blue-soft"><p class="text-label text-muted">Closing balance</p><p class="mt-1 text-[22px] font-bold">{{ closing|floatformat:"2g" }}</p></div>
+</div>
+<section class="card">
+  <form method="get" class="mb-4 flex flex-wrap items-end gap-3">
+    {% for k, v in request.GET.items %}{% if k != "method" and k != "page" %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endif %}{% endfor %}
+    <div class="field"><label class="field-label" for="led-method">Payment method</label>
+      <select id="led-method" name="method" class="select" onchange="this.form.submit()"><option value="">All methods</option>{% for m in methods %}<option value="{{ m.name }}" {% if method == m.name %}selected{% endif %}>{{ m.name }}</option>{% endfor %}</select></div>
+  </form>
+  {% if rows %}
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th scope="col">When</th><th scope="col">Entry</th><th scope="col">Method</th><th scope="col" class="text-right">In</th><th scope="col" class="text-right">Out</th><th scope="col" class="text-right">Balance</th></tr></thead>
+    <tbody>{% for r in rows %}{% with e=r.entry %}
+      <tr><td class="whitespace-nowrap">{{ e.when|date:"d M Y, H:i" }}{% if scope == "all" %}<p class="text-label text-muted">{{ e.branch }}</p>{% endif %}</td>
+        <td>{{ e.kind }} <span class="font-mono text-label text-muted">{{ e.number }}</span><p class="text-label text-muted">{{ e.description }}</p></td>
+        <td>{{ e.method|default:"—" }}</td>
+        <td class="text-right">{% if r.amount > 0 %}{{ r.amount|floatformat:"2g" }}{% endif %}</td>
+        <td class="text-right">{% if r.amount < 0 %}{{ r.amount|floatformat:"2g"|slice:"1:" }}{% endif %}</td>
+        <td class="text-right font-semibold">{{ r.running|floatformat:"2g" }}</td></tr>
+    {% endwith %}{% endfor %}</tbody></table></div>
+  {% else %}{% include "components/empty_state.html" with icon_name="inbox" title="No money movements" message="Nothing was received or paid out in this period." compact=True %}{% endif %}
+</section>
+{% endblock %}

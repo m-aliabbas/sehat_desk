@@ -1,0 +1,27 @@
+{% extends "print/a4.html" %}
+{% block title %}Payslip {{ run.label }} · {{ slip.user }}{% endblock %}
+{% block print_label %}Print payslip{% endblock %}
+{% block document %}
+    {% include "print/_letterhead.html" with org=request.organization branch=run.branch doc_title="Payslip" doc_number=run.label doc_date=run.finalized_at|default:slip.updated_at doc_status=run.get_status_display %}
+    <section class="mt-5 grid grid-cols-2 gap-6 text-body">
+      <div><p class="text-label text-muted uppercase">Employee</p><p class="font-semibold">{{ slip.user }}</p><p class="text-label">{{ slip.user.designation }}{% if slip.user.employee_code %} · {{ slip.user.employee_code }}{% endif %}</p></div>
+      <div class="text-right"><p class="text-label text-muted uppercase">Attendance</p><p>{{ slip.present_days|floatformat:"-1" }} of {{ slip.working_days }} working days</p><p class="text-label">{{ slip.absent_days|floatformat:"-1" }} absent · {{ slip.leave_days }} leave · {{ slip.late_count }} late</p></div>
+    </section>
+    <table class="mt-6 w-full text-body">
+      <tbody>
+        <tr class="border-b border-line"><td class="py-2">{{ slip.get_pay_type_display }}{% if slip.pay_type == "daily" %} ({{ slip.daily_rate|floatformat:"2g" }} × {{ slip.present_days|floatformat:"-1" }}){% endif %}</td><td class="text-right">{{ slip.base_pay|floatformat:"2g" }}</td></tr>
+        {% if slip.absence_deduction %}<tr class="border-b border-line"><td class="py-2">Absence deduction</td><td class="text-right">−{{ slip.absence_deduction|floatformat:"2g" }}</td></tr>{% endif %}
+        {% if slip.commission %}<tr class="border-b border-line"><td class="py-2">Commission ({{ earnings|length }} line{{ earnings|length|pluralize }})</td><td class="text-right">{{ slip.commission|floatformat:"2g" }}</td></tr>{% endif %}
+        {% if slip.bonus %}<tr class="border-b border-line"><td class="py-2">Bonus{% if slip.adjustment_note %} · {{ slip.adjustment_note }}{% endif %}</td><td class="text-right">{{ slip.bonus|floatformat:"2g" }}</td></tr>{% endif %}
+        {% if slip.deduction %}<tr class="border-b border-line"><td class="py-2">Other deduction{% if slip.adjustment_note %} · {{ slip.adjustment_note }}{% endif %}</td><td class="text-right">−{{ slip.deduction|floatformat:"2g" }}</td></tr>{% endif %}
+      </tbody>
+      <tfoot><tr class="font-bold"><td class="py-2">Net pay</td><td class="text-right">{{ request.organization.currency }} {{ slip.net_pay|floatformat:"2g" }}</td></tr></tfoot>
+    </table>
+    {% if earnings %}
+    <h3 class="mt-6 text-label font-semibold uppercase text-muted">Commission detail</h3>
+    <table class="mt-2 w-full text-label">
+      <tbody>{% for e in earnings %}<tr class="border-b border-line"><td class="py-1">{{ e.created_at|date:"d M" }} · {{ e.invoice.number }}</td><td>{{ e.percent|floatformat:"-2" }}%{% if e.fixed_amount %} + {{ e.fixed_amount|floatformat:"2g" }}{% endif %}</td><td class="text-right">{{ e.amount|floatformat:"2g" }}</td></tr>{% endfor %}</tbody>
+    </table>
+    {% endif %}
+    {% include "print/_footer.html" with org=request.organization %}
+{% endblock %}

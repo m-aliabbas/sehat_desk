@@ -183,9 +183,13 @@ def _workspace_context(request, encounter, form=None):
         **(_catalogue(request) if lab_can_order else {}),
     }
     from apps.documents.services import panel_context as document_panel
+    from apps.procedures.views import encounter_panel_context as procedure_panel
 
+    procedure_can_view = has_perm(request, "procedure.view")
     return {
         **lab,
+        **(procedure_panel(request, encounter, writable) if procedure_can_view else {}),
+        "procedure_can_view": procedure_can_view,
         **document_panel(request, patient, encounter=encounter),
         **diagnosis_context(request, encounter),
         **panel_context(request, encounter),

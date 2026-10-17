@@ -83,6 +83,10 @@ Goal: a customer installs one package, gets a desktop shortcut, double-clicks it
 - Local server per clinic (on-premise) rather than cloud-only, because internet can be unreliable in Pakistan.
 - Installer for both Windows and macOS, built on their own runners.
 - App address: http://sehatdesk.local on the LAN.
+- Procedures (Phase 33) reuse Settings → Services (`is_procedure`, `price_editable`). A per-patient price needs `procedure.price.override` and a reason; the list price is kept.
+- Doctor commission (Phase 35) is earned only when a bill is fully paid, and reversed in proportion to refunds. Rows are append-only and keep the rate they were earned at. `InvoiceItem.performed_by` names the doctor (consultation, procedure, or referring doctor for lab).
+- Payroll deducts only days explicitly marked absent (half for a half day); unmarked days are paid, so clinics that do not mark attendance still pay full salaries. Finalizing locks that month's attendance.
+- P&L (Phase 36) is accrual: income by invoice issue date, before tax, invoice discounts shared across lines; refunds on the day given. Salaries count for each month the period touches, from finalized payroll only. Segments: Doctors/OPD, Laboratory, Pharmacy, Hospital (system).
 
 ## 7. Repository layout and conventions (Phase 0, updated Phase 1)
 Layout:

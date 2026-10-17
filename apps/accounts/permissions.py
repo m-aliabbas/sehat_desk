@@ -74,6 +74,20 @@ PERMISSIONS: list[PermissionDef] = [
     # Reports
     PermissionDef("reports.view", "Reports", "View operational reports"),
     PermissionDef("reports.financial.view", "Reports", "View financial reports"),
+    # Procedures
+    PermissionDef("procedure.view", "Procedures", "View patient procedures"),
+    PermissionDef("procedure.order", "Procedures", "Add procedures to patients"),
+    PermissionDef("procedure.perform", "Procedures", "Mark procedures done"),
+    PermissionDef("procedure.price.override", "Procedures", "Charge a different procedure price"),
+    # HR & payroll
+    PermissionDef("hr.self", "HR & payroll", "Check in/out and view own attendance and pay"),
+    PermissionDef("hr.attendance.manage", "HR & payroll", "Mark and correct staff attendance"),
+    PermissionDef(
+        "hr.pay.manage", "HR & payroll", "Manage pay profiles, commission, payroll and staff pay"
+    ),
+    # Finance
+    PermissionDef("finance.view", "Finance", "View profit & loss, ledgers and finance dashboard"),
+    PermissionDef("finance.expense.manage", "Finance", "Record expenses and pay suppliers"),
 ]
 
 ALL_CODES = frozenset(p.code for p in PERMISSIONS)
@@ -101,22 +115,31 @@ DEFAULT_ROLES: list[RoleDef] = [
         "hospital_admin",
         "Hospital admin",
         "Operations, staff, settings and reports. No clinical record access.",
-        _codes("admin.", "reports.", "appointment.view", "billing.view", "patient.view")
-        | {"patient.create", "ipd.facility.manage"},
+        _codes(
+            "admin.",
+            "reports.",
+            "hr.",
+            "finance.",
+            "appointment.view",
+            "billing.view",
+            "patient.view",
+        )
+        | {"patient.create", "ipd.facility.manage", "procedure.view"},
     ),
     RoleDef(
         "reception",
         "Reception",
         "Registration, appointments, tokens and consultation payments.",
         _codes("patient.", "appointment.", "queue.")
-        | {"billing.view", "billing.payment.collect", "document.view", "document.upload"},
+        | {"billing.view", "billing.payment.collect", "document.view", "document.upload"}
+        | {"procedure.view", "procedure.order", "hr.self"},
     ),
     RoleDef(
         "doctor",
         "Doctor",
         "Consultations, prescriptions, lab orders and AI drafting.",
-        _codes("consultation.", "prescription.", "vitals.", "ai.", "document.")
-        | {"patient.view", "appointment.view", "lab.order.create", "ipd.manage"},
+        _codes("consultation.", "prescription.", "vitals.", "ai.", "document.", "procedure.")
+        | {"patient.view", "appointment.view", "lab.order.create", "ipd.manage", "hr.self"},
     ),
     RoleDef(
         "nurse",
@@ -131,6 +154,9 @@ DEFAULT_ROLES: list[RoleDef] = [
                 "nursing.notes",
                 "document.view",
                 "document.upload",
+                "procedure.view",
+                "procedure.perform",
+                "hr.self",
             }
         ),
     ),
@@ -138,19 +164,22 @@ DEFAULT_ROLES: list[RoleDef] = [
         "lab",
         "Lab technician",
         "Samples, results and verification.",
-        _codes("lab.") | {"patient.view", "document.view", "document.upload"},
+        _codes("lab.") | {"patient.view", "document.view", "document.upload", "hr.self"},
     ),
     RoleDef(
         "pharmacy",
         "Pharmacist",
         "Prescriptions, dispensing, stock, purchases and returns.",
         # Discounts are a supervisor decision: granted per hospital, not by default.
-        (_codes("pharmacy.") - {"pharmacy.discount"}) | {"patient.view", "billing.payment.collect"},
+        (_codes("pharmacy.") - {"pharmacy.discount"})
+        | {"patient.view", "billing.payment.collect", "hr.self"},
     ),
     RoleDef(
         "cashier",
         "Cashier",
         "Payments, refunds and day closing.",
-        _codes("billing.") | {"patient.view", "reports.financial.view"},
+        _codes("billing.")
+        | {"patient.view", "reports.financial.view", "procedure.view"}
+        | {"hr.self", "finance.expense.manage"},
     ),
 ]

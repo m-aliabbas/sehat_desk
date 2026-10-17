@@ -1,0 +1,17 @@
+{# Period + branch scope picker. Context from finance.views.period(). extra: hidden inputs block via `keep` #}
+<form method="get" class="mb-6 flex flex-wrap items-end gap-3" x-data="{ p: '{{ period }}' }">
+  {% for k, v in keep.items %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
+  <div class="field"><label class="field-label" for="fin-period">Period</label>
+    <select id="fin-period" name="period" class="select" x-model="p" @change="if (p !== 'custom') $el.form.submit()">
+      {% for v, l in periods %}<option value="{{ v }}" {% if period == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
+    </select></div>
+  <div class="field" x-show="p === 'custom'"><label class="field-label" for="fin-from">From</label><input id="fin-from" type="date" name="from" value="{{ first|date:'Y-m-d' }}" class="input"></div>
+  <div class="field" x-show="p === 'custom'"><label class="field-label" for="fin-to">To</label><input id="fin-to" type="date" name="to" value="{{ last|date:'Y-m-d' }}" class="input"></div>
+  <div class="field"><label class="field-label" for="fin-scope">Branches</label>
+    <select id="fin-scope" name="scope" class="select" onchange="this.form.submit()">
+      <option value="branch" {% if scope == "branch" %}selected{% endif %}>{{ request.branch.name }}</option>
+      <option value="all" {% if scope == "all" %}selected{% endif %}>All my branches</option>
+    </select></div>
+  <button class="btn btn-secondary" x-show="p === 'custom'">Apply</button>
+  <p class="pb-2 text-label text-muted">{{ first|date:"j M Y" }} – {{ last|date:"j M Y" }} · {{ scope_label }}</p>
+</form>

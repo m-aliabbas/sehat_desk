@@ -1,0 +1,43 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}Ledger · {{ staff }}{% endblock %}
+{% block page_title %}Staff ledger · {{ staff }}{% endblock %}
+{% block page_subtitle %}Salary, commission, bonuses and deductions owed; payouts and advances paid. Entries are never edited.{% endblock %}
+{% block content %}
+{% include "hr/_tabs.html" with hr_tab="pay" %}
+<div class="mb-6 grid gap-4 md:grid-cols-2">
+  <div class="stat-card {% if balance < 0 %}bg-amber-soft{% else %}bg-mint{% endif %}"><p class="text-body text-ink">{% if balance < 0 %}Staff owes the hospital{% else %}Hospital owes{% endif %}</p><p class="mt-2 text-[28px] font-bold">{{ organization.currency }} {{ balance|floatformat:"2g" }}</p></div>
+  <div class="stat-card bg-blue-soft"><p class="text-body text-ink">Commission not yet in payroll</p><p class="mt-2 text-[28px] font-bold">{{ organization.currency }} {{ unsettled|floatformat:"2g" }}</p></div>
+</div>
+<div class="grid gap-6 xl:grid-cols-3">
+  <section class="card xl:col-span-2">
+    {% if entries %}
+    <div class="table-wrap"><table class="table">
+      <thead><tr><th scope="col">Date</th><th scope="col">Entry</th><th scope="col" class="text-right">Owed (+)</th><th scope="col" class="text-right">Paid (−)</th><th scope="col" class="text-right">Balance</th></tr></thead>
+      <tbody>{% for e in entries %}
+        <tr><td>{{ e.created_at|date:"d M Y, H:i" }}<p class="text-label text-muted">{{ e.branch.name }}</p></td>
+          <td>{{ e.get_kind_display }}<p class="text-label text-muted">{{ e.note }}{% if e.method %} · {{ e.method }}{% endif %}{% if e.reference %} · {{ e.reference }}{% endif %} · {{ e.created_by }}</p></td>
+          <td class="text-right">{% if e.amount > 0 %}{{ e.amount|floatformat:"2g" }}{% endif %}</td>
+          <td class="text-right">{% if e.amount < 0 %}{{ e.amount|floatformat:"2g"|slice:"1:" }}{% endif %}</td>
+          <td class="text-right font-semibold">{{ e.running|floatformat:"2g" }}</td></tr>
+      {% endfor %}</tbody></table></div>
+    {% else %}{% include "components/empty_state.html" with icon_name="inbox" title="No ledger entries" message="Finalized payroll and payouts appear here." compact=True %}{% endif %}
+  </section>
+  <div class="space-y-6">
+    <section class="card"><h2 class="section-title mb-3">Pay staff</h2>
+      <form method="post" action="{% url 'hr:staff-pay' staff.pk %}" class="space-y-3">{% csrf_token %}
+        {% for f in pay_form %}{% include "components/field.html" with field=f %}{% endfor %}
+        <button class="btn btn-primary" data-confirm="Record this payment to {{ staff }}?">Record payment</button>
+      </form>
+    </section>
+    {% if not has_opening %}
+    <section class="card"><h2 class="section-title mb-3">Opening balance</h2>
+      <form method="post" action="{% url 'hr:staff-opening' staff.pk %}" class="space-y-3">{% csrf_token %}
+        {% for f in opening_form %}{% include "components/field.html" with field=f %}{% endfor %}
+        <button class="btn btn-secondary">Record opening balance</button>
+      </form>
+    </section>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

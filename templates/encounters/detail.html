@@ -65,6 +65,7 @@
       <a href="#sec-diagnoses" class="rounded-control px-3 py-1.5 text-body font-medium text-muted hover:bg-mint hover:text-teal-deep"><span class="mr-1 inline-flex h-6 w-6 items-center justify-center rounded-full bg-mint text-label text-teal-deep">{{ sections|length|add:1 }}</span>Diagnoses</a>
       <a href="#sec-prescription" class="rounded-control px-3 py-1.5 text-body font-medium text-muted hover:bg-mint hover:text-teal-deep"><span class="mr-1 inline-flex h-6 w-6 items-center justify-center rounded-full bg-mint text-label text-teal-deep">{{ sections|length|add:2 }}</span>Prescription</a>
       <a href="#sec-lab" class="rounded-control px-3 py-1.5 text-body font-medium text-muted hover:bg-mint hover:text-teal-deep"><span class="mr-1 inline-flex h-6 w-6 items-center justify-center rounded-full bg-mint text-label text-teal-deep">{{ sections|length|add:3 }}</span>Lab</a>
+      {% if procedure_can_view %}<a href="#sec-procedures" class="rounded-control px-3 py-1.5 text-body font-medium text-muted hover:bg-mint hover:text-teal-deep"><span class="mr-1 inline-flex h-6 w-6 items-center justify-center rounded-full bg-mint text-label text-teal-deep">{{ sections|length|add:4 }}</span>Procedures</a>{% endif %}
     </nav>
 
     <div class="space-y-6">
@@ -90,6 +91,7 @@
       {% include "encounters/_diagnoses.html" %}
       {% include "prescriptions/_panel.html" %}
       {% if features.lab %}{% include "lab/_encounter_panel.html" %}{% endif %}
+      {% if procedure_can_view %}{% include "procedures/_encounter_panel.html" %}{% endif %}
       {% if doc_can_view %}<section class="card scroll-mt-20" id="sec-documents">{% include "documents/_panel.html" %}</section>{% endif %}
     </div>
     {% if writable %}

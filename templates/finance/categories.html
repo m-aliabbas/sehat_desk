@@ -1,0 +1,23 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}Expense categories{% endblock %}
+{% block page_title %}Expense categories{% endblock %}
+{% block content %}
+{% include "finance/_tabs.html" with fin_tab="expenses" %}
+<div class="grid gap-6 xl:grid-cols-3">
+  <section class="card xl:col-span-2">
+    <div class="table-wrap"><table class="table">
+      <thead><tr><th scope="col">Category</th><th scope="col">Default segment</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+      <tbody>{% for c in categories %}
+        <tr><td class="font-medium">{{ c.name }}</td><td>{{ c.get_segment_display }}</td><td>{% if c.is_active %}{% status_chip "active" %}{% else %}{% status_chip "inactive" %}{% endif %}</td>
+          <td class="text-right"><form method="post" action="{% url 'finance:category-toggle' c.pk %}">{% csrf_token %}<button class="btn btn-ghost btn-sm">{% if c.is_active %}Deactivate{% else %}Activate{% endif %}</button></form></td></tr>
+      {% endfor %}</tbody></table></div>
+  </section>
+  <form method="post" class="card h-fit space-y-4" novalidate>{% csrf_token %}
+    <h2 class="section-title">Add category</h2>
+    {% include "components/field.html" with field=form.name %}
+    {% include "components/field.html" with field=form.segment %}
+    <button class="btn btn-primary">Add</button>
+  </form>
+</div>
+{% endblock %}

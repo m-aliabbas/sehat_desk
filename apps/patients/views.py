@@ -176,6 +176,7 @@ def patient_detail(request, pk):
         "upcoming": appointments.filter(status__in=["scheduled", "confirmed"]).last(),
         "can_edit": has_perm(request, "patient.update"),
         "can_book": has_perm(request, "appointment.manage"),
+        "can_add_procedure": has_perm(request, "procedure.order"),
         "allergy_form": AllergyForm(),
         "identifier_form": IdentifierForm(),
         "error_form": MarkErrorForm(),

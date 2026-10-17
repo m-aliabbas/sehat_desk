@@ -1,0 +1,23 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}Payroll{% endblock %}
+{% block page_title %}Payroll{% endblock %}
+{% block page_subtitle %}One run per month for {{ request.branch.name }}. Staff with a pay profile here get a payslip.{% endblock %}
+{% block content %}
+{% include "hr/_tabs.html" with hr_tab="payroll" %}
+<div class="grid gap-6 xl:grid-cols-3">
+  <section class="card xl:col-span-2">
+    {% if runs %}
+    <div class="table-wrap"><table class="table">
+      <thead><tr><th scope="col">Month</th><th scope="col">Status</th><th scope="col" class="text-right">Net pay</th><th scope="col">Finalized</th></tr></thead>
+      <tbody>{% for r in runs %}<tr><td><a href="{% url 'hr:payroll-detail' r.pk %}" class="font-medium hover:underline">{{ r.label }}</a></td><td>{% status_chip r.status r.get_status_display %}</td><td class="text-right">{{ r.total|default:0|floatformat:"2g" }}</td><td class="text-label text-muted">{% if r.finalized_at %}{{ r.finalized_at|date:"d M Y" }} · {{ r.finalized_by }}{% endif %}</td></tr>{% endfor %}</tbody>
+    </table></div>
+    {% else %}{% include "components/empty_state.html" with icon_name="calendar" title="No payroll yet" message="Set up pay profiles under Staff pay, then draft the month." compact=True %}{% endif %}
+  </section>
+  <form method="post" class="card h-fit" novalidate>{% csrf_token %}
+    <h2 class="section-title mb-3">Draft payroll</h2>
+    {% include "components/field.html" with field=form.month %}
+    <button class="btn btn-primary mt-4">Draft payroll</button>
+  </form>
+</div>
+{% endblock %}

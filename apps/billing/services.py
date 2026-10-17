@@ -133,6 +133,7 @@ def create_invoice(*, request, patient, appointment=None, notes="", customer_nam
             kind=InvoiceItem.Kind.CONSULTATION,
             description=f"Consultation · {appointment.doctor}",
             unit_price=appointment.fee,
+            performed_by=appointment.doctor.user,
         )
         invoice.refresh_from_db()
     return invoice
@@ -156,6 +157,7 @@ def add_item(
     quantity=1,
     kind=None,
     tax_percent=None,
+    performed_by=None,
 ) -> InvoiceItem:
     invoice = _lock(invoice)
     _require_draft(invoice)
@@ -166,7 +168,11 @@ def add_item(
             raise BillingError("That service is not available.")
         description = description or service.name
         unit_price = service.price_for(invoice.branch) if unit_price is None else unit_price
-        kind = kind or InvoiceItem.Kind.SERVICE
+        kind = kind or (
+            InvoiceItem.Kind.PROCEDURE if service.is_procedure else InvoiceItem.Kind.SERVICE
+        )
+    if performed_by is not None and performed_by.organization_id != invoice.organization_id:
+        raise BillingError("That doctor is not in this hospital.")
     if not description.strip():
         raise BillingError("Describe the item.")
     if unit_price is None or Decimal(unit_price) < 0:
@@ -181,6 +187,7 @@ def add_item(
         quantity=quantity,
         unit_price=to_money(unit_price),
         tax_percent=tax_percent,
+        performed_by=performed_by,
         added_by=request.user,
     )
     item.compute()
