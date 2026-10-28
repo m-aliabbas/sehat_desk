@@ -15,7 +15,10 @@
         {% if current.encounter %}
           <a href="{% url 'encounters:detail' current.encounter.pk %}" class="btn btn-primary col-span-2">Continue consultation</a>
         {% elif is_own_queue %}
-          <button formaction="{% url 'encounters:start' %}" name="token" value="{{ current.pk }}" class="btn btn-primary col-span-2">Start consultation</button>
+          <button formaction="{% url 'encounters:start' %}" name="token" value="{{ current.pk }}" class="btn btn-secondary col-span-2">Start consultation (write notes)</button>
+        {% endif %}
+        {% if not current.encounter %}
+          <button formaction="{% url 'queue:complete-next' current.pk %}" class="btn btn-primary col-span-2" title="For a manual (paper) prescription: no notes needed">Done (manual Rx) · Next patient{% if waiting %} {{ waiting.0.label }}{% endif %}</button>
         {% endif %}
         {% if current.status == "called" %}
           {% if not is_own_queue and not current.encounter %}<button formaction="{% url 'queue:start' current.pk %}" class="btn btn-primary col-span-2">Mark in consultation</button>{% endif %}

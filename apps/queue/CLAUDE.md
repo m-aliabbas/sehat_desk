@@ -11,6 +11,9 @@ Phase 6. Tokens per branch, department and day (A-001...). PROJECT_NOTES §11.
 - waiting → called → in_consultation → completed (skip/requeue, cancel from any open state).
   The linked appointment follows.
 - A doctor has at most one called/in-consultation token at a time.
+- "Done (manual Rx) · Next patient" (`queue:complete-next`, views.`complete_and_next`) completes a
+  token that has no consultation note and calls the next one, for doctors who write paper
+  prescriptions. Refused once a note exists (complete that from the note).
 - Special priority needs `priority.special`.
 - The public display (`queue:display`) uses the branch `display_key`, shows token numbers only.
 

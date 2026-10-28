@@ -19,6 +19,11 @@ urlpatterns = [
     path("queue/tokens/<int:pk>/requeue/", views.requeue, name="requeue"),
     path("queue/tokens/<int:pk>/start/", views.start, name="start"),
     path("queue/tokens/<int:pk>/complete/", views.complete, name="complete"),
+    path(
+        "queue/tokens/<int:pk>/complete-next/",
+        views.complete_and_next,
+        name="complete-next",
+    ),
     path("queue/tokens/<int:pk>/cancel/", views.cancel, name="cancel"),
     path("display/<str:key>/", views.display, name="display"),
 ]

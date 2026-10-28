@@ -325,6 +325,31 @@ def complete(request, pk):
 
 
 @require_POST
+def complete_and_next(request, pk):
+    """One click for doctors who write a manual prescription: close this visit, call the next."""
+    token = _token_for_operator(request, pk)
+    doctor = _operator_doctor(request, token.doctor_id)
+    if hasattr(token, "encounter"):
+        messages.error(request, "This visit has consultation notes; complete it from the note.")
+        return _back(request, reverse("queue:doctor"))
+    before = token.status
+    try:
+        token = services.complete(token)
+    except services.QueueError as err:
+        messages.error(request, err.message)
+        return _back(request, reverse("queue:doctor"))
+    audit.record(request, "queue.complete", token, changes={"status": [before, token.status]})
+    try:
+        nxt = services.call_next(request=request, doctor=doctor)
+    except services.QueueError as err:
+        messages.success(request, f"{token.label} completed. {err.message}")
+    else:
+        audit.record(request, "queue.call", nxt, changes={"status": ["waiting", "called"]})
+        messages.success(request, f"{token.label} completed. Calling {nxt.label}.")
+    return _back(request, reverse("queue:doctor"))
+
+
+@require_POST
 @permission_required(DESK)
 def cancel(request, pk):
     token = get_scoped_or_404(QueueToken, request, pk=pk)

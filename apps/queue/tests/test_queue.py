@@ -292,6 +292,27 @@ def test_doctor_can_operate_only_own_queue(
     assert other  # profile exists
 
 
+def test_done_manual_rx_completes_and_calls_next(
+    client, doctor, department, desk_request, make_patient
+):
+    first, second = (
+        services.issue_token(
+            request=desk_request, patient=make_patient(n), department=department, doctor=doctor
+        )
+        for n in ("A", "B")
+    )
+    client.force_login(doctor.user)
+    client.post("/queue/call-next/")
+    client.post(f"/queue/tokens/{first.pk}/complete-next/")
+    first.refresh_from_db()
+    second.refresh_from_db()
+    assert first.status == Status.COMPLETED and second.status == Status.CALLED
+    # The last patient: completes, nothing left to call.
+    client.post(f"/queue/tokens/{second.pk}/complete-next/")
+    second.refresh_from_db()
+    assert second.status == Status.COMPLETED
+
+
 def test_doctor_queue_page(client, doctor, desk_request, department, patient):
     services.issue_token(
         request=desk_request, patient=patient, department=department, doctor=doctor
