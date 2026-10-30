@@ -8,7 +8,9 @@ management commands.
 - `scoping.py` — `OrgScopedModel`, `BranchScopedModel`, `scoped()`, `get_scoped_or_404`, `paginate`.
 - `db.py` — `critical_write`, `locked`, `after_commit` for money/stock writes.
 - `navigation.py` — sidebar items (`NavItem`: key, label, icon, url_name, permissions).
-- `features.py` — module switches (lab, pharmacy, ipd) for nav and URL namespaces.
+- `menu_hub.py` — the All menu page (`core:menu`): every screen grouped by category (`HUB_GROUPS`).
+  Admins (`admin.organization.manage`) get the short `ADMIN_SIDEBAR`; a new screen they need goes here.
+- `features.py` — module switches (lab, pharmacy, ipd, nursing) for nav and URL namespaces.
 - `observability.py`, `monitoring.py` — request IDs, JSON logs, PHI redaction, error reports.
 - `security.py` — CSP and headers (no external hosts). `icons.py` — inline Lucide SVGs.
 - `pdf.py` — `weasyprint_html()`: loads WeasyPrint (adds Homebrew/MacPorts lib dirs on macOS),

@@ -25,7 +25,7 @@
       </div>
       <div class="mt-6 flex gap-3">
         <button class="btn btn-danger" data-confirm="Money is returned to the patient and recorded against the original payment. This cannot be undone." data-confirm-title="Issue refund?" data-confirm-action="Issue refund" data-confirm-danger="true">Issue refund</button>
-        <a href="{% url 'billing:invoice-detail' invoice.pk %}" class="btn btn-secondary">Cancel</a>
+        <a href="{% url 'billing:invoice-detail' invoice.pk %}" class="btn btn-close">Cancel</a>
       </div>
     </form>
   </section>

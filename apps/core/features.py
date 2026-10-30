@@ -6,12 +6,24 @@ restores everything.
 from django.shortcuts import render
 
 # feature -> (URL namespaces it owns, extra view names it owns, nav item keys)
+# Nursing comes before ipd so its desk screens match it first. Charting on an admission stays
+# with ipd: it is part of the patient's chart, so it works with the nursing desk off.
 FEATURES = {
+    "nursing": (
+        (),
+        ("nursing:workspace", "nursing:handover", "nursing:handover-ack"),
+        ("nursing",),
+    ),
     "lab": (("lab",), ("reports:lab-dashboard",), ("laboratory",)),
     "pharmacy": (("pharmacy",), ("reports:pharmacy-dashboard",), ("pharmacy", "inventory")),
     "ipd": (("ipd", "nursing"), (), ("ipd", "nursing")),
 }
-LABELS = {"lab": "Laboratory", "pharmacy": "Pharmacy and inventory", "ipd": "Inpatient and nursing"}
+LABELS = {
+    "lab": "Laboratory",
+    "pharmacy": "Pharmacy and inventory",
+    "ipd": "Inpatient and wards",
+    "nursing": "Nursing",
+}
 
 
 def enabled_features(organization) -> dict[str, bool]:
@@ -20,7 +32,9 @@ def enabled_features(organization) -> dict[str, bool]:
     from apps.organizations.models import preferences_for
 
     prefs = preferences_for(organization)
-    return {key: getattr(prefs, f"feature_{key}") for key in FEATURES}
+    flags = {key: getattr(prefs, f"feature_{key}") for key in FEATURES}
+    flags["nursing"] = flags["nursing"] and flags["ipd"]  # the desk works on inpatients
+    return flags
 
 
 def is_enabled(organization, key: str) -> bool:

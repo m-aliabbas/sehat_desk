@@ -3,7 +3,7 @@
 {% block title %}Procedures{% endblock %}
 {% block page_title %}Procedures{% endblock %}
 {% block page_subtitle %}ECG, EEG, ECHO, ultrasound, operations and dental work added to patients in this branch.{% endblock %}
-{% block page_actions %}{% if can_order %}<a href="{% url 'procedures:procedure-create' %}" class="btn btn-primary">{% icon "plus" "h-4 w-4" %} Add procedure</a>{% endif %}{% endblock %}
+{% block page_actions %}{% if "admin.masterdata.manage" in sd_perms %}<a href="{% url 'masterdata:service-list' %}?kind=procedure" class="btn btn-secondary">Existing procedures</a><a href="{% url 'masterdata:service-create' %}?kind=procedure" class="btn btn-secondary">{% icon "plus" "h-4 w-4" %} New procedure</a>{% endif %}{% if can_order %}<a href="{% url 'procedures:procedure-create' %}" class="btn btn-primary">{% icon "plus" "h-4 w-4" %} Add to patient</a>{% endif %}{% endblock %}
 {% block content %}
 <section class="card">
   <form method="get" class="mb-5 grid gap-3 md:grid-cols-[1fr_200px_180px]" x-data @change="$el.submit()">

@@ -28,7 +28,7 @@
   </div>
   <div class="mt-6 flex gap-3">
     <button class="btn btn-danger" data-confirm="The units leave stock and the supplier's balance is reduced. This cannot be undone." data-confirm-title="Return stock to supplier?" data-confirm-action="Return stock" data-confirm-danger="true">Return stock</button>
-    <a href="{% url 'pharmacy:purchase-detail' purchase.pk %}" class="btn btn-ghost">Cancel</a>
+    <a href="{% url 'pharmacy:purchase-detail' purchase.pk %}" class="btn btn-close">Cancel</a>
   </div>
 </form>
 {% endblock %}

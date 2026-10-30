@@ -469,7 +469,9 @@ Tooling:
 
 ## 18. Settings → Preferences and billing rules (Phase 25)
 - `organizations.OrganizationPreferences` (one row per hospital, `preferences_for(org)`, cached per request):
-  - **Module switches** lab / pharmacy+inventory / IPD+nursing. `apps.core.features.FeatureMiddleware` answers 404
+  - **Module switches** lab / pharmacy+inventory / IPD+wards / nursing desk, on the All menu page
+    (`organizations:modules`). Nursing off blocks the desk and handover; charting on an admission stays with IPD,
+    and IPD off also turns nursing off. `apps.core.features.FeatureMiddleware` answers 404
     ("turned off") for the module's URL namespaces and its dashboards; navigation, dashboard tiles, patient
     record tabs, the consultation lab panel and global search hide it. Data is kept.
   - Default consultation length and follow-up window for **new** doctors; waiting-room display refresh
@@ -477,7 +479,15 @@ Tooling:
     everywhere, including the expiry report) and default reorder level for new products.
 - Billing settings add **largest discount %** (`billing.check_discount_cap`, enforced for line, invoice and
   POS discounts) and the **receipt message**. Negative stock stays impossible (service + DB constraint).
-- Every Preferences save is audited as `organization.preferences` with field changes.
+- **Colours (2026-10-30):** the palette in `static/src/app.css` moves from the design kit's muted tones to basic
+  colours with fixed meaning: green go, yellow wait, red stop or close, plus one colour per module. `DESIGN-TOKENS.json`
+  is the original kit and no longer matches for these colours.
+- Every Preferences save is audited as `organization.preferences` with field changes (modules: `organization.modules`).
+- **Admin navigation (2026-10-30):** users with `admin.organization.manage` get a short sidebar (Overview, Inventory,
+  Reports, Finance, Reception, Procedures, Lab, a separate All menu button, Settings pinned at the bottom). All menu
+  groups every other screen (`apps/core/menu_hub.py`); Settings keeps its own tabs. Existing hospitals get the new
+  grants from `accounts/0002`. Hospital admin now also holds `queue.manage`, `pharmacy.inventory.manage`
+  and `lab.catalog.manage`; the last gives the catalogue only, never patient results.
 
 ## 19. Security hardening (Phase 26)
 - `apps/core/security.py` `SecurityHeadersMiddleware`: CSP (`default-src 'self'`, `connect-src 'self'`,

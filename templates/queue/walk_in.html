@@ -62,7 +62,7 @@
       <li>Choosing a doctor also records a walk-in visit on the patient's history.</li>
     </ul>
     <button type="submit" class="btn btn-primary mt-6 w-full" :disabled="!patientId">Issue token</button>
-    <a href="{% url 'queue:desk' %}" class="btn btn-secondary mt-2 w-full">Cancel</a>
+    <a href="{% url 'queue:desk' %}" class="btn btn-close mt-2 w-full">Cancel</a>
   </aside>
 </form>
 {% endblock %}

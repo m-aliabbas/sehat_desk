@@ -15,7 +15,7 @@
       </div>
     </div>
     <div class="mt-6 flex justify-end gap-3">
-      <button type="button" class="btn btn-secondary" @click="$store.confirm.answer(false)">Cancel</button>
+      <button type="button" class="btn btn-close" @click="$store.confirm.answer(false)">Cancel</button>
       <button type="button" class="btn" :class="$store.confirm.danger ? 'btn-danger' : 'btn-primary'"
               x-text="$store.confirm.actionLabel" @click="$store.confirm.answer(true)"
               x-effect="$store.confirm.open && $nextTick(() => $el.focus())"></button>

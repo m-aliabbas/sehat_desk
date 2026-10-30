@@ -30,7 +30,8 @@ JOURNEYS = {
     "pharmacy": ("pharmacy", {"inventory"}, {"opd", "laboratory", "settings"}, "pos-search"),
     "cashier": ("billing", set(), {"opd", "laboratory", "settings"}, "invoice"),
     "nurse": ("nursing", {"ipd", "vitals"}, {"settings", "billing", "pharmacy"}, "ward"),
-    "hospital_admin": ("settings", {"staff", "reports", "ipd"}, {"opd", "nursing"}, "hospital"),
+    "hospital_admin": ("settings", {"inventory", "reports", "finance", "reception", "procedures",
+                                    "laboratory"}, {"opd", "nursing", "staff", "hr"}, "hospital"),
 }  # fmt: skip
 
 

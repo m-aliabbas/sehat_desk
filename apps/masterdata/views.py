@@ -3,6 +3,7 @@
 from django.contrib import messages
 from django.db import transaction
 from django.shortcuts import redirect, render
+from django.urls import reverse
 from django.views.decorators.http import require_POST
 
 from apps.accounts.decorators import permission_required
@@ -320,7 +321,9 @@ def service_form(request, pk=None):
     service = (
         get_scoped_or_404(Service, request, pk=pk)
         if pk
-        else Service(organization=request.organization)
+        else Service(
+            organization=request.organization, is_procedure=request.GET.get("kind") == "procedure"
+        )
     )
     creating = pk is None
     branches = Branch.objects.filter(organization=request.organization, is_active=True)
@@ -348,6 +351,8 @@ def service_form(request, pk=None):
                 summary=f"price={service.price}",
             )
         messages.success(request, f"Service “{service.name}” saved.")
+        if service.is_procedure:
+            return redirect(f"{reverse('masterdata:service-list')}?kind=procedure")
         return redirect("masterdata:service-list")
     return render(
         request,

@@ -7,6 +7,9 @@ Phase 33: ECG, EEG, ECHO, ultrasound, operations, dental work added to a patient
   invoice line of kind "procedure"), `complete(findings)`, `cancel(reason)`.
 - `models.py` — `PatientProcedure`. Catalogue = `masterdata.Service` with `is_procedure=True`.
 
+New and existing procedures are managed on `masterdata:service-list?kind=procedure` (linked from
+the All menu page and this app's list); `service-create?kind=procedure` starts with the flag ticked.
+
 ## Rules
 - Price override needs `procedure.price.override` and a reason; the list price stays on record.
 - Only ordered (not done) procedures can be cancelled, with a reason. Its invoice is voided

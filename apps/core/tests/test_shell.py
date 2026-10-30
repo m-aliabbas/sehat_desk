@@ -4,7 +4,7 @@ import pytest
 from django.template import Context, Template
 from django.urls import reverse
 
-from apps.core.navigation import NAV_ITEMS
+from apps.core.navigation import ADMIN_SIDEBAR
 from conftest import PASSWORD
 
 
@@ -71,10 +71,10 @@ def test_nav_hides_admin_items_from_reception(client, user):
     assert not {"settings", "design-system", "staff", "pharmacy", "laboratory"} & set(keys)
 
 
-def test_nav_shows_everything_to_super_admin(client, staff):
+def test_nav_is_the_short_admin_list_for_super_admin(client, staff):
     client.force_login(staff)
     keys = [item["key"] for item in client.get("/").context["nav_items"]]
-    assert keys == [item.key for item in NAV_ITEMS]
+    assert keys == list(ADMIN_SIDEBAR)
 
 
 # --- Server-side authorization (not just hidden links) ---------------------------------

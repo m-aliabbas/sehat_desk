@@ -39,7 +39,7 @@
           {% include "components/field.html" with field=form.clinical_notes %}
         </div>
         <p class="mt-4 text-label text-muted">Urgent and STAT samples can be collected before payment. Routine samples wait for payment unless you record a reason.</p>
-        <div class="mt-5 flex gap-3"><button class="btn btn-primary">Create order</button><a href="{% url 'lab:worklist' %}" class="btn btn-secondary">Cancel</a></div>
+        <div class="mt-5 flex gap-3"><button class="btn btn-primary">Create order</button><a href="{% url 'lab:worklist' %}" class="btn btn-close">Cancel</a></div>
       </section>
     </aside>
   </div>

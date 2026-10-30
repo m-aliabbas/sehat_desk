@@ -77,7 +77,7 @@
       <p class="mt-1 text-muted">Status after saving: Scheduled. Token is issued at check-in.</p>
       <div class="mt-5 flex gap-3">
         <button type="submit" class="btn btn-primary flex-1" :disabled="!patientId || !time">Confirm appointment</button>
-        <a href="{% url 'appointments:calendar' %}" class="btn btn-secondary">Cancel</a>
+        <a href="{% url 'appointments:calendar' %}" class="btn btn-close">Cancel</a>
       </div>
     </section>
   </aside>

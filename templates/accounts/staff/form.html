@@ -33,7 +33,7 @@
   {% endif %}
   <div class="flex gap-3 xl:col-span-3">
     <button type="submit" class="btn btn-primary">{% if creating %}Create account{% else %}Save changes{% endif %}</button>
-    <a href="{% if staff %}{% url 'accounts:staff-detail' staff.pk %}{% else %}{% url 'accounts:staff-list' %}{% endif %}" class="btn btn-secondary">Cancel</a>
+    <a href="{% if staff %}{% url 'accounts:staff-detail' staff.pk %}{% else %}{% url 'accounts:staff-list' %}{% endif %}" class="btn btn-close">Cancel</a>
   </div>
 </form>
 {% endblock %}

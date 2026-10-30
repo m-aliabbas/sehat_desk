@@ -12,6 +12,8 @@ from datetime import datetime, timedelta
 from django.urls import reverse
 from django.utils import timezone
 
+from apps.core.features import is_enabled
+
 from .models import Event, Level
 from .services import notify
 
@@ -143,8 +145,10 @@ def workflow_reminders(branch, now):
             branch=branch, status__in=Admission.ACTIVE_STATUSES
         ).select_related("patient", "current_bed", "vitals_schedule")
     )
+    # Nursing reminders link to the nursing desk, which may be switched off.
+    nursing_on = is_enabled(org, "nursing")
     overdue = [t for t in due_tasks(admissions, now=now) if t["state"] == "overdue"]
-    if overdue:
+    if overdue and nursing_on:
         n = len(overdue)
         hour = timezone.localtime(now).strftime("%Y%m%d%H")
         notify(
@@ -159,9 +163,10 @@ def workflow_reminders(branch, now):
             dedupe_key=f"ward-overdue-{branch.pk}-{hour}",
         )
 
-    for note in HandoverNote.objects.filter(
+    handovers = HandoverNote.objects.filter(
         ward__branch=branch, acknowledged_at__isnull=True, created_at__lt=now - timedelta(hours=1)
-    ).select_related("ward"):
+    ).select_related("ward")
+    for note in handovers if nursing_on else ():
         notify(
             org,
             Event.REMINDER,

@@ -19,6 +19,6 @@
     {% include "components/field.html" with field=form.follow_up_instructions %}
   </div>
   <div class="field"><label class="field-label" for="reason">Reason for the amendment <span class="text-red" aria-hidden="true">*</span></label><input id="reason" name="reason" value="{{ reason }}" class="input" required maxlength="200"></div>
-  <div class="flex gap-3"><button class="btn btn-primary">Sign new version</button><a href="{% url 'ipd:admission-detail' admission.pk %}" class="btn btn-ghost">Cancel</a></div>
+  <div class="flex gap-3"><button class="btn btn-primary">Sign new version</button><a href="{% url 'ipd:admission-detail' admission.pk %}" class="btn btn-close">Cancel</a></div>
 </form>
 {% endblock %}

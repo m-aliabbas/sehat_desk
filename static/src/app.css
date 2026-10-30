@@ -18,15 +18,25 @@
   --color-teal: #008e81;
   --color-teal-deep: #086c70;
   --color-mint: #e4f8f2;
-  --color-blue: #2189f5;
-  --color-amber: #b66a10;
-  --color-red: #ce4b55;
+  /* Basic colours people already read without a legend, like traffic lights and colour-coded
+     bins: green = go/save/active, yellow = wait/pending, red = stop/close/delete. All pass 4.5:1
+     with white, except yellow, which always carries ink text. */
+  --color-green: #15803d;
+  --color-green-soft: #dcfce7;
+  --color-blue: #2563eb;
+  --color-amber: #a16207;
+  --color-yellow: #facc15;
+  --color-yellow-soft: #fef9c3;
+  --color-orange: #c2410c;
+  --color-orange-soft: #ffedd5;
+  --color-purple: #7c3aed;
+  --color-red: #dc2626;
 
   /* Soft status surfaces, paired with the strong colors above */
-  --color-blue-soft: #e8f2fe;
-  --color-amber-soft: #fdf3e4;
-  --color-red-soft: #fcebec;
-  --color-violet-soft: #f1eefc;
+  --color-blue-soft: #dbeafe;
+  --color-amber-soft: #fef9c3;
+  --color-red-soft: #fee2e2;
+  --color-violet-soft: #ede9fe;
   --color-sidebar: #f7fbfd;
 
   /* Typography: Inter, DejaVu Sans fallback (no web-font download; works offline) */
@@ -77,12 +87,27 @@
       text-body font-medium whitespace-nowrap transition-colors
       disabled:cursor-not-allowed disabled:opacity-60;
   }
-  .btn-primary { @apply border-teal bg-teal text-white hover:border-teal-deep hover:bg-teal-deep; }
+  /* Green goes, red stops: save and create are green, close and cancel are red. */
+  .btn-primary { @apply border-green bg-green text-white hover:brightness-90; }
   .btn-secondary { @apply border-line bg-white text-ink hover:bg-page; }
   .btn-danger { @apply border-red bg-red text-white hover:brightness-95; }
+  .btn-close { @apply border-red bg-white text-red hover:bg-red-soft; }
+  .btn-warning { @apply border-yellow bg-yellow text-ink hover:brightness-95; }
   .btn-ghost { @apply border-transparent bg-transparent text-ink hover:bg-page; }
   .btn-sm { @apply h-8 px-3 text-label; }
   .btn-icon { @apply h-10 w-10 px-0; }
+  .btn-icon[aria-label^="Close"] { @apply text-red hover:bg-red-soft; }
+
+  /* ---- Colour coding: one colour per module. `tint` is an icon square, `band` a card's top edge ---- */
+  .tint { @apply inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-control; }
+  .tint-blue { @apply bg-blue-soft text-blue; }
+  .tint-green { @apply bg-green-soft text-green; }
+  .tint-orange { @apply bg-orange-soft text-orange; }
+  .tint-purple { @apply bg-violet-soft text-purple; }
+  .tint-red { @apply bg-red-soft text-red; }
+  .tint-yellow { @apply bg-yellow-soft text-amber; }
+  .tint-teal { @apply bg-mint text-teal-deep; }
+  .tint-neutral { @apply bg-page text-muted; }
 
   /* ---- Form controls ---- */
   .field { @apply flex flex-col gap-1.5; }
@@ -100,7 +125,7 @@
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%2373869E' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
     background-position: right 0.75rem center;
   }
-  .checkbox { @apply h-4 w-4 rounded border-line text-teal accent-teal; }
+  .checkbox { @apply h-4 w-4 rounded border-line text-green accent-green; }
 
   /* ---- Cards ---- */
   .card { @apply rounded-card border border-line bg-white p-6; }
@@ -109,7 +134,7 @@
 
   /* ---- Status chips: `chip` plus one variant. Always text + color, never color alone ---- */
   .chip { @apply inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-label font-medium whitespace-nowrap; }
-  .chip-success { @apply bg-mint text-teal-deep; }
+  .chip-success { @apply bg-green-soft text-green; }
   .chip-info { @apply bg-blue-soft text-blue; }
   .chip-warning { @apply bg-amber-soft text-amber; }
   .chip-danger { @apply bg-red-soft text-red; }
@@ -137,7 +162,18 @@
 
   /* ---- Navigation ---- */
   .nav-link { @apply flex items-center gap-3 rounded-control px-3 py-2.5 text-body text-ink/85 transition-colors hover:bg-mint/70; }
+  .nav-link-boxed { @apply border border-line bg-white; }
   .nav-link-active { @apply bg-teal-deep font-medium text-white hover:bg-teal-deep; }
+  .nav-link-active .tint { @apply bg-white/20 text-white; }
+
+  /* After .card so the coloured top edge wins over its border */
+  .band-blue { @apply border-t-4 border-t-blue; }
+  .band-green { @apply border-t-4 border-t-green; }
+  .band-orange { @apply border-t-4 border-t-orange; }
+  .band-purple { @apply border-t-4 border-t-purple; }
+  .band-red { @apply border-t-4 border-t-red; }
+  .band-yellow { @apply border-t-4 border-t-yellow; }
+  .band-teal { @apply border-t-4 border-t-teal; }
 }
 
 /* htmx: show indicators only while a request is in flight */

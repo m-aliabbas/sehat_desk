@@ -56,7 +56,7 @@
     <div class="flex flex-wrap gap-3">
       {% if "appointment.manage" in sd_perms %}<button type="submit" name="next" value="book" class="btn btn-primary">Save &amp; book appointment</button>{% endif %}
       <button type="submit" name="next" value="profile" class="btn {% if 'appointment.manage' in sd_perms %}btn-secondary{% else %}btn-primary{% endif %}">Save patient only</button>
-      <a href="{% url 'patients:list' %}" class="btn btn-ghost">Cancel</a>
+      <a href="{% url 'patients:list' %}" class="btn btn-close">Cancel</a>
     </div>
   </div>
   <aside class="card h-fit xl:sticky xl:top-24">

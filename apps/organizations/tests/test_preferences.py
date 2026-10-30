@@ -12,9 +12,6 @@ from apps.pharmacy.tests.test_inventory import pharmacist, product, req  # noqa:
 
 def _save(client, **changes):
     data = {
-        "feature_lab": "on",
-        "feature_pharmacy": "on",
-        "feature_ipd": "on",
         "default_slot_minutes": 15,
         "default_follow_up_days": 7,
         "display_refresh_seconds": 5,
@@ -25,6 +22,14 @@ def _save(client, **changes):
     data.update(changes)
     data = {k: v for k, v in data.items() if v is not None}
     return client.post(reverse("organizations:preferences"), data)
+
+
+def _modules(client, **changes):
+    data = {"feature_lab": "on", "feature_pharmacy": "on", "feature_ipd": "on"}
+    data["feature_nursing"] = "on"
+    data.update(changes)
+    data = {k: v for k, v in data.items() if v is not None}
+    return client.post(reverse("organizations:modules"), data)
 
 
 def _fresh(org):
@@ -54,25 +59,40 @@ def test_out_of_range_values_are_refused(admin_client, org):
 
 def test_switching_lab_off_blocks_pages_and_hides_navigation(admin_client, org):
     assert admin_client.get(reverse("lab:worklist")).status_code == 200
-    _save(admin_client, feature_lab=None)
+    _modules(admin_client, feature_lab=None)
     response = admin_client.get(reverse("lab:worklist"))
     assert response.status_code == 404
     assert b"turned off" in response.content
     assert admin_client.get(reverse("reports:lab-dashboard")).status_code == 404
     nav = admin_client.get(reverse("core:dashboard")).content
     assert reverse("lab:worklist").encode() not in nav
-    _save(admin_client)
+    _modules(admin_client)
     assert admin_client.get(reverse("lab:worklist")).status_code == 200
 
 
 def test_switching_ipd_off_blocks_ipd_and_nursing(admin_client, org):
-    _save(admin_client, feature_ipd=None)
+    _modules(admin_client, feature_ipd=None)
     assert admin_client.get(reverse("ipd:board")).status_code == 404
     assert admin_client.get(reverse("nursing:workspace")).status_code == 404
 
 
+def test_nursing_desk_switches_off_alone(admin_client, org):
+    _modules(admin_client, feature_nursing=None)
+    assert admin_client.get(reverse("nursing:workspace")).status_code == 404
+    assert admin_client.get(reverse("nursing:handover")).status_code == 404
+    assert admin_client.get(reverse("ipd:board")).status_code == 200
+    entry = AuditLog.objects.filter(action="organization.modules").get()
+    assert entry.changes["feature_nursing"] == [True, False]
+
+
+def test_modules_need_admin(client, make_user, org):
+    client.force_login(make_user("reception"))
+    assert _modules(client, feature_lab=None).status_code == 403
+    assert _fresh(org).feature_lab is True
+
+
 def test_switching_pharmacy_off(admin_client, org):
-    _save(admin_client, feature_pharmacy=None)
+    _modules(admin_client, feature_pharmacy=None)
     assert admin_client.get(reverse("pharmacy:pos")).status_code == 404
     assert admin_client.get(reverse("pharmacy:dashboard")).status_code == 404
 

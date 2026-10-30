@@ -7,7 +7,7 @@ from django.views.decorators.http import require_POST
 from apps.accounts.decorators import has_perm, permission_required
 from apps.audit import services as audit
 
-from .forms import BranchForm, OrganizationForm, PreferencesForm
+from .forms import BranchForm, ModulesForm, OrganizationForm, PreferencesForm
 from .models import Branch, preferences_for
 
 ORG_AUDIT_FIELDS = [f for f in OrganizationForm.Meta.fields if f != "logo"]
@@ -86,6 +86,22 @@ def preferences(request):
             "breadcrumbs": _crumbs({"label": "Preferences"}),
         },
     )
+
+
+@require_POST
+@permission_required("admin.organization.manage")
+def modules(request):
+    """Module switches on the All menu page. Unticked checkboxes post nothing, so this is off."""
+    prefs = preferences_for(request.organization)
+    before = audit.snapshot(prefs, ModulesForm.Meta.fields)
+    form = ModulesForm(request.POST, instance=prefs)
+    if form.is_valid():
+        form.save()
+        changes = audit.diff(before, prefs, ModulesForm.Meta.fields)
+        if changes:
+            audit.record(request, "organization.modules", request.organization, changes=changes)
+        messages.success(request, "Modules saved.")
+    return redirect("core:menu")
 
 
 def _branches(request):

@@ -29,7 +29,7 @@
   <div class="no-print flex flex-wrap items-center justify-center gap-3 p-4">
     <button class="btn btn-primary" onclick="window.print()">{% block print_label %}Print{% endblock %}</button>
     {% block toolbar_extra %}{% endblock %}
-    {% block close_button %}<button class="btn btn-secondary" onclick="window.close()">Close</button>{% endblock %}
+    {% block close_button %}<button class="btn btn-close" onclick="window.close()">Close</button>{% endblock %}
   </div>
   {% endblock %}
   {% block before_sheet %}{% endblock %}

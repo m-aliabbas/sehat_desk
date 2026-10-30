@@ -54,7 +54,7 @@
       <p class="text-body">An admission number is given on saving, a running inpatient bill is opened, and the bed shows as occupied on the bed board.</p>
       <div class="mt-4 flex gap-3">
         <button class="btn btn-primary" {% if not form.bed.field.queryset %}disabled{% endif %}>{% icon "bed" "h-4 w-4" %} Admit patient</button>
-        <a href="{% url 'ipd:board' %}" class="btn btn-ghost">Cancel</a>
+        <a href="{% url 'ipd:board' %}" class="btn btn-close">Cancel</a>
       </div>
     </section>
   </aside>

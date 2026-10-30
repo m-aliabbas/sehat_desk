@@ -8,6 +8,7 @@ urlpatterns = [
     path("", views.settings_home, name="settings"),
     path("hospital/", views.hospital_settings, name="hospital"),
     path("preferences/", views.preferences, name="preferences"),
+    path("modules/", views.modules, name="modules"),
     path("branches/", views.branch_list, name="branch-list"),
     path("branches/new/", views.branch_create, name="branch-create"),
     path("branches/<int:pk>/", views.branch_edit, name="branch-edit"),

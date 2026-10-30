@@ -18,7 +18,7 @@
   </div>
   <div class="mt-6 flex gap-3">
     <button class="btn btn-primary">Save supplier</button>
-    <a href="{% if creating %}{% url 'pharmacy:vendor-list' %}{% else %}{% url 'pharmacy:vendor-detail' vendor.pk %}{% endif %}" class="btn btn-ghost">Cancel</a>
+    <a href="{% if creating %}{% url 'pharmacy:vendor-list' %}{% else %}{% url 'pharmacy:vendor-detail' vendor.pk %}{% endif %}" class="btn btn-close">Cancel</a>
   </div>
 </form>
 {% endblock %}

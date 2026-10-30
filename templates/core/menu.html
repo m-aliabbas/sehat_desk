@@ -1,0 +1,46 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}All menu{% endblock %}
+{% block page_title %}All menu{% endblock %}
+{% block page_subtitle %}Every screen in one place, grouped by what it is for.{% endblock %}
+{% block content %}
+<div class="gap-6 md:columns-2 xl:columns-3">
+  {% for group in groups %}
+  <section class="card band-{{ group.color }} mb-6 break-inside-avoid" aria-labelledby="hub-{{ forloop.counter }}">
+    <h2 id="hub-{{ forloop.counter }}" class="section-title mb-3 flex items-center gap-2"><span class="tint tint-{{ group.color }}">{% icon group.icon "h-4 w-4" %}</span> {{ group.title }}</h2>
+    <ul class="space-y-1">
+      {% for tile in group.tiles %}
+      <li>
+        {% if tile.url %}
+        <a href="{{ tile.url }}" class="flex items-center gap-3 rounded-control px-2 py-2 transition-colors hover:bg-page">
+          <span class="tint tint-{{ group.color }}">{% icon tile.icon "h-4 w-4" %}</span>
+          <span class="min-w-0 flex-1"><span class="block text-body font-medium text-ink">{{ tile.label }}</span><span class="block text-label text-muted">{{ tile.description }}</span></span>
+          <span class="shrink-0 text-muted">{% icon "chevron-right" "h-4 w-4" %}</span>
+        </a>
+        {% else %}
+        <div class="flex items-center gap-3 px-2 py-2">
+          <span class="tint tint-neutral">{% icon "lock" "h-4 w-4" %}</span>
+          <span class="min-w-0 flex-1"><span class="block text-body font-medium text-muted">{{ tile.label }}</span><span class="block text-label text-muted">Not in your role. Change it in Settings → Roles.</span></span>
+        </div>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endfor %}
+  {% if modules_form %}
+  <section class="card band-teal mb-6 break-inside-avoid" aria-labelledby="hub-modules">
+    <h2 id="hub-modules" class="section-title mb-1 flex items-center gap-2"><span class="tint tint-teal">{% icon "sliders" "h-4 w-4" %}</span> Turn modules on or off</h2>
+    <p class="mb-4 text-label text-muted">A module that is off disappears from every menu and its pages are blocked. Records are kept and come back when it is turned on again.</p>
+    <form method="post" action="{% url 'organizations:modules' %}" class="space-y-3" novalidate>
+      {% csrf_token %}
+      {% include "components/field.html" with field=modules_form.feature_ipd %}
+      {% include "components/field.html" with field=modules_form.feature_nursing %}
+      {% include "components/field.html" with field=modules_form.feature_lab %}
+      {% include "components/field.html" with field=modules_form.feature_pharmacy %}
+      <button type="submit" class="btn btn-primary">Save modules</button>
+    </form>
+  </section>
+  {% endif %}
+</div>
+{% endblock %}

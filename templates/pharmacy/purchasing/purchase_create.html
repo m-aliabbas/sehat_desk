@@ -15,7 +15,7 @@
     {% include "components/field.html" with field=form.supplier_invoice_number %}
     {% include "components/field.html" with field=form.notes %}
   </div>
-  <div class="mt-6 flex gap-3"><button class="btn btn-primary">Continue to items</button><a href="{% url 'pharmacy:purchase-list' %}" class="btn btn-ghost">Cancel</a></div>
+  <div class="mt-6 flex gap-3"><button class="btn btn-primary">Continue to items</button><a href="{% url 'pharmacy:purchase-list' %}" class="btn btn-close">Cancel</a></div>
 </form>
 {% endif %}
 {% endblock %}

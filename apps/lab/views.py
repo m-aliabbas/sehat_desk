@@ -44,18 +44,19 @@ from .models import (
     LabTestCategory,
 )
 
-LAB_ANY = (
+LAB_DESK = (
     "lab.order.create",
     "lab.sample.collect",
     "lab.result.enter",
     "lab.result.verify",
-    "lab.catalog.manage",
 )
+# The catalogue is admin work: holding only lab.catalog.manage shows no patient or result.
+LAB_ANY = (*LAB_DESK, "lab.catalog.manage")
 ItemStatus = LabOrderItem.Status
 
 
 def _can_view_results(request) -> bool:
-    return has_perm(request, "consultation.view") or any(has_perm(request, c) for c in LAB_ANY)
+    return has_perm(request, "consultation.view") or any(has_perm(request, c) for c in LAB_DESK)
 
 
 def _next(request, fallback):
@@ -103,6 +104,8 @@ TABS = [
 @require_GET
 @permission_required(*LAB_ANY, any_of=True)
 def worklist(request):
+    if not any(has_perm(request, c) for c in LAB_DESK):
+        return redirect("lab:catalog")
     tab = request.GET.get("tab", "collect")
     if tab not in dict(TABS):
         tab = "collect"
@@ -375,7 +378,7 @@ def order_print(request, pk):
 
 
 @require_GET
-@permission_required(*LAB_ANY, any_of=True)
+@permission_required(*LAB_DESK, any_of=True)
 def sample_label(request, pk):
     sample = get_scoped_or_404(LabSample.objects.select_related("order__patient"), request, pk=pk)
     return render(

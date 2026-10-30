@@ -110,9 +110,14 @@ class OrganizationPreferences(TimeStampedModel):
         Organization, on_delete=models.CASCADE, related_name="preferences"
     )
     # Modules. Turning one off hides it and blocks its pages on the server; records are kept.
-    feature_lab = models.BooleanField("Laboratory module", default=True)
-    feature_pharmacy = models.BooleanField("Pharmacy and inventory module", default=True)
-    feature_ipd = models.BooleanField("Inpatient (IPD) and nursing module", default=True)
+    feature_lab = models.BooleanField("Laboratory", default=True)
+    feature_pharmacy = models.BooleanField("Pharmacy and inventory", default=True)
+    feature_ipd = models.BooleanField("IPD and wards", default=True)
+    feature_nursing = models.BooleanField(
+        "Nursing desk",
+        default=True,
+        help_text="Ward tasks and shift handover. Needs IPD and wards.",
+    )
     # Clinical defaults for new doctors (each doctor can still be changed).
     default_slot_minutes = models.PositiveSmallIntegerField(
         "Default consultation length (minutes)",

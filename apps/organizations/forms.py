@@ -70,13 +70,16 @@ class BranchForm(StyledFormMixin, forms.ModelForm):
         return name
 
 
+class ModulesForm(StyledFormMixin, forms.ModelForm):
+    class Meta:
+        model = OrganizationPreferences
+        fields = ["feature_lab", "feature_pharmacy", "feature_ipd", "feature_nursing"]
+
+
 class PreferencesForm(StyledFormMixin, forms.ModelForm):
     class Meta:
         model = OrganizationPreferences
         fields = [
-            "feature_lab",
-            "feature_pharmacy",
-            "feature_ipd",
             "default_slot_minutes",
             "default_follow_up_days",
             "display_refresh_seconds",

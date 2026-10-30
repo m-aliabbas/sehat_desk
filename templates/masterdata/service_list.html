@@ -3,7 +3,7 @@
 {% block title %}Services{% endblock %}
 {% block page_title %}Services &amp; prices{% endblock %}
 {% block page_subtitle %}Billable services with a default price and optional branch prices.{% endblock %}
-{% block page_actions %}<a href="{% url 'masterdata:service-create' %}" class="btn btn-primary">{% icon "plus" "h-4 w-4" %} New service</a>{% endblock %}
+{% block page_actions %}{% if kind == "procedure" %}<a href="{% url 'masterdata:service-create' %}?kind=procedure" class="btn btn-primary">{% icon "plus" "h-4 w-4" %} New procedure</a>{% else %}<a href="{% url 'masterdata:service-create' %}" class="btn btn-primary">{% icon "plus" "h-4 w-4" %} New service</a>{% endif %}{% endblock %}
 {% block content %}
 {% include "partials/settings_tabs.html" %}
 <div class="grid gap-6 xl:grid-cols-3">

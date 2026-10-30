@@ -11,6 +11,8 @@ Test catalogue, orders, samples, results, verification and reports. PRD §8. PRO
 - `signals.py` — invoice saves refresh order status. `barcode.py` — Code 39 SVG for tube labels.
 
 ## Rules
+- `lab.catalog.manage` alone (default hospital admin) opens the catalogue only: the worklist
+  redirects there, and orders, results and labels stay refused.
 - Order status is derived (`refresh_status`) from items, samples and invoice; never set it.
 - Collect only when paid, unless urgent/STAT or a reason is recorded.
 - Results are clinical records: editable until verified, then only `amend` (new version + reason).

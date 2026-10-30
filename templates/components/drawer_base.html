@@ -16,7 +16,7 @@
     </div>
     <div class="flex-1 overflow-y-auto px-6 py-5">{% block drawer_body %}{% endblock %}</div>
     <div class="flex justify-end gap-3 border-t border-line px-6 py-4">
-      {% block drawer_footer %}<button type="button" class="btn btn-secondary" @click="open = false">Close</button>{% endblock %}
+      {% block drawer_footer %}<button type="button" class="btn btn-close" @click="open = false">Close</button>{% endblock %}
     </div>
   </aside>
 </div>

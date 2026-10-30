@@ -340,3 +340,22 @@ def backup_now(request: HttpRequest) -> HttpResponse:
         audit.record(request, "system.backup", summary=info.name)
         messages.success(request, f"Backup written: {info.name}")
     return redirect("core:system")
+
+
+@require_GET
+@permission_required("admin.organization.manage")
+def menu(request):
+    """All menu page: every screen grouped by category, plus the module switches."""
+    from apps.organizations.forms import ModulesForm
+    from apps.organizations.models import preferences_for
+
+    from .menu_hub import build_hub
+
+    return render(
+        request,
+        "core/menu.html",
+        {
+            "groups": build_hub(request),
+            "modules_form": ModulesForm(instance=preferences_for(request.organization)),
+        },
+    )

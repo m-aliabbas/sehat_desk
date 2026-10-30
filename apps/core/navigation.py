@@ -92,6 +92,7 @@ NAV_ITEMS = [
         "hr:home",
         ("hr.self", "hr.attendance.manage", "hr.pay.manage"),
     ),
+    NavItem("more", "All menu", "menu", "core:menu", ("admin.organization.manage",)),
     NavItem(
         "settings",
         "Settings",
@@ -115,6 +116,45 @@ NAV_ITEMS = [
 ]
 
 PLACEHOLDER_KEYS = {item.key for item in NAV_ITEMS if item.url_name is None}
+
+# Admins get a short sidebar; everything else is grouped on the All menu page
+# (apps/core/menu_hub.py). Other roles keep the full list, filtered by permission.
+ADMIN_SIDEBAR = (
+    "dashboard",
+    "inventory",
+    "reports",
+    "finance",
+    "reception",
+    "procedures",
+    "laboratory",
+    "more",
+    "settings",
+)
+ADMIN_LABELS = {"dashboard": "Overview", "reception": "Reception", "laboratory": "Lab"}
+
+# Each module keeps one colour everywhere, like colour-coded bins (.tint-* in static/src/app.css).
+NAV_COLORS = {
+    "dashboard": "blue",
+    "reception": "teal",
+    "vitals": "red",
+    "appointments": "purple",
+    "patients": "blue",
+    "opd": "green",
+    "ipd": "green",
+    "nursing": "green",
+    "procedures": "red",
+    "laboratory": "yellow",
+    "pharmacy": "orange",
+    "billing": "green",
+    "inventory": "orange",
+    "reports": "purple",
+    "finance": "green",
+    "staff": "blue",
+    "hr": "blue",
+    "more": "purple",
+    "settings": "neutral",
+    "design-system": "purple",
+}
 
 
 def item_is_visible(item: NavItem, request) -> bool:
@@ -149,17 +189,26 @@ def build_nav(request) -> list[dict]:
             section = f"{match.namespace}:{match.url_name.split('-')[0]}"
             current_key = _NAV_KEY_BY_SECTION.get(section)
 
+    items = [item for item in NAV_ITEMS if item_is_visible(item, request)]
+    labels = {}
+    if "admin.organization.manage" in getattr(request, "sd_perms", frozenset()):
+        items = [i for key in ADMIN_SIDEBAR for i in items if i.key == key]
+        labels = ADMIN_LABELS
+        # A screen opened from the All menu page keeps that button highlighted.
+        if current_key and current_key not in {i.key for i in items}:
+            current_key = "more"
+
     return [
         {
             "key": item.key,
-            "label": item.label,
+            "label": labels.get(item.key, item.label),
             "icon": item.icon,
+            "color": NAV_COLORS.get(item.key, "neutral"),
             "url": item_url(item),
             "active": item.key == current_key,
             "coming_soon": item.url_name is None,
         }
-        for item in NAV_ITEMS
-        if item_is_visible(item, request)
+        for item in items
     ]
 
 
@@ -172,6 +221,7 @@ _NAV_KEY_BY_SECTION = {
     "organizations:hospital": "settings",
     "organizations:branch": "settings",
     "organizations:settings": "settings",
+    "organizations:preferences": "settings",
     "queue:walk": "reception",
     "queue:counters": "reception",
     "queue:counter": "reception",

@@ -124,7 +124,8 @@ DEFAULT_ROLES: list[RoleDef] = [
             "billing.view",
             "patient.view",
         )
-        | {"patient.create", "ipd.facility.manage", "procedure.view"},
+        | {"patient.create", "ipd.facility.manage", "procedure.view"}
+        | {"queue.manage", "pharmacy.inventory.manage", "lab.catalog.manage"},
     ),
     RoleDef(
         "reception",

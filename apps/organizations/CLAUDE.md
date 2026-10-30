@@ -6,7 +6,7 @@ Settings → Hospital, Branches and Preferences. PROJECT_NOTES §9, §18.
 - `models.py` — `Organization` (prefixes for MRN/receipts, print header/footer), `Branch`
   (code, `display_key` for the waiting-room screen), `OrganizationPreferences` +
   `preferences_for(org)` (module switches, slot length, near-expiry days, reorder default).
-- `views.py` — settings home, hospital form, preferences, branch list/create/edit/toggle.
+- `views.py` — settings home, module switches (shown on `core:menu`), hospital form, preferences, branch list/create/edit/toggle.
 
 ## Rules
 - Every business record belongs to exactly one organization.

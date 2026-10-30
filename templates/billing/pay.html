@@ -9,7 +9,7 @@
     {% include "billing/_pay_form.html" %}
     <div class="mt-6 flex gap-3">
       <button class="btn btn-primary">Confirm payment</button>
-      <a href="{% url 'billing:invoice-detail' invoice.pk %}" class="btn btn-secondary">Cancel</a>
+      <a href="{% url 'billing:invoice-detail' invoice.pk %}" class="btn btn-close">Cancel</a>
     </div>
   </form>
 </section>

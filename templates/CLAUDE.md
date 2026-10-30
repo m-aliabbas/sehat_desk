@@ -20,6 +20,11 @@ must work offline on the hospital LAN (no CDNs, fonts or icons from other hosts;
 - Printing: `print/a4.html`, `print/a5.html`, `print/thermal.html` with `_letterhead`/`_footer`;
   staging prints are stamped "not a valid document".
 
+## Sidebar
+`partials/sidebar.html` pins `settings` to the bottom and shows `more` (All menu) as a separate
+button. That page is `core/menu.html`, built from `apps/core/menu_hub.py`. Colours per module are
+`NAV_COLORS` in `apps/core/navigation.py`.
+
 ## Styling
 - Use the component classes in `static/src/app.css`: `btn btn-primary|secondary|danger|ghost`,
   `btn-sm`, `card`, `card-header`, `input`, `select`, `chip chip-success|info|warning|danger|neutral`,
@@ -28,6 +33,9 @@ must work offline on the hospital LAN (no CDNs, fonts or icons from other hosts;
   `ui_design_reference/SehatDesk-Expanded-Workflow-Kit/03-handoff/DESIGN-TOKENS.json`, mirrored in
   `@theme` in `static/src/app.css` (`text-ink`, `text-muted`, `bg-page`, `bg-teal`, `border-line`...).
   Do not hard-code hex colours in templates.
+- Colour meaning: green = go/save/active (`btn-primary`, `chip-success`), yellow = wait/pending
+  (`btn-warning`, `chip-warning`), red = stop/close/delete (`btn-close` for Close and Cancel,
+  `btn-danger` for destructive). `tint-<colour>` and `band-<colour>` colour-code a module.
 - Status is never shown by colour alone; pair it with a word or icon.
 - After adding classes not used before, rebuild and commit the CSS:
   `python manage.py tailwind build` (CI fails if `static/css/app.css` is stale).
