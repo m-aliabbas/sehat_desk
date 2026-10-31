@@ -45,7 +45,7 @@ Name: "{group}\Uninstall SehatDesk"; Filename: "{uninstallexe}"
 
 [Run]
 ; Other computers must reach the web server (TCP), and sehatdesk.local must be answered (UDP 5353).
-Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=""SehatDesk"""; Flags: runhidden; RunOnceId: "fwclear"
+Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=""SehatDesk"""; Flags: runhidden
 Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall add rule name=""SehatDesk"" dir=in action=allow program=""{app}\sehat_desk.exe"" enable=yes profile=any protocol=TCP"; Flags: runhidden
 Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall add rule name=""SehatDesk"" dir=in action=allow program=""{app}\sehat_desk.exe"" enable=yes profile=any protocol=UDP"; Flags: runhidden
 ; runasoriginaluser: setup is elevated, but the data folder must be the signed-in user's.
