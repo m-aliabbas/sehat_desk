@@ -145,6 +145,8 @@ MIDDLEWARE = [
     "whitenoise.middleware.WhiteNoiseMiddleware",
     # "Please wait" for every page while a restore replaces the database.
     "apps.core.backup_jobs.RestoreMaintenanceMiddleware",
+    # No licence on an installed copy: every page leads to the licence page.
+    "apps.core.licensing.LicenseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -252,6 +254,17 @@ SEHATDESK_GDRIVE_CLIENT_FILE = env(
 SEHATDESK_GDRIVE_CREDENTIALS_KEY = env(
     "SEHATDESK_GDRIVE_CREDENTIALS_KEY", default="EhKGefoVJZoKmg1ikyTppKbmryLi5DcvJcjIUx3zw40="
 )
+
+# Device licence (apps/core/licensing.py). The launcher turns it on for installed copies. The
+# encrypted Firebase service account is shipped, with the Fernet key vibe_pos also uses.
+SEHATDESK_LICENSE_ENFORCED = env.bool("SEHATDESK_LICENSE_ENFORCED", default=False)
+SEHATDESK_LICENSE_CREDENTIALS_FILE = env(
+    "SEHATDESK_LICENSE_CREDENTIALS_FILE", default=str(BASE_DIR / "k1.json.enc")
+)
+SEHATDESK_LICENSE_CREDENTIALS_KEY = env(
+    "SEHATDESK_LICENSE_CREDENTIALS_KEY", default=SEHATDESK_GDRIVE_CREDENTIALS_KEY
+)
+SEHATDESK_LICENSE_COLLECTION = env("SEHATDESK_LICENSE_COLLECTION", default="lisence_sehatdesk")
 
 # --- Notifications -------------------------------------------------------------------
 # Time-based checks (reminders, stock, expiry) run at most this often per branch; 0 = off.

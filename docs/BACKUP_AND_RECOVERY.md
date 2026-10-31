@@ -87,7 +87,8 @@ database inside, without touching live data.
 (a SQLite `.sqlite3`/`.db`, or a backup `.zip`/`.zip.enc`), a row in the backup list, or **Restore from
 Drive…**, and type RESTORE. In the background the file is checked (a database from another program is
 refused), a safety backup goes to `<backup folder>/pre-restore/` (last 3 kept), the data is copied into
-the live database, and migrations run. Staff see a "please wait" page during the copy and may need to
+the live database, and migrations run. If they fail the current data is put back; a backup from a newer
+version is refused before anything changes. Staff see a "please wait" page during the copy and may need to
 sign in again. A SQLite file holds the database only: documents and media stay as they are. A full
 backup also replaces them; the previous folders move to `<data folder>/pre-restore-<timestamp>/`.
 **Undo:** restore the newest file from `pre-restore/`.

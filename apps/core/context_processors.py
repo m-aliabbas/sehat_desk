@@ -1,5 +1,6 @@
 from django.conf import settings
 
+from . import licensing
 from .features import enabled_features
 from .navigation import build_nav
 
@@ -28,6 +29,7 @@ def shell(request):
             "sd_perms": getattr(request, "sd_perms", frozenset()),
             # Module switches: {% if features.lab %}. UI only; FeatureMiddleware enforces.
             "features": enabled_features(getattr(request, "organization", None)),
+            "license": licensing.status(),
         }
     )
     return ctx

@@ -15,6 +15,9 @@ read in `config/settings.py` with django-environ; defaults there are for develop
   (docs/BACKUP_AND_RECOVERY.md).
 - Google Drive: `SEHATDESK_GDRIVE_TIMES`, `SEHATDESK_GDRIVE_KEEP`, plus `SEHATDESK_GDRIVE_CLIENT_FILE` and
   `SEHATDESK_GDRIVE_CREDENTIALS_KEY`, whose defaults are the shipped `g1.json.enc` and its key.
+- Licence: `SEHATDESK_LICENSE_ENFORCED` (the launcher turns it on for installed copies, off elsewhere), plus
+  `SEHATDESK_LICENSE_CREDENTIALS_FILE`, `SEHATDESK_LICENSE_CREDENTIALS_KEY` and `SEHATDESK_LICENSE_COLLECTION`, whose
+  defaults are the shipped `k1.json.enc`, its key and `lisence_sehatdesk`.
 - Docker/PostgreSQL (`Dockerfile`, `docker-compose.yml`) are for staging, demos and hosted servers;
   hospitals get the installers (PROJECT_NOTES §16).
 

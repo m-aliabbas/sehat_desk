@@ -1,0 +1,14 @@
+{% extends "layouts/auth.html" %}
+{% block title %}Licence · SehatDesk{% endblock %}
+{% block card %}
+{% if license.checking %}<meta http-equiv="refresh" content="5">{% endif %}
+<h1 class="text-section-title font-semibold">{% if license.checking %}Checking the licence{% else %}SehatDesk licence{% endif %}</h1>
+<p class="mt-2 text-label text-muted" role="status">{{ license.message }}</p>
+{% if not license.checking %}
+<p class="mt-2 text-label text-muted">Your data is safe, and automatic backups keep running.</p>
+<p class="mt-4 text-label text-muted">Device ID (send this to vibe.exe):</p>
+<p class="mt-1 text-label font-semibold break-all">{{ license.device_id }}</p>
+<form method="post" class="mt-4">{% csrf_token %}<button class="btn btn-primary w-full">Check again</button></form>
+<p class="mt-4 text-label text-muted">{% include "partials/license_contact.html" %}</p>
+{% endif %}
+{% endblock %}

@@ -16,7 +16,7 @@ must work offline on the hospital LAN (no CDNs, fonts or icons from other hosts;
   (e.g. `procedures/_encounter_panel.html`).
 - Shared pieces: `components/` (alert, drawer_base, modal_base, empty_state, error_state, field,
   pagination, skeleton_table) and `partials/` (sidebar, topbar, breadcrumbs, toasts,
-  confirm_dialog, settings_tabs, env_banner).
+  confirm_dialog, settings_tabs, env_banner, license_contact).
 - Print pages are forced to black and white in `print/base.html`. Layout settings come from
   `{% print_layout %}` + `print/_layout_css.html`. Paper may be 80 mm thermal per document. `print/_credit.html` is the vibeexe line, in both footers and the prescription.
 - Printing: `print/a4.html`, `print/a5.html`, `print/thermal.html` with `_letterhead`/`_footer`;

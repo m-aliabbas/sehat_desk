@@ -76,6 +76,7 @@ def configure_env(port: int) -> None:
         "DJANGO_DEBUG": "false",
         "SEHATDESK_DATA_DIR": str(data),
         "SEHATDESK_PORT": str(port),
+        "SEHATDESK_LICENSE_ENFORCED": "true" if getattr(sys, "frozen", False) else "false",
         "SEHATDESK_ALLOWED_HOSTS": ",".join(hosts),
         "SEHATDESK_CSRF_TRUSTED_ORIGINS": ",".join(base_url(h, port) for h in hosts),
     }

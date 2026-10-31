@@ -17,12 +17,11 @@ import zipfile
 from pathlib import Path
 
 from django.conf import settings
-from django.core.management import call_command
 from django.db import connection
 from django.http import HttpResponse
 from django.utils import timezone
 
-from apps.core import backup
+from apps.core import backup, safe_migrate
 
 logger = logging.getLogger(__name__)
 
@@ -171,18 +170,25 @@ def restore_live(path: Path) -> str:
         else:
             database = path
         check_sqlite(database)
+        safe_migrate.refuse_newer_file(database)
 
         safety = backup.backup_dir() / "pre-restore"
         backup.create_backup(key=key, out_dir=safety)
         backup.prune(safety, keep=KEEP_SAFETY_BACKUPS)
 
+        rollback = tmp / "rollback"
+        rollback.mkdir()
+        snapshot = rollback / backup._snapshot_database(rollback)
+
         restoring.set()
         _copy_into_live_database(database)
-        if is_archive:
-            _swap_folders(tmp / "extracted", timezone.localtime().strftime("%Y%m%d-%H%M%S"))
         # A backup from an older version opens on this version.
         connection.close()
-        call_command("migrate", interactive=False, verbosity=0)
+        safe_migrate.migrate_or_roll_back(
+            snapshot, undone="This backup could not be updated. The current data was kept."
+        )
+        if is_archive:
+            _swap_folders(tmp / "extracted", timezone.localtime().strftime("%Y%m%d-%H%M%S"))
     return f"Restored from {path.name}. Staff may need to sign in again."
 
 

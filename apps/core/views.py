@@ -32,6 +32,17 @@ def server_error(request: HttpRequest) -> HttpResponse:
 
 
 @login_not_required
+def license_page(request: HttpRequest) -> HttpResponse:
+    """Where every page leads when an installed copy has no licence. Open only without one."""
+    from . import licensing
+
+    license_status = licensing.refresh() if request.method == "POST" else licensing.status()
+    if license_status["active"]:
+        return redirect("/")
+    return render(request, "core/license.html", {"license": license_status})
+
+
+@login_not_required
 @require_GET
 def health_live(request: HttpRequest) -> JsonResponse:
     """Process is up. Does not touch the database."""

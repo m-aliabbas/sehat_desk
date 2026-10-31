@@ -68,6 +68,7 @@ def _fake_plan(monkeypatch, plan, applied):
                 {
                     "graph": type("G", (), {"leaf_nodes": staticmethod(lambda: [])}),
                     "applied_migrations": applied,
+                    "disk_migrations": {},
                 },
             )
 
@@ -88,11 +89,12 @@ def steps(monkeypatch, settings, tmp_path):
     done = []
     monkeypatch.setattr(management, "call_command", lambda *a, **k: done.append("migrate"))
     monkeypatch.setattr(backup, "create_backup", lambda **k: done.append("backup"))
+    monkeypatch.setattr(backup, "_snapshot_database", lambda folder: "snapshot.sqlite3")
     return done
 
 
 def test_update_backs_up_before_migrating(monkeypatch, steps):
-    _fake_plan(monkeypatch, ["m"], {"x": 1})
+    _fake_plan(monkeypatch, ["m"], {("other", "m"): 1})
     server.migrate_safely()
     assert steps == ["backup", "migrate"]
 
@@ -104,7 +106,7 @@ def test_first_start_has_nothing_to_back_up(monkeypatch, steps):
 
 
 def test_no_pending_migrations_does_nothing(monkeypatch, steps):
-    _fake_plan(monkeypatch, [], {"x": 1})
+    _fake_plan(monkeypatch, [], {("other", "m"): 1})
     server.migrate_safely()
     assert steps == []
 
@@ -112,13 +114,22 @@ def test_no_pending_migrations_does_nothing(monkeypatch, steps):
 def test_failed_backup_stops_the_update(monkeypatch, steps):
     from apps.core import backup
 
-    _fake_plan(monkeypatch, ["m"], {"x": 1})
+    _fake_plan(monkeypatch, ["m"], {("other", "m"): 1})
 
     def fail(**kwargs):
         raise backup.BackupError("disk full")
 
     monkeypatch.setattr(backup, "create_backup", fail)
     with pytest.raises(backup.BackupError):
+        server.migrate_safely()
+    assert steps == []
+
+
+def test_database_from_a_newer_version_is_refused(monkeypatch, steps):
+    from apps.core import safe_migrate
+
+    _fake_plan(monkeypatch, [], {("patients", "9999_future"): 1})
+    with pytest.raises(safe_migrate.NewerDatabase):
         server.migrate_safely()
     assert steps == []
 

@@ -10,6 +10,7 @@
     <div>
       <p class="text-label text-muted">Installed version</p>
       <p class="mt-1 text-section-title font-semibold">{{ current_version }}</p>
+      {% if license.enforced %}<p class="mt-1 text-label text-muted">Licence valid until {{ license.expires_at|date:"j F Y" }} ({{ license.days_remaining }} day{{ license.days_remaining|pluralize }} left). Device ID: <span class="break-all">{{ license.device_id }}</span></p>{% endif %}
     </div>
     <form method="post" action="{% url 'core:update-check' %}">{% csrf_token %}<button class="btn btn-secondary">Check for updates</button></form>
   </div>
@@ -20,7 +21,7 @@
   {% if installer %}
   <div class="mt-4 border-t border-line pt-4">
     <p class="font-semibold">Version {{ job.version }} is downloaded and verified.</p>
-    <p class="mt-1 text-label text-muted">Install on the computer that runs SehatDesk. A safety backup is saved before the database is updated.{% if can_install %} Windows asks for approval on that computer, and setup asks to close the SehatDesk window; staff cannot use the app until it is started again.{% endif %}</p>
+    <p class="mt-1 text-label text-muted">Install on the computer that runs SehatDesk. A safety backup is saved before the database is updated.{% if can_install %} Windows asks for approval on that computer, setup asks to close the SehatDesk window and to remove the old version (patient data stays); staff cannot use the app until it is started again.{% endif %}</p>
     <div class="mt-3 flex flex-wrap gap-3">
       {% if can_install %}<form method="post" action="{% url 'core:update-install' %}">{% csrf_token %}<button class="btn btn-primary">Install now</button></form>{% endif %}
       <a class="btn btn-secondary" href="{% url 'core:update-file' %}">Save the installer file</a>

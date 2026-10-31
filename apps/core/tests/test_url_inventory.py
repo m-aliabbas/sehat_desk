@@ -23,6 +23,7 @@ PUBLIC = {
     "core:health-live",
     "core:health-ready",
     "core:health-metrics",  # loopback only, else 404
+    "core:license",  # device ID and licence state only; redirects away when licensed
     "core:client-error",  # same-origin POST only
     "queue:display",  # secret per-branch key, token numbers only
     "?media",  # organization logos only

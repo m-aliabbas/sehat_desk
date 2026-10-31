@@ -38,12 +38,20 @@ Goal: a customer installs one package, gets a desktop shortcut, double-clicks it
   with `--server` as a hidden process. The window shows start-up stage and health (`/health/ready/`), restarts
   a dead server (3 times), opens the browser once, and asks before stopping the server. A second click on the
   icon only opens the browser (named mutex).
-- Updates: Inno Setup with a fixed `AppId` installs over the old version and deletes the old `_internal`.
-  Data in `%LOCALAPPDATA%\SehatDesk` is never touched. On start, pending migrations run after a safety
-  backup to `backups/pre-update/` (last 3 kept); if either fails the server does not start and says so.
+- Updates: the installer finds the installed version through the fixed `AppId`, asks, runs its uninstaller silently,
+  then installs the new version. It stops if the old version cannot be removed. Data in `%LOCALAPPDATA%\SehatDesk` is never touched. On start, pending migrations run automatically after a
+  safety backup to `backups/pre-update/` (last 3 kept). A failed migration copies the database back from a
+  snapshot; data from a newer version is refused (`apps/core/safe_migrate.py`). Either way the server does not
+  start and says so. Migrations that drop a field or table fail a test until reviewed.
 - In-app update: Settings → Updates (`apps/core/updates.py`, `admin.organization.manage`) checks the latest GitHub
   Release, downloads `SehatDesk-Setup-<v>.exe` to `<data>/updates/`, verifies SHA-256, then offers Install now (opens
   the installer on the server computer) or saving the file. Needs internet on the server computer.
+- Licence (`apps/core/licensing.py`, same scheme as vibe_pos): Firebase project `vibepos-4d412`, collection
+  `lisence_sehatdesk`, one document per device (`approved`, `disabled`, `expire_date`). A new device registers itself
+  approved for 30 days. Extend or stop a device by editing its document; the server re-checks every 6 hours or on
+  "Check again". An encrypted cache in the data folder allows 30 days offline. Without a licence every page leads to
+  `/license/`, which shows the device ID; backups keep running. The first start needs internet. Credential:
+  `k1.json.enc`, shipped in the bundle and in git. Enforced only in installed copies (`launcher/common.py`).
 - Build check: `build_windows.ps1` runs `--self-test` and a real server start on an empty folder before
   packaging, so a broken bundle fails the build.
 - Optional settings for an installed copy: `%LOCALAPPDATA%\SehatDesk\sehatdesk.env`.
@@ -99,6 +107,14 @@ Goal: a customer installs one package, gets a desktop shortcut, double-clicks it
 
 ## 6. Decision log
 
+- 2026-10-31 v1.0.3: the installer removes the installed version first, after asking; patient data stays. Licensing
+  follows vibe_pos with these differences: a new device works at once for 30 days (vibe_pos waits for approval), its
+  own collection so a POS approval does not license SehatDesk, a device ID from the machine GUID so Windows updates
+  do not reset it, and Firebase is asked first so an extension applies without waiting for the cache to run out.
+- 2026-10-31 `k1.json.enc` and its key are in the public repository at the owner's request, for now. Anyone can decrypt
+  this service account. Replace it with a limited credential or a small licence API before wider rollout.
+- 2026-10-31 Migrations stay automatic on start. Each runs with an automatic undo, an older version refuses newer
+  data, and dropping a column or table needs a reviewed allow-list entry in `test_safe_migrate.py`.
 - 2026-10-31 v1.0.2: WeasyPrint ignores WEASYPRINT_DLL_DIRECTORIES in frozen builds, so `apps/core/pdf.py` registers
   the bundled `gtk` folder itself, and a Windows build now fails if it cannot make a PDF with fonts.
 - 2026-10-31 In-app updates fetch the GitHub Release installer only with a matching SHA-256 from SHA256SUMS.txt. The

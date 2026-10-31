@@ -17,6 +17,7 @@ datas = [
     (str(root / "templates"), "templates"),
     (str(root / "staticfiles"), "staticfiles"),
     (str(root / "g1.json.enc"), "."),
+    (str(root / "k1.json.enc"), "."),
     (str(packaging / "VERSION"), "."),
     (str(packaging / "sehat_desk.ico"), "."),
 ]
@@ -54,6 +55,10 @@ for package in (
     "pydrive2",
     "oauth2client",
     "googleapiclient",
+    "firebase_admin",
+    "google.cloud.firestore",
+    "google.cloud.firestore_v1",
+    "grpc",
 ):
     package_datas, package_binaries, package_hidden = collect_all(package)
     datas += package_datas

@@ -17,6 +17,11 @@ management commands.
   None if unavailable. Every PDF export uses it.
 - `updates.py` — Settings → Updates (`core:updates`, `admin.organization.manage`): latest GitHub Release,
   background download with SHA-256 check, opening the installer. Status in `DATA_DIR/update_job.json`.
+- `licensing.py` — device licence through Firestore (`k1.json.enc`): one month on first start, offline cache,
+  `LicenseMiddleware` sends every page to `core:license` when there is none. `worker_loop` runs in `serve.py`. Only
+  installed copies enforce it (`SEHATDESK_LICENSE_ENFORCED`). Days-left banner in `layouts/app.html`.
+- `safe_migrate.py` — used on every start and restore: undoes a failed migration, refuses data from a
+  newer version. `tests/test_safe_migrate.py` fails on any new migration that drops a field or table.
 - `backup.py` — backup/restore (docs/BACKUP_AND_RECOVERY.md).
 - `backup_jobs.py` — background backup, live restore (SQLite file, backup file or Drive),
   `RestoreMaintenanceMiddleware`. Status in `DATA_DIR/backup_job.json`.

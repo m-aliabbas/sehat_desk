@@ -1,11 +1,14 @@
 """The server process (sehat_desk.exe --server): update the database, then serve.
 
 A safety backup is taken before any migration of an existing database. If that backup or a
-migration fails, the server does not start and the data is left as it was.
+migration fails, the database is put back, the server does not start and the data stays as it was.
+A database from a newer version is refused, so an old installer cannot damage it.
 """
 
 import sys
+import tempfile
 import traceback
+from pathlib import Path
 
 from launcher import common
 
@@ -22,13 +25,18 @@ def redirect_output() -> None:
 
 
 def migrate_safely() -> None:
+    from django.conf import settings
     from django.core.management import call_command
     from django.db import connection
     from django.db.migrations.executor import MigrationExecutor
 
-    from apps.core import backup
+    from apps.core import backup, safe_migrate
 
     executor = MigrationExecutor(connection)
+    if safe_migrate.newer_migrations(executor.loader):
+        raise safe_migrate.NewerDatabase(
+            "This data is from a newer version of SehatDesk. Install the latest version."
+        )
     plan = executor.migration_plan(executor.loader.graph.leaf_nodes())
     if not plan:
         return
@@ -38,9 +46,16 @@ def migrate_safely() -> None:
         backup.create_backup(key=backup.shared_or_configured_key(), out_dir=safety)
         backup.prune(safety, keep=KEEP_SAFETY_BACKUPS)
         common.write_status("Updating the database")
+        with tempfile.TemporaryDirectory(dir=settings.DATA_DIR) as tmp:
+            snapshot = None
+            if connection.vendor == "sqlite":
+                snapshot = Path(tmp) / backup._snapshot_database(Path(tmp))
+            safe_migrate.migrate_or_roll_back(
+                snapshot, undone="The update could not be applied. Your data was not changed."
+            )
     else:
         common.write_status("Preparing the database (first start)")
-    call_command("migrate", interactive=False, verbosity=1)
+        call_command("migrate", interactive=False, verbosity=1)
 
 
 def prepare(port: int) -> None:
@@ -57,9 +72,14 @@ def run(port: int) -> int:
         prepare(port)
         migrate_safely()
         common.write_status("Starting the web server")
-    except Exception:
+    except Exception as err:
+        from apps.core.backup import BackupError
+
         traceback.print_exc()
-        common.write_status("error: The database could not be prepared. Your data was not changed.")
+        message = (
+            str(err) if isinstance(err, BackupError) else "The database could not be prepared."
+        )
+        common.write_status(f"error: {message}")
         return 1
 
     import serve
@@ -119,6 +139,14 @@ def self_test(out_file: str) -> int:
 
         gdrive._load_client()
 
+    def license_client():
+        from firebase_admin import credentials, firestore  # noqa: F401
+
+        from apps.core import licensing
+
+        credentials.Certificate(licensing._load_credentials())
+        return f"device {licensing.device_id()[:12]}"
+
     def mdns():
         import zeroconf  # noqa: F401
 
@@ -146,6 +174,7 @@ def self_test(out_file: str) -> int:
         ("templates", templates),
         ("static", static),
         ("drive_client", drive_client),
+        ("license_client", license_client),
         ("mdns", mdns),
         ("tk", tk),
         ("migrations", migrations),

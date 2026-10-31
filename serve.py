@@ -33,7 +33,7 @@ def run(host: str, port: int, threads: int = 8):
     """Start the background workers and serve. Blocks. The Windows launcher calls this too."""
     from django.conf import settings
 
-    from apps.core import gdrive
+    from apps.core import gdrive, licensing
     from config.wsgi import application
 
     if settings.SEHATDESK_BACKUP_HOURS > 0:
@@ -42,6 +42,8 @@ def run(host: str, port: int, threads: int = 8):
         ).start()
     if settings.SEHATDESK_GDRIVE_TIMES:
         threading.Thread(target=gdrive.worker_loop, daemon=True).start()
+    if settings.SEHATDESK_LICENSE_ENFORCED:
+        threading.Thread(target=licensing.worker_loop, daemon=True).start()
     serve(application, host=host, port=port, threads=threads)
 
 

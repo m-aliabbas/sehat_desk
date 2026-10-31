@@ -43,6 +43,7 @@ Write-Host "== Checking the bundle"
 $work = Join-Path $env:TEMP ("sehatdesk-check-" + [guid]::NewGuid())
 New-Item -ItemType Directory $work | Out-Null
 $env:SEHATDESK_DATA_DIR = $work
+$env:SEHATDESK_LICENSE_ENFORCED = "false"  # the build machine must not register as a customer
 try {
     $report = Join-Path $work "self-test.json"
     $proc = Start-Process $exe -ArgumentList "--self-test", "`"$report`"" -Wait -PassThru
@@ -68,6 +69,7 @@ try {
     Write-Host "Server started and answered."
 } finally {
     Remove-Item Env:\SEHATDESK_DATA_DIR
+    Remove-Item Env:\SEHATDESK_LICENSE_ENFORCED
     Get-Process sehat_desk -ErrorAction SilentlyContinue | Stop-Process -Force
     Start-Sleep -Seconds 2
     Remove-Item -Recurse -Force $work -ErrorAction SilentlyContinue
