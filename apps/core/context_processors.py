@@ -4,10 +4,19 @@ from .features import enabled_features
 from .navigation import build_nav
 
 
+def public_organization():
+    """The hospital on this server, for signed-out pages. Nothing when none or several exist."""
+    from apps.organizations.models import Organization
+
+    orgs = list(Organization.objects.order_by("id")[:2])
+    return orgs[0] if len(orgs) == 1 else None
+
+
 def shell(request):
     """Data the app shell needs on every page: navigation, organization, branch, permissions."""
     ctx = {"workspace_env": settings.SEHATDESK_ENV}
     if getattr(request, "user", None) is None or not request.user.is_authenticated:
+        ctx["public_organization"] = public_organization  # called only if a template uses it
         return ctx
     ctx.update(
         {

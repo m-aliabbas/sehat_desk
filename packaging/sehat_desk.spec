@@ -42,6 +42,7 @@ for package in (
     "django_htmx",
     "whitenoise",
     "environ",
+    "certifi",
     "weasyprint",
     "pyphen",
     "tinycss2",

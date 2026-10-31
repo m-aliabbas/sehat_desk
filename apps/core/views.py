@@ -4,7 +4,7 @@ from django.contrib.auth.decorators import login_not_required
 from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
 from django.db import DatabaseError, connection
-from django.http import Http404, HttpRequest, HttpResponse, JsonResponse
+from django.http import FileResponse, Http404, HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
@@ -352,6 +352,102 @@ def backup_settings(request: HttpRequest) -> HttpResponse:
         **_gdrive_context(),
     }
     return render(request, "core/backups.html", ctx)
+
+
+def _update_page(request: HttpRequest, release=None) -> HttpResponse:
+    from apps.core import updates
+
+    current = updates.current_version()
+    ctx = {
+        "settings_tab": "updates",
+        "current_version": current,
+        "release": release,
+        "update_available": bool(release) and updates.is_newer(release["version"], current),
+        "installer": updates.downloaded_installer(),
+        "can_install": updates.can_install_here(),
+        "job": updates.status(),
+    }
+    return render(request, "core/updates.html", ctx)
+
+
+@require_GET
+@permission_required("admin.organization.manage")
+def update_settings(request: HttpRequest) -> HttpResponse:
+    """Settings → Updates: installed version, the update found by the last check, the download."""
+    return _update_page(request, request.session.get("update_release"))
+
+
+@require_POST
+@permission_required("admin.organization.manage")
+def update_check(request: HttpRequest) -> HttpResponse:
+    from django.contrib import messages
+
+    from apps.audit import services as audit
+    from apps.core import updates
+
+    request.session.pop("update_release", None)
+    try:
+        release = updates.latest_release()
+    except updates.UpdateError as err:
+        messages.error(request, str(err))
+    else:
+        request.session["update_release"] = release
+        audit.record(request, "update.check", summary=f"Latest version {release['version']}")
+    return redirect("core:updates")
+
+
+@require_POST
+@permission_required("admin.organization.manage")
+def update_download(request: HttpRequest) -> HttpResponse:
+    from django.contrib import messages
+
+    from apps.audit import services as audit
+    from apps.core import updates
+
+    # Asks GitHub again, so a tampered session can never choose what is downloaded.
+    try:
+        release = updates.latest_release()
+        if not updates.is_newer(release["version"], updates.current_version()):
+            raise updates.UpdateError("You already have the latest version.")
+        updates.start_download(release)
+    except (updates.UpdateError, updates.JobBusy) as err:
+        messages.error(request, str(err))
+    else:
+        audit.record(request, "update.download", summary=f"Version {release['version']}")
+    return redirect("core:updates")
+
+
+@require_POST
+@permission_required("admin.organization.manage")
+def update_install(request: HttpRequest) -> HttpResponse:
+    from django.contrib import messages
+
+    from apps.audit import services as audit
+    from apps.core import updates
+
+    installer = updates.downloaded_installer()
+    if installer is None:
+        messages.error(request, "Download the update first.")
+        return redirect("core:updates")
+    try:
+        updates.launch_installer(installer)
+    except (updates.UpdateError, OSError) as err:
+        messages.error(request, str(err))
+    else:
+        audit.record(request, "update.install", summary=installer.name)
+        messages.success(request, "The installer has opened on the computer that runs SehatDesk.")
+    return redirect("core:updates")
+
+
+@require_GET
+@permission_required("admin.organization.manage")
+def update_file(request: HttpRequest) -> HttpResponse:
+    from apps.core import updates
+
+    installer = updates.downloaded_installer()
+    if installer is None:
+        raise Http404
+    return FileResponse(installer.open("rb"), as_attachment=True, filename=installer.name)
 
 
 def _gdrive_context() -> dict:

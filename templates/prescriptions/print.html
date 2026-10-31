@@ -48,4 +48,5 @@
         <p class="text-label text-muted">{% if rx.signed_at %}Electronically signed {{ rx.signed_at|date:"d M Y, H:i" }}{% elif rx.status == "paper" %}Handwritten by the doctor, recorded at the pharmacy{% else %}Not signed{% endif %}</p>
       </div>
     </footer>
+    {% include "print/_credit.html" %}
 {% endblock %}

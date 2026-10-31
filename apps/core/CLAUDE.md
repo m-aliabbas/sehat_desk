@@ -13,8 +13,10 @@ management commands.
 - `features.py` — module switches (lab, pharmacy, ipd, nursing) for nav and URL namespaces.
 - `observability.py`, `monitoring.py` — request IDs, JSON logs, PHI redaction, error reports.
 - `security.py` — CSP and headers (no external hosts). `icons.py` — inline Lucide SVGs.
-- `pdf.py` — `weasyprint_html()`: loads WeasyPrint (adds Homebrew/MacPorts lib dirs on macOS),
+- `pdf.py` — `weasyprint_html()`: loads WeasyPrint (adds Homebrew/MacPorts lib dirs on macOS, the bundled `gtk` folder on Windows),
   None if unavailable. Every PDF export uses it.
+- `updates.py` — Settings → Updates (`core:updates`, `admin.organization.manage`): latest GitHub Release,
+  background download with SHA-256 check, opening the installer. Status in `DATA_DIR/update_job.json`.
 - `backup.py` — backup/restore (docs/BACKUP_AND_RECOVERY.md).
 - `backup_jobs.py` — background backup, live restore (SQLite file, backup file or Drive),
   `RestoreMaintenanceMiddleware`. Status in `DATA_DIR/backup_job.json`.

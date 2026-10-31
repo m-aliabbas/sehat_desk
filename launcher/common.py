@@ -82,6 +82,8 @@ def configure_env(port: int) -> None:
     gtk = resource_dir() / "gtk"
     if gtk.is_dir():
         defaults["WEASYPRINT_DLL_DIRECTORIES"] = str(gtk)
+        defaults["FONTCONFIG_PATH"] = str(gtk)
+        defaults["FONTCONFIG_FILE"] = "fonts.conf"
     for name, value in defaults.items():
         os.environ.setdefault(name, value)
 

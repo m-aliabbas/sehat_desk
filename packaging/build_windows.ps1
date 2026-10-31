@@ -3,7 +3,7 @@
 # GitHub runs this through .github/workflows/windows-release.yml, with -SkipInstall.
 # Needs: Python 3.11 on PATH and Inno Setup 6.
 # PDF export: install MSYS2 and run `pacman -S mingw-w64-x86_64-pango` to bundle its libraries.
-# Without them the app works, and PDF buttons fall back to the print page.
+# The build fails without them, so no installer ships without PDF download.
 param([switch]$SkipInstall)
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
@@ -34,8 +34,9 @@ if (Test-Path "$msys\libpango-1.0-0.dll") {
     $gtk = "dist\sehat_desk\_internal\gtk"
     New-Item -ItemType Directory -Force $gtk | Out-Null
     Copy-Item "$msys\*.dll" $gtk
+    Copy-Item "packaging\fonts.conf" $gtk
 } else {
-    Write-Warning "MSYS2 Pango not found: this build has no direct PDF export."
+    throw "MSYS2 Pango not found: install it so this build can make PDFs."
 }
 
 Write-Host "== Checking the bundle"

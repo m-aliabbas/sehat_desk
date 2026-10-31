@@ -739,8 +739,7 @@ def report(request, pk):
         if HTML is None:
             messages.error(
                 request,
-                "PDF export needs the WeasyPrint system libraries on this computer. "
-                "Use Print → Save as PDF instead.",
+                "PDF export could not start on this computer. Use Print → Save as PDF instead.",
             )
             return redirect("lab:report", pk=pk)
         pdf = HTML(string=html, base_url=request.build_absolute_uri("/")).write_pdf()

@@ -7,10 +7,10 @@
   :class="sidebarOpen && 'translate-x-0'"
   aria-label="Main navigation">
   <div class="flex h-topbar items-center justify-between gap-2 px-6">
-    <a href="{% url 'core:dashboard' %}" class="flex items-center gap-2 text-ink">
-      {% if organization.logo %}<img src="{{ organization.logo.url }}" alt="" class="h-9 w-9 rounded-control object-contain">{% else %}<span class="text-teal">{% icon "heart-pulse" "h-9 w-9" %}</span>{% endif %}
-      <span class="flex flex-col leading-tight">
-        <span class="text-[24px] font-bold tracking-tight">SehatDesk</span>
+    <a href="{% url 'core:dashboard' %}" class="flex min-w-0 items-center gap-2 text-ink">
+      {% if organization.logo %}<img src="{{ organization.logo.url }}" alt="" class="h-9 w-9 rounded-control object-contain">{% else %}<span class="shrink-0 text-teal">{% icon "heart-pulse" "h-9 w-9" %}</span>{% endif %}
+      <span class="flex min-w-0 flex-col leading-tight">
+        <span class="line-clamp-2 text-[16px] font-bold tracking-tight" title="{{ organization.name }}">{{ organization.name|default:"SehatDesk" }}</span>
         <span class="text-[11px] font-medium text-muted">by vibe.exe</span>
       </span>
     </a>

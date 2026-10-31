@@ -171,6 +171,8 @@ HUB_GROUPS: list[tuple[str, str, str, list[HubLink]]] = [
         [
             HubLink("Backup and restore", "Google Drive backup, restore from a file", "sliders",
                     "core:backups", ("admin.organization.manage",)),
+            HubLink("Application update", "Check for and download a new version", "sliders",
+                    "core:updates", ("admin.organization.manage",)),
         ],
     ),
 ]  # fmt: skip

@@ -18,7 +18,7 @@
 </style>
 </head>
 <body>
-{% if pdf_unavailable %}<div class="banner">PDF download needs the WeasyPrint system libraries on this computer. Use your browser's <strong>Print → Save as PDF</strong> (landscape) instead.</div>{% endif %}
+{% if pdf_unavailable %}<div class="banner">PDF download could not start on this computer. Use your browser's <strong>Print → Save as PDF</strong> (landscape) instead.</div>{% endif %}
 <header>
   <div><h1>{{ title }}</h1><div class="muted">{{ first|date:"j M Y" }} – {{ last|date:"j M Y" }} · {{ scope_label }}</div></div>
   <div style="text-align:right"><strong>{{ request.organization.name }}</strong><div class="muted">Generated {{ now|date:"d M Y H:i" }} by {{ request.user.get_full_name|default:request.user.get_username }}</div></div>

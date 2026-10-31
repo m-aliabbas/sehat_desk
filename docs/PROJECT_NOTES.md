@@ -41,6 +41,9 @@ Goal: a customer installs one package, gets a desktop shortcut, double-clicks it
 - Updates: Inno Setup with a fixed `AppId` installs over the old version and deletes the old `_internal`.
   Data in `%LOCALAPPDATA%\SehatDesk` is never touched. On start, pending migrations run after a safety
   backup to `backups/pre-update/` (last 3 kept); if either fails the server does not start and says so.
+- In-app update: Settings → Updates (`apps/core/updates.py`, `admin.organization.manage`) checks the latest GitHub
+  Release, downloads `SehatDesk-Setup-<v>.exe` to `<data>/updates/`, verifies SHA-256, then offers Install now (opens
+  the installer on the server computer) or saving the file. Needs internet on the server computer.
 - Build check: `build_windows.ps1` runs `--self-test` and a real server start on an empty folder before
   packaging, so a broken bundle fails the build.
 - Optional settings for an installed copy: `%LOCALAPPDATA%\SehatDesk\sehatdesk.env`.
@@ -60,7 +63,7 @@ Goal: a customer installs one package, gets a desktop shortcut, double-clicks it
 6. If the server is already running, just open the browser. Do not start a second copy.
 
 ### Known risks to handle
-- WeasyPrint needs GTK/Pango libraries on Windows. Bundle them in the installer, or test PDF output on a clean Windows machine before release.
+- WeasyPrint needs GTK/Pango libraries on Windows. They are bundled in `_internal/gtk` with `packaging/fonts.conf`, and the build self-test fails without a working PDF. Still test on a clean Windows machine.
 - Windows SmartScreen and macOS Gatekeeper will warn on unsigned installers. Plan code signing (Windows code-signing certificate, Apple Developer ID plus notarization) before wider rollout.
 - Port 80 needs admin rights on some systems. The installer should request elevation once.
 - Firewall: the installer must add inbound rules for the chosen port (Windows Defender Firewall).
@@ -89,12 +92,19 @@ Goal: a customer installs one package, gets a desktop shortcut, double-clicks it
 - [ ] Code signing: certificates to buy and who owns them.
 - [ ] Port policy: 80 with fallback to 8000 (current plan) vs. always 8000.
 - [ ] Run as a background service vs. only when the shortcut is opened.
-- [ ] Update mechanism: manual reinstall vs. an in-app update check.
+- [x] Update mechanism: in-app check on Settings → Updates (§3), installer still runs on the server computer.
+- [ ] Printing straight to a named printer per document (needs a print service on the server; browsers cannot choose a printer).
 - [x] Backup: daily automatic backups in the data folder, encrypted when SEHATDESK_BACKUP_KEY is set (§21). Still open: who copies them off-site at each hospital (USB vs cloud).
 - [ ] SMS / WhatsApp provider for patient messages (adapter interface exists; no provider chosen).
 
 ## 6. Decision log
 
+- 2026-10-31 v1.0.2: WeasyPrint ignores WEASYPRINT_DLL_DIRECTORIES in frozen builds, so `apps/core/pdf.py` registers
+  the bundled `gtk` folder itself, and a Windows build now fails if it cannot make a PDF with fonts.
+- 2026-10-31 In-app updates fetch the GitHub Release installer only with a matching SHA-256 from SHA256SUMS.txt. The
+  installer stays unsigned for now (§3 risk). Signed-out pages and the home link show the hospital's name.
+- 2026-10-31 Paper is per document, with 80 mm thermal as a choice. The printer is still picked in the browser's
+  print dialog, because a web page cannot select one.
 - 2026-10-31 Google Drive backups reuse vibe_pos's encrypted client file and key, as the owner decided. The same
   key encrypts uploads, so any fresh install can restore them. Sign-in and status are files in the data folder,
   not tables, so a restore cannot overwrite them.

@@ -1,6 +1,14 @@
 {# Applies Settings → Print layouts. Context: L (organizations.PrintLayout). #}
 <style>
-  {% if L.paper or L.margin_mm != 10 %}@page { {% if L.paper %}size: {{ L.paper }};{% endif %} margin: {{ L.margin_mm }}mm; }{% endif %}
+  {% if L.paper == "thermal" %}@page { size: 80mm auto; margin: 4mm; }
+  .sheet { width: 80mm; max-width: 80mm; padding-left: 4mm; padding-right: 4mm; font-size: 11px; }
+  .sheet table { width: 100%; table-layout: auto; }
+  .sheet th, .sheet td { padding-left: 2px; padding-right: 2px; font-size: 9px; overflow-wrap: normal; }
+  .sheet th { text-transform: none; letter-spacing: 0; }
+  .sheet td.text-right { white-space: nowrap; }
+  .sheet .grid { grid-template-columns: minmax(0, 1fr) !important; }
+  @media print { .sheet { width: 72mm !important; max-width: 72mm !important; } }
+  {% elif L.paper or L.margin_mm != 10 %}@page { {% if L.paper %}size: {{ L.paper }};{% endif %} margin: {{ L.margin_mm }}mm; }{% endif %}
   .sheet { zoom: {{ L.text_size }}%; padding-top: {{ L.top_space_mm }}mm; padding-bottom: {{ L.bottom_space_mm }}mm; }
   @media print { .sheet { padding-top: {{ L.top_space_mm }}mm !important; padding-bottom: {{ L.bottom_space_mm }}mm !important; } }
 </style>

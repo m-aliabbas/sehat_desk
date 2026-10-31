@@ -231,6 +231,7 @@ class PrintLayout(TimeStampedModel):
         A4 = "A4", "A4"
         A5 = "A5", "A5"
         LETTER = "letter", "Letter"
+        THERMAL = "thermal", "Thermal roll (80 mm)"
 
     class Side(models.TextChoices):
         LEFT = "left", "Left"

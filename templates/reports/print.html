@@ -18,7 +18,7 @@
 </style>
 </head>
 <body>
-{% if pdf_unavailable %}<div class="banner">PDF export needs the WeasyPrint system libraries on this computer. Use your browser's <strong>Print → Save as PDF</strong> (landscape) instead. <button onclick="window.print()">Print</button></div>{% endif %}
+{% if pdf_unavailable %}<div class="banner">PDF export could not start on this computer. Use your browser's <strong>Print → Save as PDF</strong> (landscape) instead. <button onclick="window.print()">Print</button></div>{% endif %}
 <header>
   <div><h1>{{ report.title }}</h1><div class="muted">{{ scope }}</div></div>
   <div style="text-align:right"><strong>{{ organization.name }}</strong><div class="muted">Generated {{ generated_at|date:"d M Y H:i" }} by {{ request.user.get_full_name|default:request.user.get_username }}</div></div>

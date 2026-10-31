@@ -86,7 +86,7 @@ def manage(argv: list[str]) -> int:
 
 def self_test(out_file: str) -> int:
     """Run by the build on the finished exe: proves the bundle has what it needs. Returns non-zero
-    only for things that must work; PDF libraries are reported but optional."""
+    if anything fails. PDF is required on Windows, where the bundle carries its libraries."""
     import json
 
     prepare(common.PORTS[0])
@@ -133,7 +133,9 @@ def self_test(out_file: str) -> int:
         html = weasyprint_html()
         if html is None:
             raise ImportError("WeasyPrint native libraries missing")
-        html(string="<p>test</p>").write_pdf()
+        output = html(string="<p>test</p>").write_pdf(uncompressed_pdf=True)
+        if b"/Font" not in output:
+            raise ValueError("PDF has no fonts")
 
     def migrations():
         from django.db.migrations.loader import MigrationLoader
@@ -152,5 +154,5 @@ def self_test(out_file: str) -> int:
         check(name, func)
     with open(out_file, "w", encoding="utf-8") as fh:
         json.dump(report, fh, indent=1)
-    required = [k for k in report if k != "pdf"]
+    required = [k for k in report if k != "pdf" or sys.platform == "win32"]
     return 1 if any(str(report[k]).startswith("FAILED") for k in required) else 0

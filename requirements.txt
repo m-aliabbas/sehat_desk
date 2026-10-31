@@ -30,6 +30,9 @@ django-axes>=7.0,<9.0
 # NOTE: WeasyPrint needs GTK/Pango native libraries on Windows. See docs/PROJECT_NOTES.md.
 weasyprint>=70.0,<71.0
 
+# Trusted certificates for the application update check (works on a fresh Windows install).
+certifi>=2024.2.2
+
 # Report exports to Excel (Phase 20). Pure Python, no native libraries.
 openpyxl>=3.1,<4.0
 

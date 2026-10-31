@@ -21,5 +21,6 @@
   {% if "admin.audit.view" in sd_perms %}<a class="tab" href="{% url 'audit:log' %}" {% if settings_tab == "audit" %}aria-selected="true"{% endif %}>Audit trail</a>{% endif %}
   {% if "admin.organization.manage" in sd_perms %}<a class="tab" href="{% url 'core:design-system' %}">Design system</a>{% endif %}
   {% if "admin.organization.manage" in sd_perms %}<a class="tab" href="{% url 'core:backups' %}" {% if settings_tab == "backups" %}aria-selected="true"{% endif %}>Backup</a>{% endif %}
+  {% if "admin.organization.manage" in sd_perms %}<a class="tab" href="{% url 'core:updates' %}" {% if settings_tab == "updates" %}aria-selected="true"{% endif %}>Updates</a>{% endif %}
   {% if "admin.system.view" in sd_perms %}<a class="tab" href="{% url 'core:system' %}" {% if settings_tab == "system" %}aria-selected="true"{% endif %}>System</a>{% endif %}
 </nav>
