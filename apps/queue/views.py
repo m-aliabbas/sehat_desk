@@ -5,6 +5,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_not_required
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
+from django.db.models import Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -14,14 +15,23 @@ from django.views.decorators.http import require_GET, require_POST
 
 from apps.accounts.decorators import has_perm, permission_required
 from apps.appointments import services as appt_services
+from apps.appointments import views as appt_views
 from apps.appointments.models import Appointment
 from apps.audit import services as audit
 from apps.billing import services as billing_services
+from apps.billing.models import Invoice
+from apps.core import features
 from apps.core.forms import StyledFormMixin
 from apps.core.scoping import get_scoped_or_404, scoped
+from apps.encounters import services as encounter_services
+from apps.encounters.models import Encounter
+from apps.lab import services as lab_services
+from apps.lab.models import LabOrder
 from apps.masterdata.models import Department, DoctorProfile, DoctorSchedule
 from apps.organizations.models import Branch
 from apps.patients.models import Patient
+from apps.prescriptions import services as rx_services
+from apps.procedures.models import PatientProcedure
 
 from . import services
 from .models import Counter, QueueToken
@@ -101,12 +111,24 @@ def desk(request):
         ],
         "counters": scoped(Counter, request).filter(is_active=True),
         "can_book": has_perm(request, "appointment.manage"),
+        "to_collect": scoped(Invoice, request)
+        .filter(
+            status__in=Invoice.OUTSTANDING_STATUSES,
+            issued_at__date=today,
+            patient__isnull=False,
+        )
+        .select_related("patient")
+        .order_by("-issued_at")[:8]
+        if has_perm(request, "billing.payment.collect")
+        else [],
         "collection": billing_services.day_totals(request.branch)
         if has_perm(request, "billing.view")
         else None,
     }
     if request.htmx and request.htmx.target == "desk-live":
         return render(request, "queue/_desk_live.html", ctx)
+    if ctx["can_book"]:
+        ctx.update(appt_views.visit_context(request))
     return render(request, "queue/desk.html", ctx)
 
 
@@ -326,16 +348,27 @@ def complete(request, pk):
 
 @require_POST
 def complete_and_next(request, pk):
-    """One click for doctors who write a manual prescription: close this visit, call the next."""
+    """The doctor's one button: this patient is checked, call the next. An open consultation is
+    signed as it stands; with none, the visit just closes (a paper prescription)."""
     token = _token_for_operator(request, pk)
     doctor = _operator_doctor(request, token.doctor_id)
-    if hasattr(token, "encounter"):
+    encounter = getattr(token, "encounter", None)
+    if encounter is not None and not encounter_services.can_write(request, encounter):
         messages.error(request, "This visit has consultation notes; complete it from the note.")
         return _back(request, reverse("queue:doctor"))
     before = token.status
     try:
-        token = services.complete(token)
-    except services.QueueError as err:
+        if encounter is not None and encounter.is_draft:
+            version = encounter_services.complete(encounter, request=request)
+            audit.record(
+                request, "encounter.complete", encounter, summary=f"v{version.version} from queue"
+            )
+            if rx := rx_services.send_if_any(encounter, request=request):
+                audit.record(request, "prescription.send", rx, summary=rx.number)
+            token.refresh_from_db()
+        else:
+            token = services.complete(token)
+    except (services.QueueError, encounter_services.EncounterError) as err:
         messages.error(request, err.message)
         return _back(request, reverse("queue:doctor"))
     audit.record(request, "queue.complete", token, changes={"status": [before, token.status]})
@@ -382,11 +415,25 @@ def doctor_queue(request):
         ctx.update(
             {
                 "current": services.current_for(request.branch, doctor),
+                "counts": {
+                    "waiting": services.waiting(qs).count(),
+                    "seen": qs.filter(status=Status.COMPLETED).count(),
+                    "skipped": qs.filter(status=Status.SKIPPED).count(),
+                    "unsigned": Encounter.objects.filter(
+                        doctor=doctor, branch=request.branch, status=Encounter.Status.DRAFT
+                    ).count(),
+                },
+                "critical_results": lab_services.unacknowledged_critical(
+                    request.organization, doctor=doctor
+                )[:10]
+                if features.is_enabled(request.organization, "lab")
+                else [],
                 "waiting": services.waiting(qs),
                 "skipped": qs.filter(status=Status.SKIPPED).order_by("skipped_at"),
                 "done": qs.filter(status__in=[Status.COMPLETED, Status.CANCELLED]).order_by(
                     "-updated_at"
-                )[:15],
+                )[:50],
+                "reports_today": _reports_today(request, doctor),
                 "is_own_queue": has_perm(request, "consultation.create")
                 and own is not None
                 and own.pk == doctor.pk,
@@ -404,6 +451,46 @@ def doctor_queue(request):
         else "queue/doctor.html"
     )
     return render(request, template, ctx)
+
+
+def _reports_today(request, doctor):
+    """Lab reports and procedures that came back today for this doctor, newest first."""
+    if not has_perm(request, "consultation.view"):
+        return []  # clinical results: reception choosing a doctor's queue does not see them
+    today = timezone.localdate()
+    reports = []
+    if features.is_enabled(request.organization, "lab"):
+        released = lab_services.orders_for_doctor(request, doctor).filter(
+            status=LabOrder.Status.RELEASED, released_at__date=today
+        )
+        reports += [
+            {
+                "kind": "Lab",
+                "when": o.released_at,
+                "patient": o.patient,
+                "items": o.items.all(),
+                "url": reverse("lab:order-detail", args=[o.pk]),
+                "report_url": reverse("lab:report", args=[o.pk]),
+            }
+            for o in released
+        ]
+    procedures = (
+        scoped(PatientProcedure, request)
+        .filter(status=PatientProcedure.Status.COMPLETED, completed_at__date=today)
+        .filter(Q(performed_by=doctor) | Q(encounter__doctor=doctor))
+        .select_related("patient")
+    )
+    reports += [
+        {
+            "kind": "Procedure",
+            "when": p.completed_at,
+            "patient": p.patient,
+            "name": p.name,
+            "url": reverse("procedures:procedure-detail", args=[p.pk]),
+        }
+        for p in procedures
+    ]
+    return sorted(reports, key=lambda r: r["when"], reverse=True)
 
 
 # --- Counters ----------------------------------------------------------------------------------

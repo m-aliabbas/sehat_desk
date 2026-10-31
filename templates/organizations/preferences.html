@@ -16,6 +16,17 @@
       </div>
     </section>
     <section class="card">
+      <h2 class="section-title mb-1">Reception (OPD)</h2>
+      <p class="mb-4 text-label text-muted">How a visit runs at the front desk. Shift hours are set per doctor in Settings → Doctors.</p>
+      <div class="grid gap-5 md:grid-cols-2">
+        {% include "components/field.html" with field=form.use_doctor_shifts %}
+        {% include "components/field.html" with field=form.opd_collect_fee_upfront %}
+        {% include "components/field.html" with field=form.opd_print_blank_prescription %}
+        {% include "components/field.html" with field=form.opd_print_office_copy %}
+        {% include "components/field.html" with field=form.opd_auto_print %}
+      </div>
+    </section>
+    <section class="card">
       <h2 class="section-title mb-1">Queue display</h2>
       <p class="mb-4 text-label text-muted">The waiting-room screen never shows patient names. Token letters are set per department.</p>
       <div class="grid gap-5 md:grid-cols-2">
@@ -26,6 +37,8 @@
     <section class="card">
       <h2 class="section-title mb-1">Pharmacy stock</h2>
       <div class="grid gap-5 md:grid-cols-2">
+        {% include "components/field.html" with field=form.pharmacy_require_prescription %}
+        {% include "components/field.html" with field=form.pharmacy_auto_print_receipt %}
         {% include "components/field.html" with field=form.near_expiry_days %}
         {% include "components/field.html" with field=form.default_reorder_level %}
       </div>

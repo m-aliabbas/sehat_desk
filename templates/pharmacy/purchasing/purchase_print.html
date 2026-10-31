@@ -1,0 +1,19 @@
+{% extends "print/a4.html" %}
+{% block title %}Purchase order {{ purchase.number }}{% endblock %}
+{% block print_label %}Print order{% endblock %}
+{% block document %}
+  {% include "print/_letterhead.html" with org=request.organization branch=purchase.branch doc_title="Purchase order" doc_number=purchase.number doc_date=purchase.created_at doc_status=purchase.get_status_display %}
+  <p class="mt-5 text-body"><span class="text-label uppercase">Supplier</span><br><span class="font-semibold">{{ purchase.vendor.name }}</span>{% if purchase.vendor.phone %} · {{ purchase.vendor.phone }}{% endif %}</p>
+  <table class="mt-5 w-full text-body">
+    <thead><tr class="border-b border-ink text-left text-label uppercase"><th class="py-2">#</th><th>Item</th><th class="text-right">Quantity</th><th class="text-right">Unit cost</th><th class="text-right">Amount</th></tr></thead>
+    <tbody>{% for i in items %}<tr class="border-b border-line"><td class="py-2">{{ forloop.counter }}</td><td>{{ i.product.display_name }}</td><td class="text-right">{{ i.quantity }}</td><td class="text-right">{{ i.unit_cost|floatformat:"2g" }}</td><td class="text-right">{{ i.line_cost|floatformat:"2g" }}</td></tr>{% endfor %}</tbody>
+  </table>
+  <dl class="ml-auto mt-4 w-64 text-body">
+    {% if purchase.discount %}<div class="flex justify-between"><dt>Discount</dt><dd>−{{ purchase.discount|floatformat:"2g" }}</dd></div>{% endif %}
+    {% if purchase.line_tax %}<div class="flex justify-between"><dt>GST on lines</dt><dd>{{ purchase.line_tax|floatformat:"2g" }}</dd></div>{% endif %}
+    {% if purchase.tax_amount %}<div class="flex justify-between"><dt>GST on invoice</dt><dd>{{ purchase.tax_amount|floatformat:"2g" }}</dd></div>{% endif %}
+    {% if purchase.further_tax %}<div class="flex justify-between"><dt>Further tax</dt><dd>{{ purchase.further_tax|floatformat:"2g" }}</dd></div>{% endif %}
+    {% if purchase.advance_tax %}<div class="flex justify-between"><dt>Advance tax</dt><dd>{{ purchase.advance_tax|floatformat:"2g" }}</dd></div>{% endif %}
+  </dl>
+  <p class="mt-2 text-right font-bold">Total {{ request.organization.currency }} {{ purchase.grand_total|floatformat:"2g" }}</p>
+{% endblock %}

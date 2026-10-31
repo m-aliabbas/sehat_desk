@@ -3,6 +3,7 @@
 {% block title %}Doctors ledger{% endblock %}
 {% block page_title %}Doctors ledger{% endblock %}
 {% block page_subtitle %}What each doctor brought in, their commission share, the clinic's share and what is still owed.{% endblock %}
+{% block page_actions %}<a href="{% url 'finance:ledger-doctors' %}{% querystring export='pdf' %}" class="btn btn-primary">Download PDF</a>{% endblock %}
 {% block content %}
 {% include "finance/_tabs.html" with fin_tab="doctors" %}
 {% include "finance/_period.html" %}

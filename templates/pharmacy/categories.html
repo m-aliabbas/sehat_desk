@@ -1,0 +1,31 @@
+{% extends "layouts/app.html" %}
+{% block title %}Categories and tax{% endblock %}
+{% block page_title %}Categories and tax{% endblock %}
+{% block page_subtitle %}New products in a category start with these values. Each product can still differ.{% endblock %}
+{% block page_actions %}<form method="post" action="{% url 'pharmacy:categories-standard' %}">{% csrf_token %}<button class="btn btn-secondary">Add standard medicine categories</button></form>{% endblock %}
+{% block content %}
+{% include "components/alert.html" with level="info" title="Check tax rates with your accountant" message="Tax here is added on top of the sale price at the till. Most medicines in Pakistan are sold at a printed price that already includes tax, so leave these at 0 unless your accountant says otherwise. All rates start at 0." %}
+{% if categories %}
+<form method="post" class="card mt-6">
+  {% csrf_token %}
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th scope="col">Category</th><th scope="col">Tax added at the till (%)</th><th scope="col">Prescription needed</th><th scope="col">Note</th></tr></thead>
+      <tbody>
+        {% for c in categories %}
+        <tr>
+          <td class="font-medium">{{ c.name }}</td>
+          <td><input name="tax_{{ c.pk }}" type="number" min="0" max="100" step="0.01" value="{{ c.default_tax_percent|stringformat:'s' }}" class="input w-24" aria-label="Tax for {{ c.name }}"></td>
+          <td><input name="rx_{{ c.pk }}" type="checkbox" class="checkbox" {% if c.requires_prescription %}checked{% endif %} aria-label="Prescription needed for {{ c.name }}"></td>
+          <td class="text-label text-muted">{{ c.tax_note }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <button class="btn btn-primary mt-5">Save</button>
+</form>
+{% else %}
+<div class="mt-6">{% include "components/empty_state.html" with icon_name="clipboard" title="No categories yet" message="Add the standard medicine categories to get started." %}</div>
+{% endif %}
+{% endblock %}

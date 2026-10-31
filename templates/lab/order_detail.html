@@ -114,7 +114,7 @@
       {% if order.invoice %}
         <p class="flex items-center justify-between gap-2"><span class="font-mono">{{ order.invoice.number }}</span>{% status_chip order.invoice.status order.invoice.get_status_display %}</p>
         <p class="mt-1 text-body">{{ organization.currency }} {{ order.invoice.grand_total|floatformat:"2g" }} · balance {{ order.invoice.balance_due|floatformat:"2g" }}</p>
-        {% if "billing.view" in sd_perms and order.invoice.branch_id == request.branch.pk %}<a href="{% url 'billing:invoice-detail' order.invoice_id %}" class="btn btn-secondary btn-sm mt-3">Open invoice</a>{% endif %}
+        {% if "billing.view" in sd_perms and order.invoice.branch_id == request.branch.pk %}<a href="{% url 'billing:invoice-detail' order.invoice_id %}" class="btn btn-secondary btn-sm mt-3">Open invoice</a> <a href="{% url 'billing:invoice-print' order.invoice_id %}?copies=2" target="_blank" class="btn btn-secondary btn-sm mt-3">Print invoice</a>{% endif %}
       {% else %}<p class="text-label text-muted">Not billed (no priced tests).</p>{% endif %}
     </section>
     {% if doc_can_view %}<section class="card">{% include "documents/_panel.html" with compact=True %}</section>{% endif %}

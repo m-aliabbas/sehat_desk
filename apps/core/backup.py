@@ -67,6 +67,13 @@ def configured_key() -> bytes | None:
     return decode_key(raw) if raw else None
 
 
+def shared_or_configured_key() -> bytes:
+    """The key for backups that leave the server (Google Drive) and for the safety backup before
+    an update: SEHATDESK_BACKUP_KEY if set, else the key shipped with every build, so a backup
+    can always be restored from a fresh install."""
+    return configured_key() or decode_key(settings.SEHATDESK_GDRIVE_CREDENTIALS_KEY)
+
+
 def generate_key() -> str:
     return base64.urlsafe_b64encode(os.urandom(32)).decode()
 

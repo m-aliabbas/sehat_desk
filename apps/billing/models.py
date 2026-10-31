@@ -219,7 +219,10 @@ class InvoiceItem(models.Model):
     # Copied from the service when added, so later price or name changes never alter old bills.
     description = models.CharField(max_length=160)
     quantity = models.PositiveIntegerField(default=1, validators=[MinValueValidator(1)])
-    unit_price = models.DecimalField(**money)
+    # Six decimals: pharmacy lines bill per tablet, and a box price divided by 30 must add back up.
+    unit_price = models.DecimalField(
+        max_digits=16, decimal_places=6, validators=[MinValueValidator(ZERO)]
+    )
     discount = models.DecimalField(**money, default=ZERO)
     discount_reason = models.CharField(max_length=200, blank=True)
     tax_percent = models.DecimalField(max_digits=5, decimal_places=2, default=ZERO)

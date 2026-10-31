@@ -18,6 +18,12 @@ from apps.accounts.decorators import has_perm, permission_required
 from apps.audit import services as audit
 from apps.core.scoping import get_scoped_or_404, paginate, scoped
 from apps.patients.models import Patient
+from apps.patients.services import (
+    limit_records_to_own_patients,
+    limit_to_own_patients,
+    own_doctor_only,
+    require_own_patient,
+)
 
 from . import services
 from .forms import (
@@ -59,13 +65,10 @@ def _crumbs(*extra):
 
 
 def _get_admission(request, pk):
-    return get_scoped_or_404(
-        Admission.objects.select_related(
-            "patient", "admitting_doctor__user", "department", "current_bed__room__ward", "invoice"
-        ),
-        request,
-        pk=pk,
+    admissions = Admission.objects.select_related(
+        "patient", "admitting_doctor__user", "department", "current_bed__room__ward", "invoice"
     )
+    return get_scoped_or_404(limit_records_to_own_patients(admissions, request), request, pk=pk)
 
 
 def _chart(admission, tab=None):
@@ -88,6 +91,8 @@ def board(request):
     Administrators who only set up wards and beds (no patient access) land on Setup."""
     if not any(has_perm(request, c) for c in IPD):
         return redirect("ipd:setup")
+    if own_doctor_only(request):
+        return redirect("ipd:admission-list")  # the board names every ward's patients
     ward_filter = request.GET.get("ward", "")
     status_filter = request.GET.get("status", "")
     q = request.GET.get("q", "").strip()
@@ -144,7 +149,7 @@ def admission_list(request):
     """Inpatient dashboard: current (or past) admissions in this branch."""
     state = request.GET.get("state", "current")
     q = request.GET.get("q", "").strip()
-    qs = scoped(Admission, request).select_related(
+    qs = limit_records_to_own_patients(scoped(Admission, request), request).select_related(
         "patient", "admitting_doctor__user", "department", "current_bed__room__ward"
     )
     if state == "current":
@@ -184,12 +189,13 @@ def admit(request):
     patient = None
     if source.get("patient", "").isdigit():
         patient = get_scoped_or_404(Patient, request, pk=source["patient"])
+        require_own_patient(request, patient)
     if patient is None:
         q = request.GET.get("q", "").strip()
         results = []
         if len(q) >= 2:
             results = (
-                scoped(Patient, request)
+                limit_to_own_patients(scoped(Patient, request), request)
                 .filter(is_active=True)
                 .filter(Q(full_name__icontains=q) | Q(mrn__icontains=q) | Q(phone__icontains=q))
                 .order_by("full_name")[:20]
@@ -873,9 +879,9 @@ def bed_detail(request, pk):
         "ipd/bed_detail.html",
         {
             "bed": bed,
-            "history": bed.occupancies.select_related("admission__patient").order_by("-started_at")[
-                :50
-            ],
+            "history": limit_records_to_own_patients(
+                bed.occupancies.select_related("admission__patient"), request, "admission__patient"
+            ).order_by("-started_at")[:50],
             "status_form": BedStatusForm(initial={"status": bed.status}),
             "can_manage": has_perm(request, "ipd.manage"),
             "breadcrumbs": _crumbs({"label": f"Bed {bed.code}"}),

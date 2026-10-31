@@ -25,6 +25,10 @@ class QueueError(ValidationError):
     pass
 
 
+def _now_time():
+    return timezone.localtime().time()
+
+
 def _set_appointment(token, status):
     appt = token.appointment
     if appt and appt.status != status and appt.can_transition(status):
@@ -61,7 +65,7 @@ def issue_token(*, request, patient, department, doctor=None, appointment=None, 
     number = next_number(
         request.organization, f"token:{request.branch.pk}:{department.pk}:{today:%Y%m%d}"
     )
-    sched = schedule_for(doctor, request.branch, today) if doctor else None
+    sched = schedule_for(doctor, request.branch, today, at=_now_time()) if doctor else None
     token = QueueToken.objects.create(
         organization=request.organization,
         branch=request.branch,
@@ -147,7 +151,7 @@ def call(token, *, request, doctor):
     token.status = Status.CALLED
     token.doctor = doctor  # a department-queue token is claimed by the doctor who calls it
     if not token.room:
-        sched = schedule_for(doctor, request.branch, token.date)
+        sched = schedule_for(doctor, request.branch, token.date, at=_now_time())
         token.room = sched.room if sched else ""
     token.called_at = timezone.now()
     token.call_count = F("call_count") + 1

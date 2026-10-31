@@ -5,6 +5,25 @@ from django import template
 register = template.Library()
 
 
+@register.simple_tag(takes_context=True)
+def packing_options(context):
+    """{% packing_options as options %}: UoM phrases to suggest in this hospital."""
+    from apps.pharmacy.catalog import packing_suggestions
+
+    return packing_suggestions(context["request"].organization)
+
+
+@register.filter
+def split(text):
+    """{% for n in "tablet capsule"|split %}: a short fixed list written in a template."""
+    return text.split()
+
+
+@register.filter
+def abs_value(number):
+    return abs(number or 0)
+
+
 @register.filter
 def in_packs(quantity, product):
     """{{ qty|in_packs:product }} -> "25 tablets (2 strips + 5)"."""

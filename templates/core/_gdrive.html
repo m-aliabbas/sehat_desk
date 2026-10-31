@@ -1,0 +1,38 @@
+{% load ui %}
+<section id="gdrive-card" class="card mb-6" aria-label="Google Drive backup"
+  {% if gdrive.busy %}hx-get="{% url 'core:gdrive-panel' %}" hx-trigger="every 3s" hx-swap="outerHTML"{% endif %}>
+  <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+    <div>
+      <h2 class="text-section-title font-semibold">Google Drive backup</h2>
+      <p class="text-label text-muted">Encrypted backup uploaded every day at {{ gdrive.times|join:" and " }} to the folder "{{ gdrive.folder }}". The server must be running; a missed time runs when it next starts.</p>
+    </div>
+    {% if gdrive.connected %}{% status_chip "active" "Connected" %}{% else %}{% status_chip "pending" "Not connected" %}{% endif %}
+  </div>
+  {% if not gdrive.configured %}
+    {% include "components/alert.html" with level="warning" message="Google Drive sign-in is not set up in this build." %}
+  {% else %}
+    {% if gdrive.last_error %}{% include "components/alert.html" with level="warning" message=gdrive.last_error %}{% endif %}
+    {% if gdrive.busy == "connecting" %}<p class="mb-3 text-label text-teal">Waiting for Google sign-in in the browser on the server computer…</p>{% endif %}
+    {% if gdrive.busy == "uploading" %}<p class="mb-3 text-label text-teal">Backing up and uploading…</p>{% endif %}
+    {% if gdrive.connected %}
+    <dl class="mb-4 grid gap-3 sm:grid-cols-3">
+      <div><dt class="text-label text-muted">Account</dt><dd>{{ gdrive.account.email|default:"Google account" }}</dd></div>
+      <div><dt class="text-label text-muted">Last upload</dt><dd>{% if gdrive.last_success %}{{ gdrive.last_success|date:"d M Y, H:i" }}<span class="block font-mono text-label text-muted">{{ gdrive.last_file }}</span>{% else %}None yet{% endif %}</dd></div>
+      <div><dt class="text-label text-muted">Next upload</dt><dd>{{ gdrive.next_run|date:"d M Y, H:i"|default:"Off" }}</dd></div>
+    </dl>
+    {% endif %}
+    {% if not gdrive.busy %}
+    <div class="flex flex-wrap gap-2">
+      {% if gdrive.connected %}
+      <form method="post" action="{% url 'core:gdrive-backup' %}">{% csrf_token %}<button class="btn btn-secondary">Back up to Drive now</button></form>
+      <button class="btn btn-secondary" hx-get="{% url 'core:gdrive-restore-list' %}" hx-target="#gdrive-restore" hx-swap="innerHTML">Restore from Drive…</button>
+      <form method="post" action="{% url 'core:gdrive-disconnect' %}">{% csrf_token %}<button class="btn btn-secondary">Disconnect</button></form>
+      {% else %}
+      <form method="post" action="{% url 'core:gdrive-connect' %}">{% csrf_token %}<button class="btn btn-primary">Connect Google account</button></form>
+      <p class="self-center text-label text-muted">Sign-in opens in the browser on the server computer.</p>
+      {% endif %}
+    </div>
+    <div id="gdrive-restore"></div>
+    {% endif %}
+  {% endif %}
+</section>

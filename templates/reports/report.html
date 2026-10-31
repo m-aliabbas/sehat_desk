@@ -34,6 +34,22 @@
       {% for d in departments %}<option value="{{ d.pk }}" {% if f.department == d %}selected{% endif %}>{{ d.name }}</option>{% endfor %}
     </select></div>
   {% endif %}
+  {% if "vendor" in report.filters %}
+  <div><label class="field-label" for="r-vendor">Supplier</label>
+    <select id="r-vendor" name="vendor" class="select mt-1.5" data-searchable><option value="">All suppliers</option>{% for v in vendors %}<option value="{{ v.pk }}" {% if f.vendor == v %}selected{% endif %}>{{ v.name }}</option>{% endfor %}</select></div>
+  {% endif %}
+  {% if "product" in report.filters %}
+  <div><label class="field-label" for="r-product">Product</label>
+    <select id="r-product" name="product" class="select mt-1.5" data-searchable><option value="">All products</option>{% for p in products %}<option value="{{ p.pk }}" {% if f.product == p %}selected{% endif %}>{{ p.display_name }}</option>{% endfor %}</select></div>
+  {% endif %}
+  {% if "cashier" in report.filters %}
+  <div><label class="field-label" for="r-cashier">Staff member</label>
+    <select id="r-cashier" name="cashier" class="select mt-1.5" data-searchable><option value="">All staff</option>{% for u in cashiers %}<option value="{{ u.pk }}" {% if f.cashier == u %}selected{% endif %}>{{ u }}</option>{% endfor %}</select></div>
+  {% endif %}
+  {% if "patient" in report.filters %}
+  <div><label class="field-label" for="r-patient">Patient (MRN, phone, name)</label>
+    <input id="r-patient" name="patient" class="input mt-1.5" value="{{ f.patient_query }}" autocomplete="off"></div>
+  {% endif %}
   {% if "doctor" in report.filters %}
   <div><label class="field-label" for="r-doctor">Doctor</label>
     <select id="r-doctor" name="doctor" class="select mt-1.5">
@@ -44,7 +60,7 @@
   <button class="btn btn-primary">Apply filters</button>
   {% if presets %}
   <div class="flex w-full flex-wrap gap-2" aria-label="Quick date ranges">
-    {% for label, s, e in presets %}<a class="chip chip-neutral hover:ring-2 hover:ring-teal/20" href="?from={{ s|date:'Y-m-d' }}&to={{ e|date:'Y-m-d' }}{% if f.branch_choice %}&branch={{ f.branch_choice }}{% endif %}{% if f.department %}&department={{ f.department.pk }}{% endif %}{% if f.doctor %}&doctor={{ f.doctor.pk }}{% endif %}">{{ label }}</a>{% endfor %}
+    {% for label, s, e in presets %}<a class="chip chip-neutral hover:ring-2 hover:ring-teal/20" href="?from={{ s|date:'Y-m-d' }}&to={{ e|date:'Y-m-d' }}{% if f.branch_choice %}&branch={{ f.branch_choice }}{% endif %}{% if f.department %}&department={{ f.department.pk }}{% endif %}{% if f.doctor %}&doctor={{ f.doctor.pk }}{% endif %}{% if f.vendor %}&vendor={{ f.vendor.pk }}{% endif %}{% if f.product %}&product={{ f.product.pk }}{% endif %}{% if f.cashier %}&cashier={{ f.cashier.pk }}{% endif %}{% if f.patient_query %}&patient={{ f.patient_query|urlencode }}{% endif %}">{{ label }}</a>{% endfor %}
   </div>
   {% endif %}
   {% if report.date_hint %}<p class="w-full text-label text-muted">{{ report.date_hint }}</p>{% endif %}

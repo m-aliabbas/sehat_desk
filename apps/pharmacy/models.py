@@ -12,15 +12,52 @@ from decimal import Decimal
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+from django.urls import reverse
 from django.utils import timezone
 
 from apps.core.models import TimeStampedModel
 from apps.core.scoping import BranchScopedModel, OrgScopedModel
 from apps.masterdata.models import money
 
+# Prices per base unit keep six decimals: a box of 30 at 355 is 11.833333 a tablet, and 30 of them
+# must come back to exactly 355.00. Screens show two decimals.
+unit_money = {
+    "max_digits": 16,
+    "decimal_places": 6,
+    "validators": [MinValueValidator(Decimal("0"))],
+}
+
+
+class UnitOfMeasure(OrgScopedModel):
+    """A packing phrase the hospital wants suggested (packing.py): "Strip of 14 tablets"."""
+
+    name = models.CharField(max_length=80)
+
+    class Meta:
+        ordering = ["name"]
+        constraints = [
+            models.UniqueConstraint(fields=["organization", "name"], name="uniq_uom_name")
+        ]
+
+    def __str__(self):
+        return self.name
+
 
 class ProductCategory(OrgScopedModel):
+    # Filled into a new product when this category is picked; each product can still differ.
+    default_tax_percent = models.DecimalField(
+        "Default tax (%)",
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal("0"),
+        validators=[MinValueValidator(Decimal("0")), MaxValueValidator(Decimal("100"))],
+        help_text="Added on top of the sale price at the till. Leave 0 if the printed price "
+        "already includes tax.",
+    )
+    requires_prescription = models.BooleanField("Prescription needed by default", default=False)
+    tax_note = models.CharField(max_length=200, blank=True)
     name = models.CharField(max_length=80)
 
     class Meta:
@@ -78,27 +115,61 @@ class Product(OrgScopedModel):
     category = models.ForeignKey(
         ProductCategory, on_delete=models.PROTECT, null=True, blank=True, related_name="products"
     )
+    # Free text: the Unit and PackUnit lists are suggestions, a hospital can use any name.
     unit = models.CharField(
-        max_length=10, choices=Unit.choices, default=Unit.TABLET, help_text="Base unit sold."
+        "Smallest unit sold",
+        max_length=30,
+        default=Unit.TABLET,
+        help_text="Tablet, ml, vial, sachet, or anything else. Stock is counted in this.",
     )
     pack_size = models.PositiveIntegerField(
         default=1, help_text="Base units in one pack/strip/box, e.g. 10 tablets."
     )
     pack_unit = models.CharField(
-        max_length=10, choices=PackUnit.choices, default=PackUnit.STRIP,
-        help_text="What one pack is called, e.g. strip or box.",
+        "Pack name", max_length=30, default=PackUnit.STRIP,
+        help_text="What one pack is called: strip, bottle, tray, anything.",
     )  # fmt: skip
+    box_unit = models.CharField(
+        "Box name", max_length=30, default="box",
+        help_text="What the larger pack is called: box, carton, anything.",
+    )  # fmt: skip
+    packs_per_box = models.PositiveIntegerField(
+        "Packs in one box (larger pack)",
+        default=1,
+        validators=[MinValueValidator(1)],
+        help_text="e.g. 10 strips in a box. 1 = not bought or sold by the box.",
+    )
+    preferred_vendor = models.ForeignKey(
+        "pharmacy.Vendor",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="preferred_products",
+        verbose_name="Usual supplier",
+        help_text="Automatic orders go here. Blank = whoever supplied it last.",
+    )
     allow_loose_sale = models.BooleanField(
         default=True,
-        help_text="Can be sold loose (e.g. 5 tablets from a strip of 10). Off = whole packs only.",
+        help_text="A pack can be opened, like 5 tablets from a strip. Off = whole packs only.",
     )
     purchase_price = models.DecimalField(
-        **money, default=Decimal("0"), help_text="Default cost per unit."
+        **unit_money, default=Decimal("0"), help_text="Default cost per unit."
     )
-    sale_price = models.DecimalField(**money, default=Decimal("0"), help_text="Price per unit.")
+    sale_price = models.DecimalField(
+        **unit_money, default=Decimal("0"), help_text="Price per unit for new stock."
+    )
     tax_percent = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal("0"))
     reorder_level = models.PositiveIntegerField(
-        default=0, help_text="Warn when stock in this branch falls to this many units."
+        "Minimum stock",
+        default=0,
+        help_text="In base units. At or below this it shows as low stock and on the automatic "
+        "purchase order. 0 = no minimum.",
+    )
+    expiry_alert_days = models.PositiveSmallIntegerField(
+        "Expiry alert (days before)",
+        null=True,
+        blank=True,
+        help_text="Blank = hospital default.",
     )
     requires_prescription = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
@@ -130,28 +201,89 @@ class Product(OrgScopedModel):
 
     # --- Units of measure: stock is counted in the base unit; a pack holds pack_size of them.
 
+    def get_unit_display(self) -> str:
+        return self.unit.capitalize()
+
+    def get_pack_unit_display(self) -> str:
+        return self.pack_unit.capitalize()
+
     def unit_label(self, count: int = 1) -> str:
-        return _plural(self.get_unit_display().lower(), count)
+        return _plural(self.unit.lower(), count)
 
     def pack_label(self, count: int = 1) -> str:
-        return _plural(self.get_pack_unit_display().lower(), count)
+        return _plural(self.pack_unit.lower(), count)
+
+    def box_label(self, count: int = 1) -> str:
+        return _plural(self.box_unit.lower(), count)
 
     @property
     def has_packs(self) -> bool:
         return self.pack_size > 1
 
     @property
+    def has_boxes(self) -> bool:
+        return self.packs_per_box > 1
+
+    @property
+    def box_size(self) -> int:
+        """Base units in one box."""
+        return self.pack_size * self.packs_per_box
+
+    @property
     def pack_price(self) -> Decimal:
         return (self.sale_price * self.pack_size).quantize(Decimal("0.01"))
 
+    @property
+    def box_price(self) -> Decimal:
+        return (self.sale_price * self.box_size).quantize(Decimal("0.01"))
+
+    @property
+    def top_level(self) -> str:
+        """The largest size this product comes in: "box", "pack" or "unit"."""
+        return "box" if self.has_boxes else "pack" if self.has_packs else "unit"
+
+    @property
+    def top_level_name(self) -> str:
+        return self.level_name(self.top_level)
+
+    def units_in(self, level: str) -> int:
+        return {"box": self.box_size, "pack": self.pack_size}.get(level, 1)
+
+    def level_name(self, level: str) -> str:
+        return {"box": self.box_unit, "pack": self.pack_unit}.get(level, self.unit).lower()
+
+    @property
+    def price_ladder(self) -> list[dict]:
+        """Every size it sells in, smallest first, with what one of them costs and sells for."""
+        levels = (
+            ["unit"] + (["pack"] if self.has_packs else []) + (["box"] if self.has_boxes else [])
+        )
+        return [
+            {
+                "level": level,
+                "name": self.level_name(level),
+                "units": self.units_in(level),
+                "cost": (self.purchase_price * self.units_in(level)).quantize(Decimal("0.01")),
+                "price": (self.sale_price * self.units_in(level)).quantize(Decimal("0.01")),
+            }
+            for level in levels
+        ]
+
     def pack_breakdown(self, quantity: int) -> str:
-        """Base units as packs: 25 -> "2 strips + 5"; "" when under one pack."""
+        """Base units as packs: 25 -> "2 strips + 5"; 125 with 10 strips a box ->
+        "1 box + 2 strips + 5"; "" when under one pack."""
         if not self.has_packs:
             return ""
         packs, loose = divmod(abs(quantity or 0), self.pack_size)
         if not packs:
             return ""
-        return f"{packs} {self.pack_label(packs)}" + (f" + {loose}" if loose else "")
+        boxes, packs = divmod(packs, self.packs_per_box) if self.has_boxes else (0, packs)
+        parts = [f"{boxes} {self.box_label(boxes)}"] if boxes else []
+        if packs:
+            parts.append(f"{packs} {self.pack_label(packs)}")
+        if loose:
+            parts.append(str(loose))
+        return " + ".join(parts)
 
     def describe_quantity(self, quantity: int) -> str:
         """Base units in words: "25 tablets (2 strips + 5)", "5 tablets"."""
@@ -179,9 +311,12 @@ def _plural(word: str, count: int) -> str:
 class InventoryBatch(BranchScopedModel):
     product = models.ForeignKey(Product, on_delete=models.PROTECT, related_name="batches")
     batch_number = models.CharField(max_length=40)
+    # The same printed batch can arrive twice at a different cost or price. Each is its own lot, so
+    # stock value and margin stay true; the batch number stays the one printed, for recalls.
+    lot = models.PositiveSmallIntegerField(default=1)
     expiry_date = models.DateField()
-    purchase_cost = models.DecimalField(**money, help_text="Cost per unit.")
-    sale_price = models.DecimalField(**money, help_text="Sale price per unit for this batch.")
+    purchase_cost = models.DecimalField(**unit_money, help_text="Cost per unit.")
+    sale_price = models.DecimalField(**unit_money, help_text="Sale price per unit for this batch.")
     quantity_received = models.PositiveIntegerField(default=0)
     quantity_available = models.IntegerField(default=0)
 
@@ -190,7 +325,8 @@ class InventoryBatch(BranchScopedModel):
         verbose_name_plural = "inventory batches"
         constraints = [
             models.UniqueConstraint(
-                fields=["branch", "product", "batch_number"], name="uniq_batch_per_branch"
+                fields=["branch", "product", "batch_number", "lot"],
+                name="uniq_batch_lot_per_branch",
             ),
             models.CheckConstraint(
                 condition=models.Q(quantity_available__gte=0), name="batch_stock_not_negative"
@@ -199,7 +335,11 @@ class InventoryBatch(BranchScopedModel):
         indexes = [models.Index(fields=["branch", "product", "expiry_date"])]
 
     def __str__(self):
-        return f"{self.product} · {self.batch_number}"
+        return f"{self.product} · {self.label}"
+
+    @property
+    def label(self) -> str:
+        return self.batch_number if self.lot == 1 else f"{self.batch_number} (lot {self.lot})"
 
     def save(self, *args, **kwargs):
         if self.pk and not getattr(self, "_ledger_write", False):
@@ -245,8 +385,11 @@ class StockTransaction(BranchScopedModel):
     product = models.ForeignKey(Product, on_delete=models.PROTECT, related_name="transactions")
     batch = models.ForeignKey(InventoryBatch, on_delete=models.PROTECT, related_name="transactions")
     quantity = models.IntegerField(help_text="Signed: positive in, negative out.")
-    balance_after = models.IntegerField()
-    unit_cost = models.DecimalField(**money)
+    balance_after = models.IntegerField(help_text="What this batch held after the movement.")
+    unit_cost = models.DecimalField(**unit_money)
+    unit_price = models.DecimalField(
+        **unit_money, default=Decimal("0"), help_text="The batch's sale price at the time."
+    )
     reference = models.CharField(
         max_length=80, blank=True, help_text="Supplier invoice, sale or return number."
     )
@@ -269,6 +412,73 @@ class StockTransaction(BranchScopedModel):
 
     def __str__(self):
         return f"{self.get_kind_display()} {self.quantity:+d} {self.batch}"
+
+    @property
+    def value(self) -> Decimal:
+        """Stock value this movement added or took away, at the batch's cost."""
+        return (self.unit_cost * self.quantity).quantize(Decimal("0.01"))
+
+    @property
+    def document(self) -> tuple[str, str] | None:
+        """(number, link) of the bill or sale behind this movement, when there is one."""
+        for attr, field, route in (
+            ("sale_item", "sale", "sale-detail"),
+            ("sale_return_item", "sale_return", None),
+            ("purchase_item", "purchase", "purchase-detail"),
+            ("purchase_return_item", "purchase_return", None),
+        ):
+            line = getattr(self, attr, None)
+            if line is None:
+                continue
+            doc = getattr(line, field)
+            if attr == "sale_return_item":
+                return doc.number, reverse("pharmacy:sale-detail", args=[doc.sale_id])
+            if attr == "purchase_return_item":
+                return doc.number, reverse("pharmacy:purchase-detail", args=[doc.purchase_id])
+            return doc.number, reverse(f"pharmacy:{route}", args=[doc.pk])
+        return None
+
+
+class ProductPriceChange(OrgScopedModel):
+    """Append-only history of a product's cost and sale price, per base unit. A price change moves
+    no stock, so it is not a StockTransaction; the product ledger shows both side by side."""
+
+    class Scope(models.TextChoices):
+        NEW_STOCK = "new_stock", "New stock only"
+        SHELF = "shelf", "New stock and stock on the shelf"
+        BATCH = "batch", "One batch"
+        RECEIPT = "receipt", "From a purchase"
+
+    product = models.ForeignKey(Product, on_delete=models.PROTECT, related_name="price_changes")
+    branch = models.ForeignKey(
+        "organizations.Branch",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="+",
+        help_text="Where stock was repriced. Blank when only the product's price changed.",
+    )
+    batch = models.ForeignKey(
+        InventoryBatch, on_delete=models.PROTECT, null=True, blank=True, related_name="+"
+    )
+    scope = models.CharField(max_length=10, choices=Scope.choices, default=Scope.NEW_STOCK)
+    old_cost = models.DecimalField(**unit_money)
+    new_cost = models.DecimalField(**unit_money)
+    old_price = models.DecimalField(**unit_money)
+    new_price = models.DecimalField(**unit_money)
+    units_repriced = models.PositiveIntegerField(default=0)
+    reason = models.CharField(max_length=200, blank=True)
+    reference = models.CharField(max_length=80, blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+"
+    )
+
+    class Meta:
+        ordering = ["-created_at", "-pk"]
+        indexes = [models.Index(fields=["product", "-created_at"])]
+
+    def __str__(self):
+        return f"{self.product}: {self.old_price} to {self.new_price}"
 
 
 # --- Point of sale (Phase 13, PRD §9.3) --------------------------------------------------------
@@ -313,6 +523,10 @@ class PharmacySale(BranchScopedModel):
     )
     discount = models.DecimalField(**money, default=Decimal("0"))
     discount_reason = models.CharField(max_length=200, blank=True)
+    # Who asked for it (a doctor, a manager); discount_by and each row's discount_by gave it.
+    discount_asked_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True, related_name="+"
+    )
     discount_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True, related_name="+"
     )
@@ -353,8 +567,17 @@ class PharmacySaleItem(TimeStampedModel):
     product = models.ForeignKey(Product, on_delete=models.PROTECT, related_name="+")
     batch = models.ForeignKey(InventoryBatch, on_delete=models.PROTECT, related_name="+")
     quantity = models.PositiveIntegerField()
-    unit_price = models.DecimalField(**money)
+    unit_price = models.DecimalField(**unit_money)
     tax_percent = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal("0"))
+    discount_percent = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal("0"),
+        validators=[MinValueValidator(Decimal("0")), MaxValueValidator(Decimal("100"))],
+    )
+    discount_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True, related_name="+"
+    )
     prescription_item = models.ForeignKey(
         "prescriptions.PrescriptionItem",
         on_delete=models.SET_NULL,
@@ -389,16 +612,82 @@ class PharmacySaleItem(TimeStampedModel):
         return (self.unit_price * self.quantity).quantize(Decimal("0.01"))
 
     @property
+    def discount_amount(self) -> Decimal:
+        return (self.gross * self.discount_percent / 100).quantize(Decimal("0.01"))
+
+    @property
     def tax_amount(self) -> Decimal:
-        return (self.gross * self.tax_percent / 100).quantize(Decimal("0.01"))
+        net = self.gross - self.discount_amount
+        return (net * self.tax_percent / 100).quantize(Decimal("0.01"))
 
     @property
     def line_total(self) -> Decimal:
-        return self.gross + self.tax_amount
+        return self.gross - self.discount_amount + self.tax_amount
+
+    @property
+    def sold_as(self) -> tuple[int, str]:
+        """(quantity, "unit" | "pack" | "box"): the largest whole size this quantity fits."""
+        product = self.product
+        if product.has_boxes and self.quantity % product.box_size == 0:
+            return self.quantity // product.box_size, "box"
+        if product.has_packs and self.quantity % product.pack_size == 0:
+            return self.quantity // product.pack_size, "pack"
+        return self.quantity, "unit"
+
+    @property
+    def sold_qty(self) -> int:
+        return self.sold_as[0]
+
+    @property
+    def sold_unit(self) -> str:
+        return self.sold_as[1]
+
+    @property
+    def sold_price(self) -> Decimal:
+        """The price of one of whatever this row is sold in."""
+        size = {"box": self.product.box_size, "pack": self.product.pack_size}.get(self.sold_unit, 1)
+        return (self.unit_price * size).quantize(Decimal("0.01"))
 
     @property
     def returned_quantity(self) -> int:
         return self.return_lines.aggregate(s=models.Sum("quantity"))["s"] or 0
+
+
+class PharmacyCartReturn(TimeStampedModel):
+    """A return entered on the till. It waits on the cart and is carried out at checkout through
+    pos.return_items, so the refund and restock are the same as any other sale return."""
+
+    sale = models.ForeignKey(PharmacySale, on_delete=models.CASCADE, related_name="cart_returns")
+    source = models.ForeignKey(PharmacySaleItem, on_delete=models.PROTECT, related_name="+")
+    quantity = models.PositiveIntegerField()
+    reason = models.CharField(max_length=200, default="Customer return")
+    settled_by = models.ForeignKey(
+        "pharmacy.PharmacySaleReturn",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
+
+    class Meta:
+        ordering = ["created_at", "pk"]
+        constraints = [
+            models.UniqueConstraint(fields=["sale", "source"], name="uniq_cart_return_per_source")
+        ]
+
+    def __str__(self):
+        return f"Return {self.source.product} × {self.quantity}"
+
+    @property
+    def amount(self) -> Decimal:
+        """What this return refunds: the original price, less its share of any sale discount."""
+        source = self.source
+        sale = source.sale
+        lines = sum((i.line_total for i in sale.items.all()), Decimal("0"))
+        factor = (sale.invoice.grand_total / lines) if lines and sale.invoice_id else Decimal(0)
+        return (source.line_total * self.quantity / source.quantity * factor).quantize(
+            Decimal("0.01")
+        )
 
 
 class PharmacySaleReturn(BranchScopedModel):
@@ -496,6 +785,12 @@ class Purchase(BranchScopedModel):
     tax_amount = models.DecimalField(
         **money, default=Decimal("0"), help_text="Tax charged on the supplier invoice."
     )
+    # Taxes on the supplier's bill, kept for the hospital's tax records.
+    line_tax = models.DecimalField(
+        "GST on lines", **money, default=Decimal("0"), help_text="Sum of each line's GST."
+    )
+    further_tax = models.DecimalField(**money, default=Decimal("0"))
+    advance_tax = models.DecimalField("Advance / withholding tax", **money, default=Decimal("0"))
     grand_total = models.DecimalField(**money, default=Decimal("0"))
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+"
@@ -530,12 +825,32 @@ class PurchaseItem(TimeStampedModel):
     free_quantity = models.PositiveIntegerField(
         default=0, help_text="Bonus units the supplier gives free."
     )
-    unit_cost = models.DecimalField(**money, help_text="Cost per unit bought.")
+    # Four decimals: a box of 30 at 100 must come back to exactly 100 on the supplier's bill.
+    unit_cost = models.DecimalField(
+        max_digits=14,
+        decimal_places=4,
+        validators=[MinValueValidator(Decimal("0"))],
+        help_text="Cost per unit bought.",
+    )
+    tax_percent = models.DecimalField(
+        "GST %",
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal("0"),
+        validators=[MinValueValidator(Decimal("0")), MaxValueValidator(Decimal("100"))],
+    )
+    discount_percent = models.DecimalField(
+        "Discount %",
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal("0"),
+        validators=[MinValueValidator(Decimal("0")), MaxValueValidator(Decimal("100"))],
+    )
     # Filled in when the goods arrive (goods receipt).
     batch_number = models.CharField(max_length=40, blank=True)
     expiry_date = models.DateField(null=True, blank=True)
     sale_price = models.DecimalField(
-        **money, null=True, blank=True, help_text="Blank = the product's sale price."
+        **unit_money, null=True, blank=True, help_text="Blank = the product's sale price."
     )
     stock_txn = models.OneToOneField(
         StockTransaction,
@@ -553,7 +868,13 @@ class PurchaseItem(TimeStampedModel):
 
     @property
     def line_cost(self) -> Decimal:
-        return (self.unit_cost * self.quantity).quantize(Decimal("0.01"))
+        """After this line's discount: what the supplier charges for it, before GST."""
+        gross = self.unit_cost * self.quantity
+        return (gross * (100 - self.discount_percent) / 100).quantize(Decimal("0.01"))
+
+    @property
+    def tax_amount(self) -> Decimal:
+        return (self.line_cost * self.tax_percent / 100).quantize(Decimal("0.01"))
 
     @property
     def received_quantity(self) -> int:
@@ -564,7 +885,7 @@ class PurchaseItem(TimeStampedModel):
         """Cost per unit on the shelf: free units lower it."""
         if not self.received_quantity:
             return self.unit_cost
-        return (self.line_cost / self.received_quantity).quantize(Decimal("0.01"))
+        return (self.line_cost / self.received_quantity).quantize(Decimal("0.000001"))
 
     @property
     def returned_quantity(self) -> int:

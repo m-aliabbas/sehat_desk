@@ -10,6 +10,7 @@ from django.views.decorators.http import require_GET, require_POST
 from apps.accounts.decorators import permission_required
 from apps.audit import services as audit
 from apps.core.scoping import get_scoped_or_404
+from apps.patients.services import require_own_patient
 
 from . import services
 from .forms import ArchiveForm, UploadForm
@@ -38,6 +39,7 @@ def upload(request, pk):
     from apps.patients.models import Patient
 
     patient = get_scoped_or_404(Patient, request, pk=pk)
+    require_own_patient(request, patient)
     fallback = f"{reverse('patients:detail', args=[pk])}?tab=documents"
     form = UploadForm(request.POST, request.FILES)
     if not form.is_valid():
@@ -73,6 +75,7 @@ def file(request, pk):
     doc = Document.objects.filter(pk=pk, organization=request.organization).first()
     if doc is None:
         raise Http404
+    require_own_patient(request, doc.patient)
     if not services.token_is_valid(request.GET.get("t", ""), doc, request.user):
         # Expired or copied link: send the user back to the record for a fresh one.
         raise PermissionDenied
@@ -97,6 +100,7 @@ def file(request, pk):
 @permission_required("document.archive")
 def archive(request, pk):
     doc = get_object_or_404(Document, pk=pk, organization=request.organization)
+    require_own_patient(request, doc.patient)
     form = ArchiveForm(request.POST)
     if form.is_valid():
         try:
@@ -123,6 +127,7 @@ def archive(request, pk):
 @permission_required("document.archive")
 def restore(request, pk):
     doc = get_object_or_404(Document, pk=pk, organization=request.organization)
+    require_own_patient(request, doc.patient)
     try:
         services.restore(doc, request=request)
     except services.DocumentError as err:

@@ -1,0 +1,23 @@
+{% extends "layouts/app.html" %}
+{% block title %}Barcodes{% endblock %}
+{% block page_title %}Barcodes{% endblock %}
+{% block page_subtitle %}Generate codes for products that have none, then print as many labels as you need. The count starts at one label per pack in stock.{% endblock %}
+{% block page_actions %}{% if missing_count %}<form method="post">{% csrf_token %}<button class="btn btn-primary" data-confirm="Products with a manufacturer's barcode are left as they are." data-confirm-title="Generate {{ missing_count }} barcodes?">Generate {{ missing_count }} missing</button></form>{% endif %}{% endblock %}
+{% block content %}
+<section class="card">
+  <form method="get" class="mb-4"><label class="sr-only" for="b-q">Search</label><input id="b-q" type="search" name="q" value="{{ q }}" class="input max-w-md" placeholder="Search product or scan a barcode"></form>
+  <form method="get" action="{% url 'pharmacy:barcodes-print' %}" target="_blank">
+    <div class="table-wrap"><table class="table">
+      <thead><tr><th scope="col">Product</th><th scope="col">Barcode</th><th scope="col">In stock</th><th scope="col">Labels</th></tr></thead>
+      <tbody>{% for p in page_obj %}<tr>
+        <td class="font-medium">{{ p.display_name }}</td>
+        <td class="font-mono text-label">{{ p.barcode|default:"None yet" }}</td>
+        <td>{{ p.stock }} {{ p.unit }}{{ p.stock|pluralize }}</td>
+        <td>{% if p.barcode %}<input name="count_{{ p.pk }}" type="number" min="0" max="500" value="{{ p.label_count }}" class="input w-20" aria-label="Labels for {{ p.display_name }}"> <span class="text-label text-muted">{{ p.pack_unit }}s</span>{% else %}—{% endif %}</td>
+      </tr>{% endfor %}</tbody>
+    </table></div>
+    <button class="btn btn-primary mt-4">Print labels</button>
+  </form>
+  {% include "components/pagination.html" %}
+</section>
+{% endblock %}

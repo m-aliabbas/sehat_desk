@@ -4,13 +4,14 @@
   doc_version (optional) follows the number; doc_note (optional) prints in amber under the number, e.g. "Amended report".
 {% endcomment %}
 <header class="flex items-start justify-between gap-6 border-b border-ink pb-4">
-  <div class="flex items-start gap-4">
-    {% if org.logo %}<img src="{{ org.logo.url }}" alt="" class="h-14 w-14 object-contain">{% endif %}
-    <div>
+  <div class="flex flex-1 items-start gap-4 {% if L.header_align == 'center' %}justify-center text-center{% elif L.header_align == 'right' %}flex-row-reverse text-right{% endif %}">
+    {% if org.logo %}{% if L %}{% if L.show_logo %}<img src="{{ org.logo.url }}" alt="" class="object-contain" style="height:{{ L.logo_mm }}mm;width:{{ L.logo_mm }}mm">{% endif %}{% else %}<img src="{{ org.logo.url }}" alt="" class="h-14 w-14 object-contain">{% endif %}{% endif %}
+    <div{% if L and not L.show_header %} class="invisible"{% endif %}>
       <p class="text-[20px] leading-tight font-bold">{{ org.name }}</p>
       <p class="text-label text-muted">{% if unit %}{{ unit }} · {% endif %}{{ branch.name }}{% with address=branch.address|default:org.address phone=branch.phone|default:org.phone %}{% if address %} · {{ address }}{% endif %}{% if phone %} · {{ phone }}{% endif %}{% endwith %}</p>
       {% if org.registration_number %}<p class="text-label text-muted">Reg. {{ org.registration_number }}</p>{% endif %}
       {% if org.report_header %}<p class="text-label whitespace-pre-line text-muted">{{ org.report_header }}</p>{% endif %}
+      {% if L.header_text %}<p class="text-label whitespace-pre-line text-muted">{{ L.header_text }}</p>{% endif %}
     </div>
   </div>
   <div class="shrink-0 text-right">

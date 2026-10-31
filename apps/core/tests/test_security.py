@@ -80,7 +80,7 @@ def test_deactivated_user_is_signed_out(admin_client, make_user):
     user = make_user("reception", username="desk1")
     c = Client()
     c.force_login(user)
-    assert c.get(reverse("core:dashboard")).status_code == 200
+    assert c.get(reverse("core:dashboard") + "?view=overview").status_code == 200
     user.is_active = False
     user.save()
     response = c.get(reverse("core:dashboard"))

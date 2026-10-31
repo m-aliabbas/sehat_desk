@@ -85,10 +85,16 @@ class Prescription(BranchScopedModel):
     class Status(models.TextChoices):
         DRAFT = "draft", "Draft"
         SIGNED = "signed", "Signed"
+        PAPER = "paper", "Handwritten (paper)"
 
     number = models.CharField(max_length=20)
+    # Empty for a doctor's handwritten prescription entered at the pharmacy (status "paper").
     encounter = models.OneToOneField(
-        "encounters.Encounter", on_delete=models.PROTECT, related_name="prescription"
+        "encounters.Encounter",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="prescription",
     )
     patient = models.ForeignKey(
         "patients.Patient", on_delete=models.PROTECT, related_name="prescriptions"
@@ -176,7 +182,7 @@ class PrescriptionItem(TimeStampedModel):
     form = models.CharField(max_length=12, choices=Medicine.Form.choices, blank=True)
     dose = models.CharField(max_length=40, help_text="e.g. 1 tablet, 5 ml, 2 puffs")
     route = models.CharField(max_length=12, choices=Medicine.Route.choices, default="oral")
-    frequency = models.CharField(max_length=8, choices=Frequency.choices, default=Frequency.BD)
+    frequency = models.CharField(max_length=8, choices=Frequency.choices, blank=True)
     duration_value = models.PositiveSmallIntegerField(
         null=True, blank=True, validators=[MinValueValidator(1)]
     )
@@ -190,6 +196,12 @@ class PrescriptionItem(TimeStampedModel):
         max_length=200, blank=True, help_text="Why it is prescribed despite a recorded allergy."
     )
     sort_order = models.PositiveSmallIntegerField(default=0)
+    # Lines the pharmacy added when the medicine was sold. They hold what was sold, not the doctor's
+    # directions, so dose and frequency stay empty.
+    added_at_pharmacy = models.BooleanField(default=False)
+    added_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True, related_name="+"
+    )
 
     class Meta:
         ordering = ["sort_order", "pk"]

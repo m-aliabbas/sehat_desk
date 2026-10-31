@@ -1,0 +1,23 @@
+{% extends "layouts/app.html" %}
+{% block title %}Ledger check{% endblock %}
+{% block page_title %}Ledger check{% endblock %}
+{% block page_subtitle %}{{ current_branch.name }}: stored totals against the payments, refunds, stock moves and supplier entries behind them.{% endblock %}
+{% block content %}
+{% if problems %}
+<section class="card">
+  <p class="mb-4 text-body"><span class="font-semibold">{{ problems|length }} problem{{ problems|length|pluralize }} found.</span> Nothing has been changed.</p>
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th scope="col">Area</th><th scope="col">Record</th><th scope="col">What disagrees</th><th scope="col"><span class="sr-only">Action</span></th></tr></thead>
+    <tbody>{% for p in problems %}<tr>
+      <td>{{ p.area }}</td>
+      <td class="font-mono"><a class="hover:underline" href="{% url p.url_name p.pk %}">{{ p.number }}</a></td>
+      <td>{{ p.detail }}</td>
+      <td class="text-right">{% if p.invoice and can_repair %}<form method="post" action="{% url 'billing:ledger-repair' p.invoice.pk %}">{% csrf_token %}<button class="btn btn-secondary btn-sm" data-confirm="Resets this invoice's stored totals and status from its own payments, refunds and lines. No money moves, and the change is audit-logged." data-confirm-title="Correct {{ p.number }}?">Correct from records</button></form>{% endif %}</td>
+    </tr>{% endfor %}</tbody>
+  </table></div>
+  <p class="mt-4 text-label text-muted">Supplier and stock differences are not corrected here. Use a supplier entry or a stock adjustment so the ledger shows why.</p>
+</section>
+{% else %}
+{% include "components/empty_state.html" with icon_name="check-circle" title="Everything agrees" message="Invoices, payments, refunds, supplier balances and stock all match their records." %}
+{% endif %}
+{% endblock %}

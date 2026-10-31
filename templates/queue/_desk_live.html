@@ -71,6 +71,9 @@
               <button formaction="{% url 'queue:recall' current.pk %}" class="btn btn-secondary">Recall</button>
               <button formaction="{% url 'queue:skip' current.pk %}" class="btn btn-secondary">Mark no-show</button>
             {% endif %}
+            {% if not current.encounter %}
+              <button formaction="{% url 'queue:complete-next' current.pk %}" class="btn btn-primary col-span-2" title="For a manual (paper) prescription: no notes needed">Done (manual Rx) · Next patient</button>
+            {% endif %}
           </form>
         {% else %}
           <p class="text-body text-muted">No one called for {{ selected_doctor }}.</p>
@@ -108,11 +111,22 @@
           <li class="flex items-center justify-between gap-3">
             <span><span class="font-medium">{{ a.start_time|time:"H:i" }}</span> {{ a.patient.full_name }}<span class="block text-label text-muted">{{ a.doctor }}</span></span>
             {% if can_book %}
-            <form method="post" action="{% url 'appointments:check-in' a.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="btn btn-secondary btn-sm">Check in</button></form>
+            <form method="post" action="{% url 'appointments:arrive' a.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="btn btn-secondary btn-sm">Arrived</button></form>
             {% endif %}
           </li>
         {% empty %}<li class="text-label text-muted">No more appointments today.</li>{% endfor %}
       </ul>
+      {% if to_collect %}
+      <h3 class="mt-5 mb-2 text-label font-semibold text-ink">Payments to collect</h3>
+      <ul class="space-y-2 text-body">
+        {% for inv in to_collect %}
+        <li class="flex items-center justify-between gap-3">
+          <span>{{ inv.bill_to }}<span class="block text-label text-muted">{{ inv.number }} · {{ organization.currency }} {{ inv.balance_due|floatformat:"0g" }}</span></span>
+          <a href="{% url 'billing:invoice-pay' inv.pk %}" class="btn btn-secondary btn-sm">Collect</a>
+        </li>
+        {% endfor %}
+      </ul>
+      {% endif %}
       {% if collection %}<a href="{% url 'billing:payment-list' %}" class="mt-4 block rounded-full bg-mint px-3 py-1 text-label text-teal-deep hover:underline">Today's collection: {{ organization.currency }} {{ collection.net|floatformat:"0g" }} · {{ collection.count }} payment{{ collection.count|pluralize }}{% if collection.deposits.received_count %} · {{ collection.deposits.received_count }} deposit{{ collection.deposits.received_count|pluralize }}{% endif %}</a>{% endif %}
     </section>
   </div>

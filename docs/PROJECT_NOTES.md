@@ -29,6 +29,22 @@ Goal: a customer installs one package, gets a desktop shortcut, double-clicks it
   - Post-install script creates a Desktop alias for the console user
   - Optional: a launchd agent to keep the server running
 
+### Windows launcher (built)
+- Code: `launcher/` (`main.py` entry, `window.py` Tk window, `server.py` server process, `mdns.py`,
+  `common.py`). Packaging: `packaging/` (`sehat_desk.spec`, `installer.iss`, `build_windows.ps1`, `VERSION`,
+  icon). CI: `.github/workflows/windows-release.yml`: a `v*` tag matching `packaging/VERSION` publishes a GitHub
+  Release; a `release/**` branch or manual run only keeps an Artifact. No conda in CI (`setup-python`).
+- `sehat_desk.exe` is one PyInstaller folder build with two roles: the window, which starts itself again
+  with `--server` as a hidden process. The window shows start-up stage and health (`/health/ready/`), restarts
+  a dead server (3 times), opens the browser once, and asks before stopping the server. A second click on the
+  icon only opens the browser (named mutex).
+- Updates: Inno Setup with a fixed `AppId` installs over the old version and deletes the old `_internal`.
+  Data in `%LOCALAPPDATA%\SehatDesk` is never touched. On start, pending migrations run after a safety
+  backup to `backups/pre-update/` (last 3 kept); if either fails the server does not start and says so.
+- Build check: `build_windows.ps1` runs `--self-test` and a real server start on an empty folder before
+  packaging, so a broken bundle fails the build.
+- Optional settings for an installed copy: `%LOCALAPPDATA%\SehatDesk\sehatdesk.env`.
+
 ### Build rules
 - Each installer must be built on its own OS. PyInstaller does not cross-compile.
 - Plan: GitHub Actions matrix with `windows-latest` and `macos-latest` runners. A single build script takes a target option (`--target windows|macos|all`) and calls the right packaging step.
@@ -51,7 +67,7 @@ Goal: a customer installs one package, gets a desktop shortcut, double-clicks it
 
 ## 4. Network: the app runs at sehatdesk.local
 - Staff on the hospital LAN open **http://sehatdesk.local** in any browser.
-- The launcher advertises the hostname over mDNS (the `zeroconf` package), so the server works on Windows without Bonjour installed.
+- The launcher advertises the hostname over mDNS (the `zeroconf` package, `launcher/mdns.py`), so the server works on Windows without Bonjour installed. It rechecks the LAN address every minute. The window also shows the IP address as a fallback, and the installer adds firewall rules for the exe (TCP and UDP, all network profiles).
 - `.local` resolution depends on the client:
   - macOS, iOS, Linux with Avahi: works natively.
   - Windows 10/11: usually works. If not, install Bonjour or use the fallback below.
@@ -78,6 +94,37 @@ Goal: a customer installs one package, gets a desktop shortcut, double-clicks it
 - [ ] SMS / WhatsApp provider for patient messages (adapter interface exists; no provider chosen).
 
 ## 6. Decision log
+
+- 2026-10-31 Google Drive backups reuse vibe_pos's encrypted client file and key, as the owner decided. The same
+  key encrypts uploads, so any fresh install can restore them. Sign-in and status are files in the data folder,
+  not tables, so a restore cannot overwrite them.
+- 2026-10-31 Restore from the screen runs live with no server stop, via SQLite's backup API, because hospital
+  staff have no terminal. Only administrators can back up, restore or connect Drive.
+- 2026-10-31 Windows launcher is a Tk window in the PyInstaller bundle (no Tauri); the server runs as a child
+  process so a crash cannot take the window with it. Port 80, then 8000, then 8001. No hosts-file edits.
+- 2026-10-31 A price change is not a new batch: a batch is what is printed on the pack, and a made-up one
+  breaks recalls and expiry. New stock takes the new price, the shelf keeps its own unless repriced, and
+  every change is logged (`ProductPriceChange`). The same batch number arriving at a new cost or price
+  opens a new lot under that number, so stock value and margin stay true.
+- 2026-10-31 Packing is entered as sizes (unit, pack, bigger pack), not one phrase. Prices per base unit
+  keep six decimals, also on invoice lines, so a box price adds back up. Still one price per product;
+  a pack discount separate from the single price is not built.
+- 2026-10-30 Front desk: one visit screen makes the token, fee invoice and papers. Fee up front, empty
+  prescription, office copy and auto print are Preferences switches. Shifts are optional.
+- 2026-10-30 Till returns are matched to past sales and refunded by `pos.return_items`; invoices never
+  hold negative lines. A refund goes against the original sale's payment method.
+- 2026-10-30 Rx-only medicines can be sold without a prescription by default (hospital's choice, audit
+  logged, Preferences can refuse them). Medicines sold against an attached prescription, signed or
+  handwritten, are added to it as new lines marked as added at the pharmacy; existing lines never change.
+- 2026-10-30 Fields are optional unless an admin requires them (Settings → Fields & tax), including the
+  supplier's invoice number. Batch and expiry stay required on stock. Pharmacists may discount by default.
+- 2026-10-30 Pharmacy and reception staff land on the till and reception desk; `/?view=overview` still
+  shows their dashboard.
+- 2026-10-30 Automatic purchase orders are drafts made on request, never created unattended.
+- 2026-10-30 Category tax defaults start at 0: printed medicine prices usually include tax. The
+  hospital's accountant sets rates per product.
+- 2026-10-30 All printing is black and white. Layouts are settings per document (`PrintLayout`), not
+  drag and drop.
 - Django-only (no Next.js) — single language, faster delivery.
 - SQLite for now, PostgreSQL later.
 - Local server per clinic (on-premise) rather than cloud-only, because internet can be unreliable in Pakistan.
@@ -314,6 +361,7 @@ Tooling:
   size + loose units. FEFO = `stock.saleable()` / `stock.fefo_allocate()` (expired batches excluded; sale of
   an expired batch is refused). Alerts: low stock (≤ reorder level), near expiry (90 days), expired on shelf;
   shown on `/inventory/` and the main dashboard. Sale/sale-return services exist for the POS (Phase 13).
+- Prices, lots and the product ledger: `apps/pharmacy/CLAUDE.md`; reasons in the decision log (§6).
 
 ## 13. Pharmacy POS and purchasing (Phases 13–14)
 - **POS (`apps/pharmacy/pos.py`, screens under `/pharmacy/`):** `PharmacySale` is a cart (open / held) until
@@ -421,7 +469,7 @@ Tooling:
 - **Run staging locally:** `cp deploy/staging.env.example deploy/staging.env`, set the secret, then
   `SEHATDESK_ENV_FILE=deploy/staging.env python manage.py migrate`, `... collectstatic --noinput`,
   `... python serve.py --port 8001`.
-- **CI (`.github/workflows/ci.yml`)**, on pushes to `main` and every PR, in a conda env named `agent_dev311`:
+- **CI (`.github/workflows/ci.yml`)**, on pushes to `main` and every PR, on plain Python 3.11 (`setup-python`):
   `lint` (all pre-commit hooks + committed Tailwind CSS is up to date), `test` (pytest on Ubuntu, Windows and
   macOS), `test-postgres` (pytest on PostgreSQL 16), `dependency-audit` (pip-audit), `docker` (image builds and
   serves with PostgreSQL), `deploy-config` (staging and production: `check --deploy`, migrate,
@@ -527,10 +575,14 @@ Tooling:
   `media` + manifest with SHA-256 per file, in one zip; optional AES-256-GCM chunked encryption with
   `SEHATDESK_BACKUP_KEY` (tamper, truncation and wrong key are detected). The secret key is not included.
 - `serve.py` backs up at start when the last backup is older than `SEHATDESK_BACKUP_HOURS` (24), then checks
-  hourly; keeps `SEHATDESK_BACKUP_KEEP` (14). Settings → System lists backups, warns when overdue or
+  hourly; keeps `SEHATDESK_BACKUP_KEEP` (14). Settings → Backup lists backups, warns when overdue or
   unencrypted, and has "Back up now" (audited; never downloads through the browser).
 - Commands: `backup`, `backup --list | --verify FILE | --generate-key`, `restore FILE --yes` (server stopped;
   current files moved to `DATA_DIR/pre-restore-<timestamp>/`, then migrate).
+- Google Drive (`apps/core/gdrive.py`, Settings → Backup): worker thread in `serve.py`, 15:00 and 22:00, catches
+  up missed times, retries failures. Uses pydrive2 and `g1.json.enc` with the same Fernet key as vibe_pos.
+- Background backup and live restore (`apps/core/backup_jobs.py`): restore from a SQLite file, a backup file or
+  Drive, using SQLite's backup API into the running database, with a safety backup first. Admin only.
 - CI restore drill (`test_backup.py`): plain and encrypted backup → data loss → restore → data back.
 
 ## 22. Demo data (Phase 31)
@@ -545,3 +597,10 @@ Tooling:
   (development only). Use it on an empty data folder, e.g. staging (`SEHATDESK_ENV_FILE=deploy/staging.env
   python manage.py seed_demo` after migrate). One password for every demo login (random, or `--password`),
   written to `DATA_DIR/DEMO_LOGIN.txt`, never printed.
+
+## Doctor flow decisions (2026-10-31)
+- A doctor's home is their queue. Nothing is required to complete a consultation; "Checked · Next"
+  signs what is there and sends the prescription. This accepts thin clinical records on purpose.
+- Doctors see only linked patients and their own appointments; a linked patient's clinical history stays
+  whole, including other doctors' visits. Each manager or reception role keeps the hospital-wide view.
+- The pharmacy can tag a sale to a reception visit with an empty paper prescription.

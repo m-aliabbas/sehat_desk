@@ -99,6 +99,22 @@ def icon(name, css_class="h-5 w-5"):
     )
 
 
+@register.simple_tag(takes_context=True)
+def print_layout(context, document):
+    """{% print_layout "invoice" as L %}: Settings → Print layouts for this document."""
+    from apps.organizations.models import print_layout_for
+
+    return print_layout_for(context["request"].organization, document)
+
+
+@register.simple_tag(takes_context=True)
+def field_rule(context, key):
+    """{% field_rule "purchase.gst" as gst %}: "hidden", "optional" or "required"."""
+    from apps.organizations.field_rules import rule
+
+    return rule(context["request"].organization, key)
+
+
 @register.simple_tag
 def status_chip(status, label=None):
     """Chip for a status value: text plus color, so status never relies on color alone."""

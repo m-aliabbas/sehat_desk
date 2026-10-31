@@ -13,6 +13,8 @@ read in `config/settings.py` with django-environ; defaults there are for develop
   `SEHATDESK_ENV_FILE=... python manage.py check --deploy --fail-level WARNING`.
 - Backups: `SEHATDESK_BACKUP_HOURS`, `SEHATDESK_BACKUP_KEEP`, `SEHATDESK_BACKUP_KEY`
   (docs/BACKUP_AND_RECOVERY.md).
+- Google Drive: `SEHATDESK_GDRIVE_TIMES`, `SEHATDESK_GDRIVE_KEEP`, plus `SEHATDESK_GDRIVE_CLIENT_FILE` and
+  `SEHATDESK_GDRIVE_CREDENTIALS_KEY`, whose defaults are the shipped `g1.json.enc` and its key.
 - Docker/PostgreSQL (`Dockerfile`, `docker-compose.yml`) are for staging, demos and hosted servers;
   hospitals get the installers (PROJECT_NOTES §16).
 

@@ -26,6 +26,8 @@ class Slot:
     end: time
     booked: int = 0
     past: bool = False
+    shift: str = ""
+    shift_label: str = ""
 
     @property
     def available(self) -> bool:
@@ -40,10 +42,21 @@ def _add_minutes(t: time, minutes: int) -> time:
     return (datetime.combine(date.min, t) + timedelta(minutes=minutes)).time()
 
 
-def schedule_for(doctor, branch, on_date):
+def schedules_for(doctor, branch, on_date):
+    """A doctor's clinics on that date, earliest first (more than one when working shifts)."""
     return DoctorSchedule.objects.filter(
         doctor=doctor, branch=branch, weekday=on_date.weekday(), is_active=True
-    ).first()
+    ).order_by("start_time")
+
+
+def schedule_for(doctor, branch, on_date, at=None):
+    """The clinic running at `at`, otherwise the first one that day."""
+    schedules = list(schedules_for(doctor, branch, on_date))
+    if at is not None:
+        for sched in schedules:
+            if sched.start_time <= at < sched.end_time:
+                return sched
+    return schedules[0] if schedules else None
 
 
 def on_leave(doctor, on_date) -> bool:
@@ -60,8 +73,8 @@ def _overlapping(doctor, on_date, start, end, exclude_pk=None):
 
 def available_slots(doctor, branch, on_date, *, exclude_pk=None) -> list[Slot]:
     """Every slot in the doctor's clinic hours on that date, with how many bookings it has."""
-    sched = schedule_for(doctor, branch, on_date)
-    if sched is None or not doctor.is_active or on_leave(doctor, on_date):
+    schedules = list(schedules_for(doctor, branch, on_date))
+    if not schedules or not doctor.is_active or on_leave(doctor, on_date):
         return []
     booked = list(
         Appointment.objects.active()
@@ -71,13 +84,23 @@ def available_slots(doctor, branch, on_date, *, exclude_pk=None) -> list[Slot]:
     )
     now = timezone.localtime()
     slots = []
-    for start in sched.slot_starts(doctor.slot_minutes, on_date):
-        end = _add_minutes(start, doctor.slot_minutes)
-        slot = Slot(start=start, end=end)
-        slot.booked = sum(1 for s, e in booked if s < end and e > start)
-        slot.past = on_date < now.date() or (on_date == now.date() and start <= now.time())
-        slots.append(slot)
+    for sched in schedules:
+        for start in sched.slot_starts(doctor.slot_minutes, on_date):
+            end = _add_minutes(start, doctor.slot_minutes)
+            slot = Slot(start=start, end=end, shift=sched.shift)
+            slot.shift_label = sched.get_shift_display()
+            slot.booked = sum(1 for s, e in booked if s < end and e > start)
+            slot.past = on_date < now.date() or (on_date == now.date() and start <= now.time())
+            slots.append(slot)
     return slots
+
+
+def next_free_slot(doctor, branch, on_date, *, shift="") -> Slot | None:
+    """The earliest open slot, optionally within one shift."""
+    for slot in available_slots(doctor, branch, on_date):
+        if slot.available and (not shift or slot.shift == shift):
+            return slot
+    return None
 
 
 def default_fee(doctor, patient, visit_type):

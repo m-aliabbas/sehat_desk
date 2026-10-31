@@ -4,8 +4,9 @@
     {% for p in results %}
       <li role="option">
         <button type="button" class="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-mint/50 disabled:cursor-not-allowed disabled:opacity-60"
-                hx-post="{% url 'pharmacy:pos-add' %}" hx-vals='{"product": "{{ p.pk }}"}' hx-include="#pos-qty, #pos-qty-unit" hx-target="#pos-cart" hx-swap="outerHTML"
-                {% if not p.stock %}disabled{% endif %}>
+                hx-post="{% url 'pharmacy:pos-add' %}" hx-vals='{"product": "{{ p.pk }}"}' hx-include="#pos-qty, #pos-return-flag" hx-target="#pos-cart" hx-swap="outerHTML"
+                hx-on::after-request="const s = document.getElementById('pos-search'); s.value = ''; document.getElementById('pos-qty').value = 1; document.getElementById('pos-results').innerHTML = ''; s.focus()"
+                {% if not p.stock and not returning %}disabled{% endif %}>
           <span>
             <span class="font-medium">{{ p.display_name }}</span>{% if p.requires_prescription %} <span class="chip chip-warning">Rx only</span>{% endif %}
             <span class="block text-label text-muted">{{ p.generic_name|default:"—" }} · {{ p.sku }}{% if p.barcode %} · {{ p.barcode }}{% endif %}</span>

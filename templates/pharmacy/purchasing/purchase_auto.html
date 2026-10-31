@@ -1,0 +1,39 @@
+{% extends "layouts/app.html" %}
+{% load pharmacy %}
+{% block title %}Automatic reorder{% endblock %}
+{% block page_title %}Automatic reorder{% endblock %}
+{% block page_subtitle %}Everything at or below its minimum stock and not already on order. Creates one draft order per supplier.{% endblock %}
+{% block content %}
+{% include "pharmacy/purchasing/_tabs.html" with active="purchases" %}
+{% if rows %}
+<form method="post" class="card">
+  {% csrf_token %}
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th scope="col">Order</th><th scope="col">Product</th><th scope="col">In stock</th><th scope="col">Minimum</th><th scope="col">Packs to order</th><th scope="col">Supplier</th></tr></thead>
+      <tbody>
+        {% for r in rows %}
+        <tr>
+          <td><input type="checkbox" class="checkbox" name="take_{{ r.product.pk }}" checked aria-label="Order {{ r.product.display_name }}"></td>
+          <td class="font-medium">{{ r.product.display_name }}</td>
+          <td>{{ r.stock|in_packs:r.product }}</td>
+          <td>{{ r.product.reorder_level|in_packs:r.product }}</td>
+          <td><input name="packs_{{ r.product.pk }}" type="number" min="1" value="{{ r.packs }}" class="input w-20" aria-label="Packs of {{ r.product.display_name }}"><span class="ml-1 text-label text-muted">{{ r.product|pack_label:r.packs }}</span></td>
+          <td>
+            <select name="vendor_{{ r.product.pk }}" class="select" aria-label="Supplier for {{ r.product.display_name }}">
+              <option value="">Choose…</option>
+              {% for v in vendors %}<option value="{{ v.pk }}" {% if r.vendor.pk == v.pk %}selected{% endif %}>{{ v.name }}</option>{% endfor %}
+            </select>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="mt-5 flex gap-3"><button class="btn btn-primary">Create draft orders</button><a href="{% url 'pharmacy:purchase-list' %}" class="btn btn-close">Cancel</a></div>
+  <p class="mt-3 text-label text-muted">Nothing reaches stock or the supplier's account until the goods are received.</p>
+</form>
+{% else %}
+{% include "components/empty_state.html" with icon_name="package" title="Nothing to reorder" message="No product is at or below its minimum stock, or it is already on an open order." %}
+{% endif %}
+{% endblock %}

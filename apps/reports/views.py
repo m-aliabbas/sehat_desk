@@ -12,9 +12,11 @@ from django.utils import timezone
 from django.views.decorators.http import require_GET
 
 from apps.accounts.decorators import permission_required
+from apps.accounts.models import User
 from apps.audit import services as audit
 from apps.core.scoping import scoped
 from apps.masterdata.models import Department, DoctorProfile
+from apps.pharmacy.models import Product, Vendor
 
 from . import engine, exports
 
@@ -96,6 +98,13 @@ def report_view(request, key):
             else [],
             "doctors": scoped(DoctorProfile, request).select_related("user")
             if "doctor" in rdef.filters
+            else [],
+            "vendors": scoped(Vendor, request).order_by("name") if "vendor" in rdef.filters else [],
+            "products": scoped(Product, request).filter(is_active=True)
+            if "product" in rdef.filters
+            else [],
+            "cashiers": User.objects.filter(organization=request.organization, is_active=True)
+            if "cashier" in rdef.filters
             else [],
             "presets": _presets(timezone.localdate()) if "date" in rdef.filters else [],
             "export_query": request.GET.urlencode(),

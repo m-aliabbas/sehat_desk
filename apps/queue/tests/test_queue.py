@@ -2,6 +2,7 @@ from datetime import time, timedelta
 from decimal import Decimal
 
 import pytest
+from django.urls import reverse
 from django.utils import timezone
 
 from apps.appointments.models import Appointment
@@ -313,6 +314,25 @@ def test_done_manual_rx_completes_and_calls_next(
     assert second.status == Status.COMPLETED
 
 
+def test_reception_can_use_done_manual_rx(
+    client, make_user, doctor, department, desk_request, make_patient
+):
+    first, second = (
+        services.issue_token(
+            request=desk_request, patient=make_patient(n), department=department, doctor=doctor
+        )
+        for n in ("A", "B")
+    )
+    services.call_next(request=desk_request, doctor=doctor)
+    client.force_login(make_user("reception", username="desk1"))
+    page = client.get(f"/reception/?clinic=doc-{doctor.pk}")
+    assert f"/queue/tokens/{first.pk}/complete-next/" in page.content.decode()
+    client.post(f"/queue/tokens/{first.pk}/complete-next/")
+    first.refresh_from_db()
+    second.refresh_from_db()
+    assert first.status == Status.COMPLETED and second.status == Status.CALLED
+
+
 def test_doctor_queue_page(client, doctor, desk_request, department, patient):
     services.issue_token(
         request=desk_request, patient=patient, department=department, doctor=doctor
@@ -320,6 +340,61 @@ def test_doctor_queue_page(client, doctor, desk_request, department, patient):
     client.force_login(doctor.user)
     response = client.get("/queue/doctor/")
     assert response.status_code == 200 and len(response.context["waiting"]) == 1
+
+
+def test_doctor_home_shows_reports_received_today(client, doctor, patient, org, branch, make_user):
+    from apps.lab.models import LabOrder
+    from apps.masterdata.models import Service, ServiceCategory
+    from apps.procedures.models import PatientProcedure
+
+    order = LabOrder.objects.create(
+        organization=org,
+        branch=branch,
+        number="LAB-1",
+        patient=patient,
+        doctor=doctor,
+        status=LabOrder.Status.RELEASED,
+        released_at=timezone.now(),
+        created_by=doctor.user,
+    )
+    LabOrder.objects.create(
+        organization=org,
+        branch=branch,
+        number="LAB-2",
+        patient=patient,
+        doctor=doctor,
+        created_by=doctor.user,
+    )
+    service = Service.objects.create(
+        organization=org,
+        category=ServiceCategory.objects.create(organization=org, name="Procedures"),
+        code="ECG",
+        name="ECG",
+        price=500,
+        is_procedure=True,
+    )
+    PatientProcedure.objects.create(
+        organization=org,
+        branch=branch,
+        number="PRC-1",
+        patient=patient,
+        service=service,
+        name="ECG",
+        performed_by=doctor,
+        list_price=500,
+        unit_price=500,
+        status=PatientProcedure.Status.COMPLETED,
+        completed_at=timezone.now(),
+        created_by=doctor.user,
+    )
+    client.force_login(doctor.user)
+    reports = client.get("/queue/doctor/").context["reports_today"]
+    assert sorted(r["kind"] for r in reports) == ["Lab", "Procedure"]
+    assert reverse("lab:report", args=[order.pk]) in [r.get("report_url") for r in reports]
+
+    client.force_login(make_user("reception"))  # reception runs the queue, not the results
+    page = client.get(f"/queue/doctor/?doctor={doctor.pk}")
+    assert page.context["reports_today"] == []
 
 
 def test_queue_screens_need_permission(client, make_user):

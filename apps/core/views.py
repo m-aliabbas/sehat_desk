@@ -5,12 +5,12 @@ from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
 from django.db import DatabaseError, connection
 from django.http import Http404, HttpRequest, HttpResponse, JsonResponse
-from django.shortcuts import render
+from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
 
-from apps.accounts.decorators import permission_required
+from apps.accounts.decorators import has_perm, permission_required
 
 from .navigation import NAV_ITEMS, PLACEHOLDER_KEYS, item_is_visible
 
@@ -55,6 +55,21 @@ def health_ready(request: HttpRequest) -> JsonResponse:
 # --- App shell ------------------------------------------------------------------
 
 
+def _work_screen(request, features) -> str | None:
+    """Pharmacy and reception staff start where they work; everyone else gets the dashboard."""
+    from apps.patients.services import own_doctor_only
+
+    if own_doctor_only(request):
+        return "queue:doctor"
+    if has_perm(request, "admin.organization.manage") or has_perm(request, "consultation.view"):
+        return None
+    if features["pharmacy"] and has_perm(request, "pharmacy.sale"):
+        return "pharmacy:pos"
+    if has_perm(request, "queue.manage") and has_perm(request, "appointment.manage"):
+        return "queue:desk"
+    return None
+
+
 @require_GET
 def dashboard(request: HttpRequest) -> HttpResponse:
     """Headline numbers for the current branch. Each block shows only with its permission."""
@@ -67,9 +82,12 @@ def dashboard(request: HttpRequest) -> HttpResponse:
     from apps.masterdata.models import DoctorSchedule
     from apps.patients.models import Patient
 
+    features = enabled_features(request.organization)
+    home = _work_screen(request, features)
+    if home and (home == "queue:doctor" or request.GET.get("view") != "overview"):
+        return redirect(home)  # a doctor never gets the hospital-wide numbers
     today = timezone.localdate()
     ctx = {"today": today}
-    features = enabled_features(request.organization)
     if has_perm(request, "patient.view"):
         patients = scoped(Patient, request).filter(is_active=True)
         ctx["patient_total"] = patients.count()
@@ -308,38 +326,189 @@ def system_health(request: HttpRequest) -> HttpResponse:
         else 0,
         "https": dj.HTTPS,
     }
-    from apps.core import backup
-
-    ctx["backups"] = backup.list_backups()[:10]
-    ctx["backup_dir"] = backup.backup_dir()
-    ctx["backup_hours"] = dj.SEHATDESK_BACKUP_HOURS
-    ctx["backup_encrypted"] = bool(dj.SEHATDESK_BACKUP_KEY)
-    latest = ctx["backups"][0] if ctx["backups"] else None
-    hours = dj.SEHATDESK_BACKUP_HOURS or 24
-    ctx["backup_overdue"] = latest is None or (
-        (timezone.now() - latest.created).total_seconds() > 2 * hours * 3600
-    )
     return render(request, "core/system.html", ctx)
 
 
-@require_POST
-@permission_required("admin.system.view")
-def backup_now(request: HttpRequest) -> HttpResponse:
-    """Write a backup to the server's backup folder (never downloads it to the browser)."""
-    from django.contrib import messages
-    from django.shortcuts import redirect
+@require_GET
+@permission_required("admin.organization.manage")
+def backup_settings(request: HttpRequest) -> HttpResponse:
+    """Settings → Backup and restore: Google Drive, backups on this server, restore."""
+    from django.conf import settings as dj
 
-    from apps.audit import services as audit
-    from apps.core import backup
+    from apps.core import backup, backup_jobs
+
+    backups = backup.list_backups()[:10]
+    latest = backups[0] if backups else None
+    hours = dj.SEHATDESK_BACKUP_HOURS or 24
+    ctx = {
+        "settings_tab": "backups",
+        "backups": backups,
+        "backup_dir": backup.backup_dir(),
+        "backup_hours": dj.SEHATDESK_BACKUP_HOURS,
+        "backup_encrypted": bool(dj.SEHATDESK_BACKUP_KEY),
+        "backup_overdue": latest is None
+        or (timezone.now() - latest.created).total_seconds() > 2 * hours * 3600,
+        "job": backup_jobs.status(),
+        **_gdrive_context(),
+    }
+    return render(request, "core/backups.html", ctx)
+
+
+def _gdrive_context() -> dict:
+    from apps.core import gdrive
+
+    return {"gdrive": gdrive.status()}
+
+
+@require_GET
+@permission_required("admin.organization.manage")
+def gdrive_panel(request: HttpRequest) -> HttpResponse:
+    """The Google Drive card alone: polled while a sign-in or upload is running."""
+    return render(request, "core/_gdrive.html", _gdrive_context())
+
+
+@require_GET
+@permission_required("admin.organization.manage")
+def gdrive_restore_list(request: HttpRequest) -> HttpResponse:
+    """Backups in Drive with a Restore button; loaded on demand because it calls Google."""
+    from apps.core import gdrive
 
     try:
-        info = backup.create_backup(key=backup.configured_key())
-    except backup.BackupError as err:
-        messages.error(request, f"Backup failed: {err}")
+        ctx = {"files": gdrive.list_backups()}
+    except gdrive.GoogleDriveError as err:
+        ctx = {"error": str(err)}
+    return render(request, "core/_gdrive_restore_list.html", ctx)
+
+
+def _start_restore(request: HttpRequest, start, label: str) -> HttpResponse:
+    """Every restore form asks the admin to type RESTORE, then runs in the background."""
+    from django.contrib import messages
+
+    from apps.audit import services as audit
+    from apps.core import backup, backup_jobs
+
+    if request.POST.get("confirm", "").strip() != "RESTORE":
+        messages.error(request, "Type RESTORE to confirm. Nothing was changed.")
+        return redirect("core:backups")
+    try:
+        audit.record(request, "system.restore", summary=label)
+        start()
+    except (backup.BackupError, backup_jobs.JobBusy) as err:
+        messages.error(request, str(err))
     else:
-        audit.record(request, "system.backup", summary=info.name)
-        messages.success(request, f"Backup written: {info.name}")
-    return redirect("core:system")
+        messages.info(request, "Restore started in the background.")
+    return redirect("core:backups")
+
+
+@require_POST
+@permission_required("admin.organization.manage")
+def restore_upload(request: HttpRequest) -> HttpResponse:
+    """Restore from a chosen .sqlite3 file or backup file."""
+    from django.contrib import messages
+
+    from apps.core import backup, backup_jobs
+
+    upload = request.FILES.get("file")
+    if upload is None:
+        messages.error(request, "Choose a file to restore.")
+        return redirect("core:backups")
+    if request.POST.get("confirm", "").strip() != "RESTORE":
+        messages.error(request, "Type RESTORE to confirm. Nothing was changed.")
+        return redirect("core:backups")
+    try:
+        path = backup_jobs.save_upload(upload)
+    except backup.BackupError as err:
+        messages.error(request, str(err))
+        return redirect("core:backups")
+    return _start_restore(
+        request, lambda: backup_jobs.start_restore(path, delete_after=True), path.name
+    )
+
+
+@require_POST
+@permission_required("admin.organization.manage")
+def restore_local(request: HttpRequest) -> HttpResponse:
+    """Restore a file listed in the server's backup folder."""
+    from apps.core import backup_jobs
+
+    name = request.POST.get("name", "")
+    return _start_restore(
+        request, lambda: backup_jobs.start_restore(backup_jobs.local_backup(name)), name
+    )
+
+
+@require_POST
+@permission_required("admin.organization.manage")
+def restore_drive(request: HttpRequest) -> HttpResponse:
+    """Download a backup from Google Drive and restore it."""
+    from apps.core import backup_jobs
+
+    file_id = request.POST.get("file_id", "")
+    return _start_restore(
+        request, lambda: backup_jobs.start_restore_from_drive(file_id), "Google Drive backup"
+    )
+
+
+@require_POST
+@permission_required("admin.organization.manage")
+def gdrive_connect(request: HttpRequest) -> HttpResponse:
+    """Opens Google's sign-in page on the server computer; the card polls for the result."""
+    from django.contrib import messages
+
+    from apps.audit import services as audit
+    from apps.core import gdrive
+
+    gdrive.start_connect()
+    audit.record(request, "system.gdrive_connect", summary="Google Drive sign-in started")
+    messages.info(request, "Finish the Google sign-in in the browser on the server computer.")
+    return redirect("core:backups")
+
+
+@require_POST
+@permission_required("admin.organization.manage")
+def gdrive_disconnect(request: HttpRequest) -> HttpResponse:
+    from django.contrib import messages
+
+    from apps.audit import services as audit
+    from apps.core import gdrive
+
+    gdrive.disconnect()
+    audit.record(request, "system.gdrive_disconnect", summary="Google Drive disconnected")
+    messages.success(request, "Google Drive disconnected. Backups already there were kept.")
+    return redirect("core:backups")
+
+
+@require_POST
+@permission_required("admin.organization.manage")
+def gdrive_backup_now(request: HttpRequest) -> HttpResponse:
+    from django.contrib import messages
+
+    from apps.audit import services as audit
+    from apps.core import gdrive
+
+    gdrive.start_backup()
+    audit.record(request, "system.gdrive_backup", summary="Google Drive backup started")
+    messages.info(request, "Google Drive backup started.")
+    return redirect("core:backups")
+
+
+@require_POST
+@permission_required("admin.organization.manage")
+def backup_now(request: HttpRequest) -> HttpResponse:
+    """Write a backup to the server's folder in the background (never sent to the browser)."""
+    from django.contrib import messages
+
+    from apps.audit import services as audit
+    from apps.core import backup_jobs
+
+    try:
+        backup_jobs.start_backup()
+    except backup_jobs.JobBusy as err:
+        messages.error(request, str(err))
+    else:
+        audit.record(request, "system.backup", summary="Backup started")
+        messages.info(request, "Backup started in the background.")
+    return redirect("core:backups")
 
 
 @require_GET

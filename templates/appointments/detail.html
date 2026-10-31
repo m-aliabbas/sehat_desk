@@ -3,7 +3,7 @@
 {% block title %}{{ appt.number }}{% endblock %}
 {% block page_title %}{{ appt.number }} · {{ appt.patient.full_name }}{% endblock %}
 {% block page_subtitle %}{{ appt.date|date:"l, j F Y" }} at {{ appt.start_time|time:"H:i" }}–{{ appt.end_time|time:"H:i" }} · {{ appt.doctor }} · {{ appt.department }}{% endblock %}
-{% block page_actions %}{% status_chip appt.status appt.get_status_display %}<a href="{% url 'appointments:slip' appt.pk %}" target="_blank" class="btn btn-secondary">Print slip</a>{% endblock %}
+{% block page_actions %}{% status_chip appt.status appt.get_status_display %}<a href="{% url 'appointments:slip' appt.pk %}" target="_blank" class="btn btn-secondary">Print slip</a><a href="{% url 'appointments:papers' appt.pk %}" class="btn btn-secondary">Visit papers</a>{% if "procedure.order" in sd_perms and appt.status != "cancelled" and appt.status != "no_show" %}<a href="{% url 'procedures:procedure-create' %}?patient={{ appt.patient_id }}&amp;doctor={{ appt.doctor_id }}" class="btn btn-secondary">Add procedure</a>{% endif %}{% if "consultation.create" in sd_perms and not appt.encounter and appt.status != "cancelled" and appt.status != "no_show" %}<form method="post" action="{% url 'encounters:start' %}">{% csrf_token %}<button name="appointment" value="{{ appt.pk }}" class="btn btn-secondary">Write prescription</button></form>{% endif %}{% endblock %}
 {% block content %}
 <div class="grid gap-6 xl:grid-cols-3">
   <section class="card xl:col-span-2">
@@ -41,7 +41,7 @@
     <div class="space-y-3">
       {% if appt.status == "scheduled" or appt.status == "confirmed" %}
         {% if appt.date == today %}
-          <form method="post" action="{% url 'appointments:check-in' appt.pk %}">{% csrf_token %}<button class="btn btn-primary w-full">Check in</button></form>
+          <form method="post" action="{% url 'appointments:arrive' appt.pk %}">{% csrf_token %}<button class="btn btn-primary w-full">Patient arrived · print papers</button></form>
         {% endif %}
         {% if appt.status == "scheduled" %}
           <form method="post" action="{% url 'appointments:confirm' appt.pk %}">{% csrf_token %}<button class="btn btn-secondary w-full">Mark confirmed</button></form>

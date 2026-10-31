@@ -13,9 +13,9 @@ class PrescriptionItemForm(StyledFormMixin, forms.Form):
 
     medicine = forms.IntegerField(required=False, widget=forms.HiddenInput)
     medicine_name = forms.CharField(label="Medicine", max_length=200)
-    dose = forms.CharField(max_length=40, help_text="e.g. 1 tablet, 5 ml, 2 puffs")
+    dose = forms.CharField(max_length=40, required=False, help_text="e.g. 1 tablet, 5 ml, 2 puffs")
     route = forms.ChoiceField(choices=Medicine.Route.choices, initial="oral")
-    frequency = forms.ChoiceField(choices=Item.Frequency.choices, initial="BD")
+    frequency = forms.ChoiceField(choices=[("", "—"), *Item.Frequency.choices], required=False)
     duration_value = forms.IntegerField(
         label="Duration", required=False, min_value=1, max_value=365
     )

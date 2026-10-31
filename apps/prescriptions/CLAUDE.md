@@ -16,6 +16,12 @@ PRD §6.3. Prescription lines written inside a consultation; Settings → Medici
 - Signed with the encounter; sent to pharmacy only after signing. Dispensing status is set by
   `apps/pharmacy/pos.py`.
 
+- Status `paper`: a handwritten prescription recorded at the pharmacy; it has no encounter. Lines with
+  `added_at_pharmacy` come from sales and carry no directions.
+
+- A line needs only a medicine name; dose and frequency are optional. `send_if_any` sends a signed
+  prescription when the doctor presses "Checked · Next".
+
 ## Permissions
 `prescription.create`.
 

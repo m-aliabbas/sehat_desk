@@ -1,0 +1,3 @@
+{% load pharmacy %}{% packing_options as options %}<datalist id="packing-presets">{% for p in options %}<option value="{{ p }}"></option>{% endfor %}</datalist>
+<datalist id="unit-names">{% for n in "tablet capsule syringe vial ampoule bottle sachet tube inhaler piece ml"|split %}<option value="{{ n }}"></option>{% endfor %}</datalist>
+<datalist id="pack-names">{% for n in "strip box pack carton tray bottle"|split %}<option value="{{ n }}"></option>{% endfor %}</datalist>

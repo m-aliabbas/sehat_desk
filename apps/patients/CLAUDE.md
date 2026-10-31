@@ -14,6 +14,10 @@ Registration, search, duplicate detection, demographics and allergies. PRD §5. 
 - Opening a record writes a `patient.view` audit event; demographic edits store field diffs.
 - Allergies are never deleted; mark "entered in error" with a reason.
 
+- `own_doctor_only` / `limit_to_own_patients`: someone who is only a doctor sees patients they are
+  linked to (appointment, consultation, token, admission) and their own appointments; other patients
+  are a 404. Patient history inside a record they can open stays complete, for safe care.
+
 ## Permissions
 `patient.view`, `patient.create`, `patient.update`.
 

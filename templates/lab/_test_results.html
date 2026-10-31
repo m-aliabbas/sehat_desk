@@ -1,0 +1,6 @@
+{% comment %}Tests of one released order: each with its result and, when out of range, its flag. Needs items.{% endcomment %}
+<ul class="mt-1 text-body">
+  {% for i in items %}{% if i.status != "cancelled" %}{% with r=i.current_result %}
+  <li>{{ i.test_name }}{% if r %}: <span class="font-semibold">{{ r.display_value }} {{ r.unit }}</span>{% if r.flag and r.flag != "normal" %} <span class="chip {% if "critical" in r.flag %}chip-danger{% else %}chip-warning{% endif %}">{{ r.get_flag_display }}</span>{% endif %}{% endif %}</li>
+  {% endwith %}{% endif %}{% endfor %}
+</ul>

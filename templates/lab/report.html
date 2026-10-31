@@ -1,10 +1,12 @@
 {% extends "print/a4.html" %}
+{% load ui %}
 {% block title %}Lab report {{ order.number }}{% endblock %}
 {% block toolbar %}{% if not pdf %}{{ block.super }}{% endif %}{% endblock %}
 {% block print_label %}Print report{% endblock %}
 {% block toolbar_extra %}<a class="btn btn-secondary" href="?format=pdf">Download PDF</a>{% endblock %}
 {% block before_sheet %}{% if not pdf %}{% for m in messages %}<p class="no-print mx-auto mb-4 max-w-[210mm] rounded-control bg-amber-soft p-3 text-body text-amber" role="status">{{ m }}</p>{% endfor %}{% endif %}{% endblock %}
 {% block document %}
+    {% print_layout "lab_report" as L %}{% include "print/_layout_css.html" %}
     {% if not released %}<p class="mb-4 rounded-control bg-amber-soft p-2 text-center font-bold text-amber uppercase">Preliminary · not released · not for clinical use</p>{% endif %}
     {% if order.amendment_count %}{% include "print/_letterhead.html" with org=organization branch=order.branch unit="Laboratory" doc_title="Laboratory report" doc_number=order.number doc_note="Amended report" %}{% else %}{% include "print/_letterhead.html" with org=organization branch=order.branch unit="Laboratory" doc_title="Laboratory report" doc_number=order.number %}{% endif %}
     <section class="mt-4 grid grid-cols-2 gap-x-8 gap-y-1 text-body">

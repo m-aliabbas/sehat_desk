@@ -1,5 +1,4 @@
 # SehatDesk CI: lint, tests on every installer OS, and a staging/production config smoke test.
-# Uses a conda env named agent_dev311, the same as local development (CLAUDE.md).
 name: CI
 
 on:
@@ -16,18 +15,16 @@ permissions:
 
 defaults:
   run:
-    shell: bash -el {0}  # login shell so the conda env is active in every step
+    shell: bash
 
 jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: conda-incubator/setup-miniconda@v3
+      - uses: actions/setup-python@v5
         with:
-          activate-environment: agent_dev311
           python-version: "3.11"
-          auto-update-conda: false
       - run: pip install -r requirements-dev.txt
       - name: Pre-commit hooks (ruff, Django check, migrations, forbidden files)
         run: pre-commit run --all-files --show-diff-on-failure
@@ -46,11 +43,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
-      - uses: conda-incubator/setup-miniconda@v3
+      - uses: actions/setup-python@v5
         with:
-          activate-environment: agent_dev311
           python-version: "3.11"
-          auto-update-conda: false
       - run: pip install -r requirements-dev.txt
       - run: pytest -q
 
@@ -72,11 +67,9 @@ jobs:
       SEHATDESK_DATABASE_URL: postgres://sehatdesk:sehatdesk@localhost:5432/sehatdesk
     steps:
       - uses: actions/checkout@v4
-      - uses: conda-incubator/setup-miniconda@v3
+      - uses: actions/setup-python@v5
         with:
-          activate-environment: agent_dev311
           python-version: "3.11"
-          auto-update-conda: false
       - run: pip install -r requirements-dev.txt -r requirements-postgres.txt
       - run: pytest -q
 
@@ -85,11 +78,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: conda-incubator/setup-miniconda@v3
+      - uses: actions/setup-python@v5
         with:
-          activate-environment: agent_dev311
           python-version: "3.11"
-          auto-update-conda: false
       - run: pip install pip-audit
       - run: pip-audit -r requirements-postgres.txt -r requirements-dev.txt --progress-spinner off
 
@@ -117,11 +108,9 @@ jobs:
       SEHATDESK_PORT: "8000"
     steps:
       - uses: actions/checkout@v4
-      - uses: conda-incubator/setup-miniconda@v3
+      - uses: actions/setup-python@v5
         with:
-          activate-environment: agent_dev311
           python-version: "3.11"
-          auto-update-conda: false
       - run: pip install -r requirements.txt
       - run: python manage.py check --deploy --fail-level WARNING
       - run: python manage.py migrate --noinput

@@ -19,8 +19,9 @@ from django.utils import timezone
 
 from apps.billing.models import to_money
 from apps.core.models import next_number
+from apps.organizations import field_rules
 
-from . import stock
+from . import pricing, stock
 from .models import (
     Purchase,
     PurchaseItem,
@@ -108,8 +109,16 @@ def _lock(purchase, request) -> Purchase:
 def recalculate(purchase) -> Purchase:
     purchase.subtotal = sum((i.line_cost for i in purchase.items.all()), ZERO)
     purchase.discount = min(to_money(purchase.discount), purchase.subtotal)
-    purchase.grand_total = purchase.subtotal - purchase.discount + to_money(purchase.tax_amount)
-    purchase.save(update_fields=["subtotal", "discount", "grand_total", "updated_at"])
+    purchase.line_tax = sum((i.tax_amount for i in purchase.items.all()), ZERO)
+    purchase.grand_total = (
+        purchase.subtotal
+        - purchase.discount
+        + purchase.line_tax
+        + to_money(purchase.tax_amount)
+        + to_money(purchase.further_tax)
+        + to_money(purchase.advance_tax)
+    )
+    purchase.save(update_fields=["subtotal", "discount", "line_tax", "grand_total", "updated_at"])
     return purchase
 
 
@@ -117,7 +126,9 @@ def _clean_receipt_fields(product, batch_number, expiry_date, sale_price):
     return {
         "batch_number": (batch_number or "").strip().upper()[:40],
         "expiry_date": expiry_date,
-        "sale_price": None if sale_price in (None, "") else to_money(sale_price),
+        "sale_price": None
+        if sale_price in (None, "")
+        else Decimal(sale_price).quantize(Decimal("0.000001")),
     }
 
 
@@ -133,6 +144,8 @@ def add_item(
     batch_number="",
     expiry_date=None,
     sale_price=None,
+    tax_percent=0,
+    discount_percent=0,
 ) -> PurchaseItem:
     purchase = _lock(purchase, request)
     if product.organization_id != purchase.organization_id or not product.is_active:
@@ -141,12 +154,18 @@ def add_item(
         raise PurchaseError("Enter a quantity greater than zero.")
     if free_quantity < 0 or to_money(unit_cost) < 0:
         raise PurchaseError("Cost and free quantity cannot be negative.")
+    if not 0 <= Decimal(tax_percent) <= 100:
+        raise PurchaseError("GST must be between 0 and 100 percent.")
+    if not 0 <= Decimal(discount_percent) <= 100:
+        raise PurchaseError("Discount must be between 0 and 100 percent.")
     item = PurchaseItem.objects.create(
         purchase=purchase,
         product=product,
         quantity=quantity,
         free_quantity=free_quantity,
-        unit_cost=to_money(unit_cost),
+        unit_cost=Decimal(unit_cost).quantize(Decimal("0.0001")),
+        tax_percent=tax_percent,
+        discount_percent=discount_percent,
         **_clean_receipt_fields(product, batch_number, expiry_date, sale_price),
     )
     recalculate(purchase)
@@ -183,11 +202,12 @@ def remove_item(item, *, request) -> Purchase:
 @transaction.atomic
 def set_invoice_details(
     purchase, *, request, supplier_invoice_number, supplier_invoice_date, discount, tax_amount,
-    notes="",
+    notes="", further_tax=0, advance_tax=0,
 ) -> Purchase:  # fmt: skip
     purchase = _lock(purchase, request)
     discount, tax_amount = to_money(discount), to_money(tax_amount)
-    if discount < 0 or tax_amount < 0:
+    further_tax, advance_tax = to_money(further_tax), to_money(advance_tax)
+    if min(discount, tax_amount, further_tax, advance_tax) < 0:
         raise PurchaseError("Discount and tax cannot be negative.")
     if discount > purchase.subtotal:
         raise PurchaseError(f"The discount cannot be more than {purchase.subtotal}.")
@@ -195,6 +215,7 @@ def set_invoice_details(
     purchase.supplier_invoice_date = supplier_invoice_date
     purchase.discount = discount
     purchase.tax_amount = tax_amount
+    purchase.further_tax, purchase.advance_tax = further_tax, advance_tax
     purchase.notes = notes.strip()[:300]
     purchase.save()
     return recalculate(purchase)
@@ -219,8 +240,18 @@ def receipt_problems(purchase) -> list[str]:
     items = list(purchase.items.select_related("product"))
     if not items:
         problems.append("Add at least one item.")
-    if not purchase.supplier_invoice_number:
-        problems.append("Enter the supplier's invoice number.")
+    org = purchase.organization
+    if field_rules.is_required(org, "purchase.supplier_invoice"):
+        if not purchase.supplier_invoice_number:
+            problems.append("Enter the supplier's invoice number.")
+    if field_rules.is_required(org, "purchase.further_tax") and not purchase.further_tax:
+        problems.append("Enter the further tax on this bill.")
+    if field_rules.is_required(org, "purchase.advance_tax") and not purchase.advance_tax:
+        problems.append("Enter the advance tax on this bill.")
+    if field_rules.is_required(org, "purchase.gst"):
+        for item in items:
+            if not item.tax_percent:
+                problems.append(f"{item.product}: enter the GST.")
     today = timezone.localdate()
     for item in items:
         if not item.batch_number:
@@ -256,9 +287,19 @@ def receive(purchase, *, request) -> Purchase:
         except stock.StockError as err:
             raise PurchaseError(f"{item.product}: {err.message}") from err
         item.save(update_fields=["stock_txn", "updated_at"])
-        if item.product.purchase_price != item.effective_unit_cost:
-            item.product.purchase_price = item.effective_unit_cost  # latest cost becomes default
-            item.product.save(update_fields=["purchase_price", "updated_at"])
+        product = item.product
+        product.refresh_from_db(fields=["purchase_price", "sale_price"])
+        if product.purchase_price != item.effective_unit_cost:
+            old_cost = product.purchase_price
+            product.purchase_price = item.effective_unit_cost  # latest cost becomes default
+            product.save(update_fields=["purchase_price", "updated_at"])
+            pricing.record_edit(
+                product,
+                request=request,
+                old_cost=old_cost,
+                old_price=product.sale_price,
+                reference=reference,
+            )
     purchase.status = Status.RECEIVED
     purchase.received_at = timezone.now()
     purchase.received_by = request.user
@@ -405,3 +446,88 @@ def vendors_with_balance(organization):
     return Vendor.objects.filter(organization=organization).annotate(
         balance_total=Sum("ledger__amount", default=ZERO)
     )
+
+
+# --- Many lines at once and automatic orders -----------------------------------------------------
+
+
+def line_quantity(product, *, boxes=0, packs=0, units=0) -> int:
+    return boxes * product.box_size + packs * product.pack_size + units
+
+
+def units_in(product, unit) -> int:
+    return {"box": product.box_size, "pack": product.pack_size}.get(unit, 1)
+
+
+def cost_per_unit(product, cost, per) -> Decimal:
+    """Suppliers quote per box or strip. Convert to the per-unit cost stored on the line."""
+    return (Decimal(cost) / units_in(product, per)).quantize(Decimal("0.0001"))
+
+
+@transaction.atomic
+def add_items(purchase, *, request, lines) -> list[PurchaseItem]:
+    """Add every line or none. Each line holds add_item's keyword arguments."""
+    return [add_item(purchase, request=request, **line) for line in lines]
+
+
+def _last_vendor(product, branch):
+    item = (
+        PurchaseItem.objects.filter(
+            product=product, purchase__branch=branch, purchase__status=Status.RECEIVED
+        )
+        .select_related("purchase__vendor")
+        .order_by("-purchase__received_at")
+        .first()
+    )
+    return item.purchase.vendor if item else None
+
+
+def reorder_suggestions(request) -> list[dict]:
+    """Low-stock products not already on an open order, with who to buy from and how much:
+    enough to reach twice the reorder level, in whole packs."""
+    on_order = set(
+        PurchaseItem.objects.filter(
+            purchase__branch=request.branch, purchase__status__in=(Status.DRAFT, Status.ORDERED)
+        ).values_list("product_id", flat=True)
+    )
+    rows = []
+    for product in stock.low_stock(request.branch, request.organization).select_related(
+        "preferred_vendor"
+    ):
+        if product.pk in on_order:
+            continue
+        vendor = product.preferred_vendor or _last_vendor(product, request.branch)
+        wanted = max(product.reorder_level * 2 - product.stock, product.pack_size)
+        rows.append(
+            {
+                "product": product,
+                "vendor": vendor,
+                "packs": -(-wanted // product.pack_size),
+                "stock": product.stock,
+            }
+        )
+    return rows
+
+
+@transaction.atomic
+def create_reorder_purchases(*, request, lines) -> list[Purchase]:
+    """One draft order per supplier. lines: (product, vendor, packs). Nothing is posted to stock
+    or the supplier ledger until the goods are received."""
+    by_vendor = {}
+    for product, vendor, packs in lines:
+        if packs <= 0:
+            raise PurchaseError(f"Enter a quantity for {product}.")
+        by_vendor.setdefault(vendor.pk, (vendor, []))[1].append((product, packs))
+    purchases = []
+    for vendor, products in by_vendor.values():
+        purchase = create_purchase(request=request, vendor=vendor, notes="Automatic reorder")
+        for product, packs in products:
+            add_item(
+                purchase,
+                request=request,
+                product=product,
+                quantity=packs * product.pack_size,
+                unit_cost=product.purchase_price,
+            )
+        purchases.append(purchase)
+    return purchases

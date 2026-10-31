@@ -111,20 +111,16 @@ def test_other_doctor_cannot_edit(doc_request, rf, org, branch, department, make
         services.save_note(enc, request=_req(rf, other, org, branch), data=NOTE)
 
 
-def test_complete_requires_minimum_note(doc_request, patient):
+def test_complete_refuses_only_a_past_follow_up(doc_request, patient):
     enc, _ = services.start(request=doc_request, patient=patient)
-    with pytest.raises(services.EncounterError, match="chief complaint"):
-        services.complete(enc, request=doc_request)
-    services.save_note(enc, request=doc_request, data={"chief_complaint": "Fever"})
-    with pytest.raises(services.EncounterError, match="diagnosis"):
-        services.complete(enc, request=doc_request)
     services.save_note(
-        enc,
-        request=doc_request,
-        data={**NOTE, "referral_to": "Cardiology", "follow_up_date": None},
-    )
-    with pytest.raises(services.EncounterError, match="referral"):
+        enc, request=doc_request,
+        data={"follow_up_date": timezone.localdate() - timedelta(days=1)},
+    )  # fmt: skip
+    with pytest.raises(services.EncounterError, match="past"):
         services.complete(enc, request=doc_request)
+    services.save_note(enc, request=doc_request, data={"follow_up_date": None})
+    assert services.complete(enc, request=doc_request).version == 1
 
 
 def test_complete_signs_version_and_closes_token(doc_request, called_token, patient):
@@ -267,9 +263,20 @@ def test_encounter_in_other_branch_is_404(admin_client, org, branch2, patient, d
 
 def test_patient_profile_start_button(client, doctor, patient):
     client.force_login(doctor.user)
-    page = client.get(f"/patients/{patient.pk}/").content.decode()
-    assert "Start consultation" in page
     r = client.post("/encounters/start/", {"patient": patient.pk})
     assert r.status_code == 302 and Encounter.objects.filter(patient=patient).exists()
+    page = client.get(f"/patients/{patient.pk}/").content.decode()
+    assert "consultation" in page.lower()
     assert client.get(f"/patients/{patient.pk}/?tab=visits").status_code == 200
     assert client.get(f"/patients/{patient.pk}/?tab=timeline").status_code == 200
+
+
+def test_medicine_only_consultation_signs_with_nothing_else(rf, doc_request, patient):
+    from apps.prescriptions import services as rx
+
+    enc, _ = services.start(request=doc_request, patient=patient)
+    item = rx.add_item(enc, request=doc_request, data={"medicine_name": "Panadol"})
+    assert item.dose == "" and item.frequency == ""
+    version = services.complete(enc, request=doc_request)
+    assert version.content["prescription"]
+    assert enc.__class__.objects.get(pk=enc.pk).status == "completed"

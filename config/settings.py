@@ -143,6 +143,8 @@ MIDDLEWARE = [
     # CSP, Permissions-Policy, and no browser caching of signed-in pages.
     "apps.core.security.SecurityHeadersMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
+    # "Please wait" for every page while a restore replaces the database.
+    "apps.core.backup_jobs.RestoreMaintenanceMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -239,6 +241,17 @@ SEHATDESK_BACKUP_KEEP = env.int("SEHATDESK_BACKUP_KEEP", default=14)
 # Base64 32-byte key (manage.py backup --generate-key). Set it to encrypt every backup; keep a
 # copy OFF this computer, or the backups cannot be restored.
 SEHATDESK_BACKUP_KEY = env("SEHATDESK_BACKUP_KEY", default="")
+# Google Drive backups (apps/core/gdrive.py): daily upload times in the hospital's time zone, how
+# many uploads to keep in Drive (0 = all), the encrypted Google sign-in client and its Fernet key
+# (the same pair vibe_pos ships). serve.py runs the worker; empty times turn it off.
+SEHATDESK_GDRIVE_TIMES = env.list("SEHATDESK_GDRIVE_TIMES", default=["15:00", "22:00"])
+SEHATDESK_GDRIVE_KEEP = env.int("SEHATDESK_GDRIVE_KEEP", default=60)
+SEHATDESK_GDRIVE_CLIENT_FILE = env(
+    "SEHATDESK_GDRIVE_CLIENT_FILE", default=str(BASE_DIR / "g1.json.enc")
+)
+SEHATDESK_GDRIVE_CREDENTIALS_KEY = env(
+    "SEHATDESK_GDRIVE_CREDENTIALS_KEY", default="EhKGefoVJZoKmg1ikyTppKbmryLi5DcvJcjIUx3zw40="
+)
 
 # --- Notifications -------------------------------------------------------------------
 # Time-based checks (reminders, stock, expiry) run at most this often per branch; 0 = off.

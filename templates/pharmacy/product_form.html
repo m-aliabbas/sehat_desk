@@ -1,9 +1,13 @@
 {% extends "layouts/app.html" %}
 {% block title %}{% if creating %}New product{% else %}Edit {{ product }}{% endif %}{% endblock %}
 {% block page_title %}{% if creating %}New product{% else %}Edit {{ product.display_name }}{% endif %}{% endblock %}
-{% block page_subtitle %}Identity, units and pricing. Stock is added afterwards by receiving batches.{% endblock %}
+{% block page_subtitle %}Who it is, how it is packed and what it costs. Stock is added afterwards by receiving batches.{% endblock %}
 {% block content %}
-<form method="post" novalidate class="space-y-6 max-w-5xl">
+{% include "pharmacy/_packing_list.html" %}
+{{ category_defaults|json_script:"category-defaults" }}
+{{ packing_state|json_script:"packing-state" }}
+{{ packing_presets|json_script:"packing-presets-data" }}
+<form x-data="{ applyCategory(id) { const c = JSON.parse(document.getElementById('category-defaults').textContent)[id]; if (!c) return; if (this.$refs.tax && Number(c.tax) > 0) this.$refs.tax.value = c.tax; if (this.$refs.rx) this.$refs.rx.checked = c.rx; } }" method="post" novalidate class="space-y-6 max-w-5xl">
   {% csrf_token %}
   {% for e in form.non_field_errors %}{% include "components/alert.html" with level="danger" message=e %}{% endfor %}
   <section class="card">
@@ -22,16 +26,22 @@
     </div>
   </section>
   <section class="card">
-    <h2 class="section-title mb-4">Units &amp; pricing</h2>
-    <div class="grid gap-5 md:grid-cols-3">
-      {% include "components/field.html" with field=form.unit %}
-      {% include "components/field.html" with field=form.pack_size %}
-      {% include "components/field.html" with field=form.pack_unit %}
-      {% include "components/field.html" with field=form.allow_loose_sale %}
-      {% include "components/field.html" with field=form.reorder_level %}
-      {% include "components/field.html" with field=form.purchase_price %}
-      {% include "components/field.html" with field=form.sale_price %}
+    <h2 class="section-title mb-1">Packing and prices</h2>
+    <p class="mb-4 text-label text-muted">Write what comes in what. Type a price on any row and the others work themselves out.</p>
+    {% include "pharmacy/_packing_editor.html" %}
+    {% if has_stock %}
+    <div class="mt-4 grid gap-4 rounded-control bg-page p-3 md:grid-cols-2">
+      {% include "components/field.html" with field=form.apply_to_shelf %}
+      {% include "components/field.html" with field=form.price_reason %}
+      <p class="text-label text-muted md:col-span-2">If you change the sell price, stock on the shelf keeps its old price unless you tick this. Every price change is kept in the product's history.</p>
+    </div>
+    {% endif %}
+    <div class="mt-4 grid gap-4 md:grid-cols-4">
       {% include "components/field.html" with field=form.tax_percent %}
+      {% include "components/field.html" with field=form.reorder_packs %}
+      {% include "components/field.html" with field=form.expiry_alert_days %}
+      {% include "components/field.html" with field=form.preferred_vendor %}
+      <div class="md:col-span-4">{% include "components/field.html" with field=form.allow_loose_sale %}</div>
     </div>
   </section>
   <div class="flex gap-3"><button class="btn btn-primary">Save product</button><a href="{% if creating %}{% url 'pharmacy:product-list' %}{% else %}{% url 'pharmacy:product-detail' product.pk %}{% endif %}" class="btn btn-close">Cancel</a></div>

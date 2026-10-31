@@ -1,0 +1,36 @@
+{% extends "print/a4.html" %}
+{% block title %}Barcode labels{% endblock %}
+{% block print_label %}Print labels{% endblock %}
+{% block toolbar_extra %}
+  {% if not sheet %}
+  <form method="get" class="flex flex-wrap items-center gap-2">
+    <label class="text-label" for="count">How many</label>
+    <input type="hidden" name="layout" value="{{ roll|yesno:'roll,sheet' }}"><input id="count" name="count" type="number" min="1" max="500" value="{{ count }}" class="input w-20" onchange="this.form.submit()">
+    <a class="btn btn-secondary btn-sm" href="?count={{ per_pack }}&amp;layout={{ roll|yesno:'roll,sheet' }}">One per {{ product.pack_unit }} ({{ per_pack }})</a>
+    {% if product.has_packs %}<a class="btn btn-secondary btn-sm" href="?count={{ per_unit }}&amp;layout={{ roll|yesno:'roll,sheet' }}">One per {{ product.unit }} ({{ per_unit }})</a>{% endif %}
+  </form>
+  {% endif %}
+{% endblock %}
+{% block sheet_class %}{% if roll %}p-0{% else %}max-w-[210mm] p-6{% endif %}{% endblock %}
+{% block document %}
+{% if roll %}
+<style nonce="{{ request.csp_nonce }}">@page { size: 50mm 25mm; margin: 0; } .label-roll { width: 50mm; height: 25mm; break-after: page; overflow: hidden; }</style>
+{% for product, svg in labels %}
+<div class="label-roll px-2 py-1 text-center">
+  <p class="truncate text-[10px] font-semibold">{{ product.display_name }}</p>
+  <div class="mx-auto h-[13mm]">{{ svg }}</div>
+  <p class="font-mono text-[10px]">{{ product.barcode }}</p>
+</div>
+{% endfor %}
+{% else %}
+<div class="grid grid-cols-3 gap-3">
+  {% for product, svg in labels %}
+  <div class="break-inside-avoid border border-line p-2 text-center">
+    <p class="truncate text-[11px] font-semibold">{{ product.display_name }}</p>
+    <div class="mx-auto my-1 h-10">{{ svg }}</div>
+    <p class="font-mono text-[11px]">{{ product.barcode }}</p>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

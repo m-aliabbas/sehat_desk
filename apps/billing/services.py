@@ -158,6 +158,8 @@ def add_item(
     kind=None,
     tax_percent=None,
     performed_by=None,
+    discount=ZERO,
+    discount_reason="",
 ) -> InvoiceItem:
     invoice = _lock(invoice)
     _require_draft(invoice)
@@ -185,8 +187,10 @@ def add_item(
         service=service,
         description=description.strip()[:160],
         quantity=quantity,
-        unit_price=to_money(unit_price),
+        unit_price=Decimal(unit_price).quantize(Decimal("0.000001")),
         tax_percent=tax_percent,
+        discount=to_money(discount),
+        discount_reason=discount_reason[:200],
         performed_by=performed_by,
         added_by=request.user,
     )

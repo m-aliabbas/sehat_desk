@@ -51,6 +51,19 @@
 
 <div class="grid gap-6 xl:grid-cols-[1fr_320px]">
   <div>
+  <nav class="sticky top-0 z-10 mb-4 flex gap-1 overflow-x-auto rounded-card border border-line bg-white p-2 shadow-sm" aria-label="Consultation sections">
+    <a href="#sec-prescription" class="rounded-control px-3 py-1.5 text-body font-medium text-muted hover:bg-mint hover:text-teal-deep">Medicines</a>
+    {% if features.lab %}<a href="#sec-lab" class="rounded-control px-3 py-1.5 text-body font-medium text-muted hover:bg-mint hover:text-teal-deep">Tests</a>{% endif %}
+    {% if procedure_can_view %}<a href="#sec-procedures" class="rounded-control px-3 py-1.5 text-body font-medium text-muted hover:bg-mint hover:text-teal-deep">Procedures</a>{% endif %}
+    {% for s in sections %}<a href="#sec-{{ s.key }}" class="rounded-control px-3 py-1.5 text-body font-medium text-muted hover:bg-mint hover:text-teal-deep">{{ s.label }}</a>{% endfor %}
+    <a href="#sec-diagnoses" class="rounded-control px-3 py-1.5 text-body font-medium text-muted hover:bg-mint hover:text-teal-deep">Diagnoses</a>
+  </nav>
+  <div class="mb-6 space-y-6">
+    {% include "prescriptions/_panel.html" %}
+    {% if features.lab %}{% include "lab/_encounter_panel.html" %}{% endif %}
+    {% if procedure_can_view %}{% include "procedures/_encounter_panel.html" %}{% endif %}
+  </div>
+  <p class="mb-4 text-label text-muted">Everything is optional. Write only what this visit needs.</p>
   <form id="note-form" method="post" action="{% url 'encounters:detail' encounter.pk %}" novalidate>
     {% csrf_token %}
     <input type="hidden" name="revision" id="revision" value="{{ encounter.revision }}">
@@ -60,13 +73,6 @@
          hx-include="#note-form" hx-target="#save-status" hx-swap="outerHTML"></div>
     {% endif %}
 
-    <nav class="sticky top-0 z-10 mb-4 flex gap-1 overflow-x-auto rounded-card border border-line bg-white p-2 shadow-sm" aria-label="Consultation sections">
-      {% for s in sections %}<a href="#sec-{{ s.key }}" class="rounded-control px-3 py-1.5 text-body font-medium text-muted hover:bg-mint hover:text-teal-deep"><span class="mr-1 inline-flex h-6 w-6 items-center justify-center rounded-full bg-mint text-label text-teal-deep">{{ forloop.counter }}</span>{{ s.label }}</a>{% endfor %}
-      <a href="#sec-diagnoses" class="rounded-control px-3 py-1.5 text-body font-medium text-muted hover:bg-mint hover:text-teal-deep"><span class="mr-1 inline-flex h-6 w-6 items-center justify-center rounded-full bg-mint text-label text-teal-deep">{{ sections|length|add:1 }}</span>Diagnoses</a>
-      <a href="#sec-prescription" class="rounded-control px-3 py-1.5 text-body font-medium text-muted hover:bg-mint hover:text-teal-deep"><span class="mr-1 inline-flex h-6 w-6 items-center justify-center rounded-full bg-mint text-label text-teal-deep">{{ sections|length|add:2 }}</span>Prescription</a>
-      <a href="#sec-lab" class="rounded-control px-3 py-1.5 text-body font-medium text-muted hover:bg-mint hover:text-teal-deep"><span class="mr-1 inline-flex h-6 w-6 items-center justify-center rounded-full bg-mint text-label text-teal-deep">{{ sections|length|add:3 }}</span>Lab</a>
-      {% if procedure_can_view %}<a href="#sec-procedures" class="rounded-control px-3 py-1.5 text-body font-medium text-muted hover:bg-mint hover:text-teal-deep"><span class="mr-1 inline-flex h-6 w-6 items-center justify-center rounded-full bg-mint text-label text-teal-deep">{{ sections|length|add:4 }}</span>Procedures</a>{% endif %}
-    </nav>
 
     <div class="space-y-6">
       {% for s in sections %}
@@ -89,9 +95,6 @@
   </form>
     <div class="mt-6 space-y-6">
       {% include "encounters/_diagnoses.html" %}
-      {% include "prescriptions/_panel.html" %}
-      {% if features.lab %}{% include "lab/_encounter_panel.html" %}{% endif %}
-      {% if procedure_can_view %}{% include "procedures/_encounter_panel.html" %}{% endif %}
       {% if doc_can_view %}<section class="card scroll-mt-20" id="sec-documents">{% include "documents/_panel.html" %}</section>{% endif %}
     </div>
     {% if writable %}
@@ -102,6 +105,7 @@
       {% if can_sign %}
       <button type="submit" form="note-form" formaction="{% url 'encounters:complete' encounter.pk %}" class="btn btn-primary ml-auto"
               data-confirm="Signing records you as the author with the time. The note becomes read-only; later corrections are audited amendments." data-confirm-title="Complete and sign {{ encounter.number }}?" data-confirm-action="Complete &amp; sign">Complete &amp; sign</button>
+      {% if encounter.token %}<button type="submit" form="note-form" name="next_patient" value="1" formaction="{% url 'encounters:complete' encounter.pk %}" class="btn btn-primary">Checked · Next patient</button>{% endif %}
       {% endif %}
     </div>
     {% endif %}

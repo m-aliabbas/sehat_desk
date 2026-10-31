@@ -1,0 +1,42 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}Backup and restore · Settings{% endblock %}
+{% block page_title %}Backup and restore{% endblock %}
+{% block page_subtitle %}Google Drive backup, backups on this server, and restoring data. Administrators only.{% endblock %}
+{% block content %}
+{% include "partials/settings_tabs.html" %}
+{% include "core/_gdrive.html" %}
+<section class="card mb-6" aria-label="Backups">
+  <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+    <div>
+      <h2 class="text-section-title font-semibold">Backups</h2>
+      <p class="text-label text-muted">Folder: <span class="font-mono">{{ backup_dir }}</span> · {% if backup_hours %}automatic every {{ backup_hours|floatformat:"0" }} h{% else %}automatic backups off{% endif %} · {% if backup_encrypted %}encrypted{% else %}not encrypted{% endif %}</p>
+    </div>
+    <form method="post" action="{% url 'core:backup-now' %}">{% csrf_token %}<button class="btn btn-secondary">Back up now</button></form>
+  </div>
+  {% if job.state == "running" %}<meta http-equiv="refresh" content="5"><p class="mb-3 text-label text-teal" role="status">{{ job.message }} This runs in the background; you can keep working.</p>
+  {% elif job.state == "failed" %}{% include "components/alert.html" with level="warning" message=job.message %}
+  {% elif job.state == "done" %}<p class="mb-3 text-label text-muted" role="status">{{ job.message }}</p>{% endif %}
+  {% if backup_overdue %}{% include "components/alert.html" with level="warning" message="No recent backup. Check that the server is running and the backup folder is writable, or press Back up now." %}{% endif %}
+  {% if not backup_encrypted %}<p class="mb-3 text-label text-amber">Backups are not encrypted. Set SEHATDESK_BACKUP_KEY before copying them to USB or cloud storage.</p>{% endif %}
+  {% if backups %}
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th scope="col">Created</th><th scope="col">File</th><th scope="col">Size</th><th scope="col">Encrypted</th><th scope="col">Restore</th></tr></thead>
+    <tbody>{% for b in backups %}<tr><td class="whitespace-nowrap">{{ b.created|date:"d M Y, H:i" }}</td><td class="font-mono text-label">{{ b.name }}</td><td>{{ b.size|filesizeformat }}</td><td>{% if b.encrypted %}{% status_chip "active" "Yes" %}{% else %}{% status_chip "pending" "No" %}{% endif %}</td>
+      <td><form method="post" action="{% url 'core:restore-local' %}" class="flex gap-2">{% csrf_token %}<input type="hidden" name="name" value="{{ b.name }}"><input name="confirm" class="input w-28" placeholder="Type RESTORE" aria-label="Type RESTORE to confirm" required autocomplete="off"><button class="btn btn-danger btn-sm">Restore</button></form></td></tr>{% endfor %}</tbody>
+  </table></div>
+  {% else %}
+    {% include "components/empty_state.html" with title="No backups yet" message="Backups run automatically while the server is up, or with: python manage.py backup" %}
+  {% endif %}
+</section>
+
+<section class="card mb-6" aria-label="Restore from a file">
+  <h2 class="text-section-title font-semibold">Restore from a file</h2>
+  <p class="mb-3 text-label text-muted">Choose a SQLite database (.sqlite3, .db) or a SehatDesk backup (.zip, .zip.enc). It runs in the background and replaces all current data; a safety backup is saved first in the backup folder's pre-restore folder. A SQLite file holds the database only, so documents and media stay as they are.</p>
+  <form method="post" enctype="multipart/form-data" action="{% url 'core:restore-upload' %}" class="flex flex-wrap items-end gap-3">{% csrf_token %}
+    <div><label class="field-label" for="restore-file">File</label><input id="restore-file" type="file" name="file" class="input mt-1.5" accept=".sqlite3,.sqlite,.db,.zip,.enc" required></div>
+    <div><label class="field-label" for="restore-confirm">Type RESTORE to confirm</label><input id="restore-confirm" name="confirm" class="input mt-1.5" required autocomplete="off"></div>
+    <button class="btn btn-danger">Restore</button>
+  </form>
+</section>
+{% endblock %}

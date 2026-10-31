@@ -7,6 +7,7 @@ stop injected markup from sending data anywhere else (connect-src, img-src, form
 """
 
 import functools
+from functools import wraps
 
 from django.core.cache import cache
 from django.http import HttpResponse
@@ -26,6 +27,24 @@ CSP = "; ".join(
         "frame-ancestors 'none'",
     ]
 )
+
+
+def same_origin_frame(view):
+    """Let this hospital's own pages show a view in an iframe (print previews, silent printing).
+    Every other page keeps frame-ancestors 'none'."""
+
+    @wraps(view)
+    def wrapper(request, *args, **kwargs):
+        response = view(request, *args, **kwargs)
+        response["Content-Security-Policy"] = CSP.replace(
+            "frame-ancestors 'none'", "frame-ancestors 'self'"
+        )
+        response["X-Frame-Options"] = "SAMEORIGIN"
+        return response
+
+    return wrapper
+
+
 PERMISSIONS_POLICY = "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
 
 

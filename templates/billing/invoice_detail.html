@@ -5,7 +5,8 @@
 {% block page_subtitle %}{{ invoice.bill_to }} · {{ invoice.created_at|date:"j F Y" }}{% endblock %}
 {% block page_actions %}
   {% status_chip invoice.status invoice.get_status_display %}
-  {% if not invoice.is_draft %}<a href="{% url 'billing:invoice-print' invoice.pk %}" target="_blank" rel="noopener" class="btn btn-secondary">Print invoice</a>{% endif %}
+  {% if not invoice.is_draft %}<a href="{% url 'billing:invoice-print' invoice.pk %}" target="_blank" rel="noopener" class="btn btn-secondary">Print invoice</a><a href="{% url 'billing:invoice-print' invoice.pk %}?copies=2" target="_blank" rel="noopener" class="btn btn-secondary">Patient + office copy</a>{% endif %}
+  {% if invoice.patient_id %}<a href="{% url 'billing:patient-ledger' invoice.patient_id %}" target="_blank" rel="noopener" class="btn btn-secondary">Patient ledger</a>{% endif %}
 {% endblock %}
 {% block content %}
 {% if new_receipt %}

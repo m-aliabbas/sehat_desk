@@ -1,0 +1,81 @@
+{% extends "print/a5.html" %}
+{% load ui %}
+{% block title %}Visit papers · {{ appt.number }}{% endblock %}
+{% block print_label %}Print papers{% endblock %}
+{% block toolbar_extra %}
+  {% if token %}<a href="{% url 'queue:slip' token.pk %}" target="_blank" class="btn btn-secondary">Token only (thermal)</a>{% endif %}
+  <a href="{% url 'queue:desk' %}" class="btn btn-primary">Next patient</a>
+{% endblock %}
+{% block close_button %}<a href="{% url 'queue:desk' %}" class="btn btn-close">Back to desk</a>{% endblock %}
+{% block before_sheet %}
+<div class="no-print mx-auto mb-4 max-w-[148mm] space-y-3 px-4">
+  {% if due and can_collect %}
+  <form method="post" action="{% url 'appointments:collect' appt.pk %}" class="card flex flex-wrap items-end gap-3">
+    {% csrf_token %}<input type="hidden" name="key" value="{{ key }}">
+    <p class="w-full font-semibold">Collect the fee: {{ organization.currency }} {{ invoice.balance_due|floatformat:"0g" }}</p>
+    <div class="field"><label class="field-label" for="pay-method">Paid by</label>
+      <select id="pay-method" name="method" class="select">{% for m in methods %}<option value="{{ m.pk }}">{{ m.name }}</option>{% endfor %}</select></div>
+    <div class="field"><label class="field-label" for="pay-ref">Reference</label><input id="pay-ref" name="reference" class="input w-36" maxlength="80"></div>
+    <button class="btn btn-primary">Received · print</button>
+  </form>
+  {% endif %}
+  {% if not token and appt.status == "scheduled" or not token and appt.status == "confirmed" %}
+  <p class="card text-body">Booked for {{ appt.date|date:"l, j M" }} at {{ appt.start_time|time:"H:i" }}. The token prints when the patient arrives.</p>
+  {% endif %}
+  {% for bill in other_bills %}
+  <p class="card flex items-center justify-between gap-3 text-body"><span>Also unpaid: <span class="font-mono">{{ bill.number }}</span> · {{ organization.currency }} {{ bill.balance_due|floatformat:"0g" }}</span><span class="flex gap-2"><a href="{% url 'billing:invoice-pay' bill.pk %}" class="btn btn-primary btn-sm">Collect</a><a href="{% url 'billing:invoice-print' bill.pk %}?copies=2" target="_blank" class="btn btn-secondary btn-sm">Print</a></span></p>
+  {% endfor %}
+  {% if "procedure.order" in sd_perms %}
+  <p class="text-center text-label text-muted">Doctor recommended a procedure? <a class="font-medium text-teal-deep underline" href="{% url 'procedures:procedure-create' %}?patient={{ patient.pk }}&amp;doctor={{ appt.doctor_id }}">Add it to this patient's bill</a></p>
+  {% endif %}
+</div>
+{% endblock %}
+{% block document %}
+  {% print_layout "prescription" as L %}{% include "print/_layout_css.html" %}
+  {% print_layout "fee_slip" as FL %}
+  {% if prefs.opd_print_blank_prescription %}
+  <section class="flex min-h-[185mm] flex-col">
+    <header class="flex items-start justify-between gap-4 border-b border-ink pb-3 {% if L.doctor_side == 'right' %}flex-row-reverse{% endif %}">
+      <div class="{% if L.doctor_side == 'center' %}flex-1 text-center{% elif L.doctor_side == 'right' %}text-right{% endif %}">
+        <p class="text-[18px] font-bold">{{ appt.doctor }}</p>
+        {% if L.show_qualifications %}<p class="text-label">{{ appt.doctor.qualifications }}{% if appt.doctor.specialty %} · {{ appt.doctor.specialty }}{% endif %}</p>{% endif %}
+        <p class="text-label">{{ appt.department }}{% if appt.doctor.registration_number and L.show_registration %} · PMDC {{ appt.doctor.registration_number }}{% endif %}</p>
+      </div>
+      <div class="{% if L.doctor_side == 'right' %}text-left{% else %}text-right{% endif %}">
+        {% if L.show_header %}
+        {% if request.organization.logo and L.show_logo %}<img src="{{ request.organization.logo.url }}" alt="" class="{% if L.doctor_side != 'right' %}ml-auto{% endif %} object-contain" style="height:{{ L.logo_mm }}mm;width:{{ L.logo_mm }}mm">{% endif %}
+        <p class="font-semibold">{{ request.organization.name }}</p>
+        <p class="text-label">{{ appt.branch.name }}{% if appt.branch.phone %} · {{ appt.branch.phone }}{% endif %}</p>
+        {% if L.header_text %}<p class="text-label whitespace-pre-line">{{ L.header_text }}</p>{% endif %}
+        {% endif %}
+        {% if token %}<p class="mt-1 font-mono text-[22px] leading-none font-bold">{{ token.label }}</p>{% endif %}
+      </div>
+    </header>
+    <section class="mt-3 grid grid-cols-2 gap-1 text-label">
+      <p><span class="font-semibold">{{ patient.full_name }}</span></p>
+      <p class="text-right">{{ appt.date|date:"d M Y" }}, {{ appt.start_time|time:"H:i" }}</p>
+      <p>MRN {{ patient.mrn }} · {{ patient.age_label }} · {{ patient.get_gender_display }}</p>
+      <p class="text-right font-mono">{{ appt.number }}</p>
+      <p class="col-span-2 {% if not L.show_vitals %}hidden{% endif %}">Vitals: {% for v in vitals %}{{ v.label }} {{ v.value }}{% if not forloop.last %} · {% endif %}{% empty %}BP ______ Pulse ______ Temp ______ SpO₂ ______ Wt ______{% endfor %}</p>
+      <p class="col-span-2 {% if not L.show_allergies %}hidden{% endif %}">Allergies: {% for a in allergies %}{{ a.substance }}{% if not forloop.last %}, {% endif %}{% empty %}{% if patient.allergy_status == "none" %}No known allergies{% else %}Not recorded{% endif %}{% endfor %}</p>
+    </section>
+    {% for line in L.lines %}<p class="mt-3 border-b border-line pb-5 text-label font-semibold">{{ line }}:</p>{% endfor %}
+    <p class="mt-4 flex-1 text-[26px] font-bold italic">℞</p>
+    {% if L.show_footer and L.footer_text %}<p class="mt-2 text-center text-label whitespace-pre-line">{{ L.footer_text }}</p>{% endif %}
+    <footer class="mt-6 flex items-end justify-between text-label"><span>Follow-up: ____________</span><span class="border-t border-ink px-6 pt-1">Doctor's signature</span></footer>
+  </section>
+  {% endif %}
+  {% if invoice %}
+  <div class="{% if prefs.opd_print_blank_prescription %}mt-8 border-t border-dashed border-line pt-8 [break-before:page] print:mt-0 print:border-0 print:pt-0{% endif %}">
+    {% include "appointments/_fee_copy.html" with copy_label="Patient copy" L=FL %}
+    {% if prefs.opd_print_office_copy %}
+    <p class="my-4 border-t border-dashed border-ink pt-1 text-center text-[10px]">cut here</p>
+    {% include "appointments/_fee_copy.html" with copy_label="Office copy" L=FL %}
+    {% endif %}
+  </div>
+  {% elif token and not prefs.opd_print_blank_prescription %}
+  <p class="text-center font-mono text-[44px] font-bold">{{ token.label }}</p>
+  <p class="text-center">{{ patient.full_name }} · {{ appt.doctor }}</p>
+  {% endif %}
+  {% if auto_print %}<script>window.addEventListener("load", () => window.print());</script>{% endif %}
+{% endblock %}

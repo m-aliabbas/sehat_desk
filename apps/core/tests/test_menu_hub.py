@@ -21,14 +21,19 @@ def _sidebar_labels(html):
 def test_admin_sidebar_is_short_with_settings_last(client, make_user, role):
     client.force_login(make_user(role))
     html = client.get(reverse("core:dashboard")).content.decode()
-    assert _sidebar_labels(html) == [*SIDEBAR, "All menu", "Settings"]
+    labels = _sidebar_labels(html)
+    # The till shows for whoever may sell; hospital admins get that right per hospital.
+    assert ("Pharmacy" in labels) == (role == "super_admin")
+    assert [x for x in labels if x != "Pharmacy"] == [*SIDEBAR, "All menu", "Settings"]
 
 
 def test_other_roles_keep_their_menu(client, make_user):
     client.force_login(make_user("reception"))
-    labels = _sidebar_labels(client.get(reverse("core:dashboard")).content.decode())
+    labels = _sidebar_labels(
+        client.get(reverse("core:dashboard") + "?view=overview").content.decode()
+    )
     assert "Reception & tokens" in labels
-    assert "Appointments" in labels
+    assert "Appointments" not in labels  # booked from the reception desk
     assert "Settings" not in labels
 
 

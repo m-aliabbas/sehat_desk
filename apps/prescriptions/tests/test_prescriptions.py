@@ -128,8 +128,9 @@ def test_free_text_item_and_validation(doc_request, encounter):
         encounter, request=doc_request, data={**ITEM, "medicine_name": "ORS sachet"}
     )
     assert item.medicine is None and item.quantity is None
-    with pytest.raises(services.PrescriptionError, match="dose"):
-        services.add_item(encounter, request=doc_request, data={"medicine_name": "X", "dose": ""})
+    assert services.add_item(encounter, request=doc_request, data={"medicine_name": "X"}).dose == ""
+    with pytest.raises(services.PrescriptionError, match="medicine"):
+        services.add_item(encounter, request=doc_request, data={"dose": "1"})
 
 
 def test_allergy_conflict_needs_reason(doc_request, encounter, amoxil, patient, admin_user):

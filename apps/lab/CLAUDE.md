@@ -10,6 +10,8 @@ Test catalogue, orders, samples, results, verification and reports. PRD §8. PRO
   `LabReferenceRange`, `LabPanel`, `LabOrder`, `LabOrderItem`, `LabSample`, `LabResult`.
 - `signals.py` — invoice saves refresh order status. `barcode.py` — Code 39 SVG for tube labels.
 
+- `lab:tests` — read-only list of tests and packages with prices, for reception, doctors and the lab.
+
 ## Rules
 - `lab.catalog.manage` alone (default hospital admin) opens the catalogue only: the worklist
   redirects there, and orders, results and labels stay refused.
@@ -17,6 +19,10 @@ Test catalogue, orders, samples, results, verification and reports. PRD §8. PRO
 - Collect only when paid, unless urgent/STAT or a reason is recorded.
 - Results are clinical records: editable until verified, then only `amend` (new version + reason).
 - Critical flags must be acknowledged by a clinician.
+- The worklist search also takes a tube's accession, so scanning a label finds its order.
+- A doctor who is only a doctor (`_own_doctor`) gets `lab/my_patients.html` instead of the worklist:
+  the orders they asked for, reports first. Orders, reports, attachments and acknowledging are limited
+  on the backend to orders they asked for or patients they treat (`limit_to_own_patients`); others 404.
 
 ## Permissions
 `lab.order.create`, `lab.sample.collect`, `lab.result.enter`, `lab.result.verify`,

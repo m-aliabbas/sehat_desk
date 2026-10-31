@@ -2,8 +2,8 @@
 
 Stop the SehatDesk server first. The current database, documents and media are moved to
 DATA_DIR/pre-restore-<timestamp>/ before the backup is unpacked, so this can be undone.
-Encrypted backups use SEHATDESK_BACKUP_KEY. Runs migrations afterwards, so a backup from an
-older version opens on this version.
+Encrypted backups use SEHATDESK_BACKUP_KEY, else the shipped key. Runs migrations afterwards,
+so a backup from an older version opens on this version.
 """
 
 from django.core.management import call_command
@@ -27,7 +27,7 @@ class Command(BaseCommand):
                 "This replaces the current data. Stop the server, then run again with --yes."
             )
         try:
-            aside = backup.restore_backup(file, key=backup.configured_key())
+            aside = backup.restore_backup(file, key=backup.shared_or_configured_key())
         except backup.BackupError as err:
             raise CommandError(str(err)) from err
         call_command("migrate", interactive=False, verbosity=0)

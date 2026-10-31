@@ -1,9 +1,11 @@
 """Appointments: day/week calendar, today's list, booking, and status actions."""
 
+import uuid
 from datetime import date, datetime, time, timedelta
 
 from django import forms
 from django.contrib import messages
+from django.db import transaction
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -11,12 +13,21 @@ from django.views.decorators.http import require_GET, require_POST
 
 from apps.accounts.decorators import has_perm, permission_required
 from apps.audit import services as audit
+from apps.billing import services as billing_services
+from apps.billing.models import Invoice, PaymentMethod
 from apps.core.forms import StyledFormMixin
 from apps.core.scoping import get_scoped_or_404, scoped
 from apps.masterdata.models import Department, DoctorProfile, DoctorSchedule
+from apps.organizations import field_rules
+from apps.organizations.models import preferences_for
+from apps.patients import services as patient_services
+from apps.patients.forms import PatientForm
 from apps.patients.models import Patient
+from apps.patients.services import own_doctor_only
+from apps.vitals import services as vitals_services
+from apps.vitals.forms import VitalsForm
 
-from . import services
+from . import services, visits
 from .models import Appointment
 
 Status = Appointment.Status
@@ -37,7 +48,10 @@ def _doctors(request):
 
 
 def _appointments(request):
-    return scoped(Appointment, request).select_related("patient", "doctor__user", "department")
+    qs = scoped(Appointment, request).select_related("patient", "doctor__user", "department")
+    if own := own_doctor_only(request):
+        qs = qs.filter(doctor=own)
+    return qs
 
 
 def _crumbs(*extra):
@@ -56,6 +70,8 @@ def calendar(request):
     doctor_id = request.GET.get("doctor", "")
 
     doctors = _doctors(request)
+    if own := own_doctor_only(request):
+        doctors = doctors.filter(pk=own.pk)
     if dept_id.isdigit():
         doctors = doctors.filter(department_id=dept_id)
     if doctor_id.isdigit():
@@ -82,12 +98,11 @@ def calendar(request):
 
 def _day_context(request, doctors, day):
     """Columns = doctors working (or booked) that day; rows = time steps."""
-    schedules = {
-        s.doctor_id: s
-        for s in DoctorSchedule.objects.filter(
-            branch=request.branch, weekday=day.weekday(), is_active=True, doctor__in=doctors
-        )
-    }
+    schedules = {}
+    for s in DoctorSchedule.objects.filter(
+        branch=request.branch, weekday=day.weekday(), is_active=True, doctor__in=doctors
+    ):
+        schedules.setdefault(s.doctor_id, []).append(s)
     appts = list(_appointments(request).filter(date=day, doctor__in=doctors).order_by("start_time"))
     booked_doctor_ids = {a.doctor_id for a in appts}
     columns = [d for d in doctors if d.pk in schedules or d.pk in booked_doctor_ids]
@@ -95,7 +110,7 @@ def _day_context(request, doctors, day):
     # Rows are the real slot start times of the doctors shown (plus any off-slot bookings such as
     # walk-ins), so every "+ Book" cell offers a time the booking service accepts.
     slot_times = {
-        d.pk: set(schedules[d.pk].slot_starts(d.slot_minutes, day)) if d.pk in schedules else set()
+        d.pk: {t for s in schedules.get(d.pk, []) for t in s.slot_starts(d.slot_minutes, day)}
         for d in columns
     }
     times = sorted(set().union(*slot_times.values(), {a.start_time for a in appts}))
@@ -249,6 +264,297 @@ def book(request):
     )
 
 
+# --- Front-desk visit (one screen: patient, doctor, time, vitals, fee, papers) --------------------
+
+
+class VisitForm(StyledFormMixin, forms.Form):
+    patient = forms.ModelChoiceField(queryset=Patient.objects.none(), required=False)
+    doctor = forms.ModelChoiceField(
+        queryset=DoctorProfile.objects.none(), error_messages={"required": "Choose a doctor."}
+    )
+    date = forms.DateField(widget=forms.DateInput(attrs={"type": "date"}))
+    time = forms.TimeField(required=False, input_formats=["%H:%M"])
+    shift = forms.ChoiceField(choices=[("", "Any"), *DoctorSchedule.Shift.choices], required=False)
+    reason = forms.CharField(max_length=200, required=False, label="Reason for visit")
+    source = forms.ChoiceField(choices=Appointment.Source.choices, required=False)
+    collect = forms.BooleanField(required=False)
+    method = forms.ModelChoiceField(queryset=PaymentMethod.objects.none(), required=False)
+    reference = forms.CharField(max_length=80, required=False)
+    key = forms.CharField(max_length=40, required=False)
+
+    def __init__(self, *args, request, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["patient"].queryset = scoped(Patient, request).filter(is_active=True)
+        self.fields["doctor"].queryset = _doctors(request)
+        self.fields["reason"].required = field_rules.is_required(
+            request.organization, "visit.reason"
+        )
+        self.fields["method"].queryset = billing_services.active_methods(request.organization)
+
+
+def _doctor_rows(request):
+    """What the doctor picker filters in the browser: a hospital has tens of doctors, not more."""
+    today = timezone.localdate()
+    hours = {}
+    for s in DoctorSchedule.objects.filter(
+        branch=request.branch, weekday=today.weekday(), is_active=True
+    ).order_by("start_time"):
+        hours.setdefault(s.doctor_id, []).append(f"{s.start_time:%H:%M}–{s.end_time:%H:%M}")
+    return [
+        {
+            "id": d.pk,
+            "name": d.display_name,
+            "dept": d.department.name,
+            "fee": str(int(d.consultation_fee)),
+            "today": ", ".join(hours.get(d.pk, [])) or "No clinic today",
+        }
+        for d in _doctors(request)
+    ]
+
+
+def _has_vitals(request) -> bool:
+    return any(
+        v.strip()
+        for k, v in request.POST.items()
+        if k.startswith("v-") and k not in ("v-temperature_unit", "v-glucose_context")
+    )
+
+
+def _quick_patient_form(request, data=None):
+    return PatientForm(data, organization=request.organization, quick=True, prefix="new")
+
+
+@permission_required(MANAGE)
+def visit_new(request):
+    """Reception's main screen. Enter a patient and doctor, and the rest is filled in for them."""
+    can_collect = has_perm(request, visits.COLLECT)
+    can_vitals = has_perm(request, "vitals.record")
+    can_register = has_perm(request, "patient.create")
+    today = timezone.localdate()
+    post = request.POST or None
+    new_mode = request.POST.get("mode") == "new"
+    form = VisitForm(
+        post,
+        initial={"date": today, "patient": request.GET.get("patient", "")},
+        request=request,
+    )
+    patient_form = _quick_patient_form(request, post if new_mode else None)
+    patient_form.fields["cnic"].required = field_rules.is_required(
+        request.organization, "visit.cnic"
+    )
+    want_vitals = bool(post) and can_vitals and _has_vitals(request)
+    vitals_form = VitalsForm(post if want_vitals else None, prefix="v")
+
+    if post:
+        valid = form.is_valid()
+        valid = (patient_form.is_valid() if new_mode else True) and valid
+        valid = (vitals_form.is_valid() if want_vitals else True) and valid
+        if valid and not new_mode and not form.cleaned_data["patient"]:
+            form.add_error(None, "Find the patient, or add a new one.")
+            valid = False
+        if new_mode and not can_register:
+            form.add_error(None, "You are not allowed to register patients.")
+            valid = False
+        if valid:
+            c = form.cleaned_data
+            try:
+                with transaction.atomic():
+                    patient = c["patient"]
+                    if new_mode:
+                        patient = patient_services.register_patient(
+                            organization=request.organization,
+                            branch=request.branch,
+                            user=request.user,
+                            data=patient_form.model_data(),
+                        )
+                        audit.record(
+                            request, "patient.create", patient, summary=f"mrn={patient.mrn}"
+                        )
+                    visit = visits.register_visit(
+                        request=request,
+                        patient=patient,
+                        doctor=c["doctor"],
+                        on_date=c["date"],
+                        start=c["time"],
+                        shift=c["shift"],
+                        reason=c["reason"],
+                        source=c["source"] or Appointment.Source.COUNTER,
+                        vitals=vitals_form.vitals_data() if want_vitals else None,
+                        collect=can_collect and c["collect"],
+                        method=c["method"],
+                        reference=c["reference"],
+                        key=c["key"],
+                    )
+            except (
+                services.BookingError,
+                vitals_services.VitalsError,
+                billing_services.BillingError,
+            ) as err:
+                form.add_error(None, err.message)
+            except visits.queue_services.QueueError as err:
+                form.add_error(None, err.message)
+            else:
+                appt = visit.appointment
+                audit.record(
+                    request,
+                    "appointment.create",
+                    appt,
+                    summary=f"{appt.number} {appt.date} {appt.start_time:%H:%M}",
+                )
+                if visit.token:
+                    audit.record(request, "queue.issue", visit.token, summary=visit.token.label)
+                if visit.payment:
+                    audit.record(
+                        request, "billing.payment", visit.invoice, summary=visit.payment.number
+                    )
+                return redirect(f"{reverse('appointments:papers', args=[appt.pk])}?print=1")
+
+    patient = None
+    pid = form["patient"].value()
+    if pid and str(pid).isdigit():
+        patient = scoped(Patient, request).filter(pk=pid).first()
+    return render(
+        request,
+        "appointments/visit_new.html",
+        visit_context(
+            request,
+            form=form,
+            patient_form=patient_form,
+            vitals_form=vitals_form,
+            new_mode=new_mode,
+        ),
+    )
+
+
+def visit_context(request, *, form=None, patient_form=None, vitals_form=None, new_mode=False):
+    """What the booking form needs. The reception desk shows it empty."""
+    today = timezone.localdate()
+    if form is None:
+        form = VisitForm(
+            initial={"date": today, "patient": request.GET.get("patient", "")}, request=request
+        )
+    if patient_form is None:
+        patient_form = _quick_patient_form(request)
+    patient = None
+    pid = form["patient"].value()
+    if pid and str(pid).isdigit():
+        patient = scoped(Patient, request).filter(pk=pid).first()
+    return {
+        "form": form,
+        "patient_form": patient_form,
+        "vitals_form": vitals_form or VitalsForm(prefix="v"),
+        "patient": patient,
+        "new_mode": new_mode,
+        "doctors": _doctor_rows(request),
+        "methods": form.fields["method"].queryset,
+        "prefs": preferences_for(request.organization),
+        "shifts": DoctorSchedule.Shift.choices,
+        "sources": Appointment.Source.choices,
+        "today": today,
+        "tomorrow": today + timedelta(days=1),
+        "can_collect": has_perm(request, visits.COLLECT),
+        "can_vitals": has_perm(request, "vitals.record"),
+        "can_register": has_perm(request, "patient.create"),
+        "idempotency_key": request.POST.get("key") or uuid.uuid4().hex,
+    }
+
+
+@require_GET
+@permission_required(VIEW)
+def papers(request, pk):
+    """Everything printed for a visit: empty prescription, token and fee invoice copies."""
+    appt = get_scoped_or_404(_appointments(request), request, pk=pk)
+    prefs = preferences_for(request.organization)
+    can_view_bills = has_perm(request, "billing.view")
+    invoice = visits.fee_invoice(appt) if can_view_bills else None
+    if invoice is not None and invoice.is_draft:
+        invoice = None
+    latest = vitals_services.latest_today(appt.patient, request.organization)
+    other_bills = []
+    if can_view_bills:
+        other_bills = (
+            scoped(Invoice, request)
+            .filter(patient=appt.patient, status__in=Invoice.OUTSTANDING_STATUSES)
+            .exclude(pk=invoice.pk if invoice else None)
+        )
+    due = bool(invoice and invoice.balance_due)
+    return render(
+        request,
+        "appointments/papers.html",
+        {
+            "appt": appt,
+            "patient": appt.patient,
+            "token": getattr(appt, "token", None),
+            "invoice": invoice,
+            "items": invoice.items.all() if invoice else [],
+            "vitals": vitals_services.summary(latest, appt.patient) if latest else [],
+            "allergies": appt.patient.allergies.filter(entered_in_error=False),
+            "prefs": prefs,
+            "other_bills": other_bills,
+            "due": due,
+            "can_collect": has_perm(request, visits.COLLECT),
+            "methods": billing_services.active_methods(request.organization),
+            "key": uuid.uuid4().hex,
+            "auto_print": prefs.opd_auto_print and request.GET.get("print") == "1" and not due,
+            "billing_settings": billing_services.settings_for(request.organization),
+        },
+    )
+
+
+@require_POST
+@permission_required(visits.COLLECT)
+def collect(request, pk):
+    """Take the doctor's fee from the papers page, then print."""
+    appt = get_scoped_or_404(Appointment, request, pk=pk)
+    invoice = visits.fee_invoice(appt)
+    method = (
+        billing_services.active_methods(request.organization)
+        .filter(pk=request.POST.get("method") or 0)
+        .first()
+    )
+    if invoice is None or method is None:
+        messages.error(request, "Choose how the fee was paid.")
+        return redirect("appointments:papers", pk=pk)
+    try:
+        payment = visits.collect_fee(
+            invoice,
+            request=request,
+            method=method,
+            reference=request.POST.get("reference", ""),
+            key=request.POST.get("key", ""),
+        )
+    except (billing_services.BillingError, services.BookingError) as err:
+        messages.error(request, err.message)
+        return redirect("appointments:papers", pk=pk)
+    audit.record(request, "billing.payment", invoice, summary=payment.number)
+    return redirect(f"{reverse('appointments:papers', args=[pk])}?print=1")
+
+
+@require_POST
+@permission_required(MANAGE)
+def arrive(request, pk):
+    """A booked patient has arrived: token, fee invoice and straight to the papers."""
+    appt = get_scoped_or_404(Appointment, request, pk=pk)
+    before = appt.status
+    try:
+        visit = visits.arrive(appt, request=request)
+    except (
+        services.BookingError,
+        visits.queue_services.QueueError,
+        billing_services.BillingError,
+    ) as err:
+        messages.error(request, err.message)
+        return redirect(request.POST.get("next") or reverse("appointments:detail", args=[pk]))
+    audit.record(
+        request,
+        "appointment.check_in",
+        appt,
+        changes={"status": [before, visit.appointment.status]},
+    )
+    audit.record(request, "queue.issue", visit.token, summary=visit.token.label)
+    return redirect(f"{reverse('appointments:papers', args=[pk])}?print=1")
+
+
 @require_GET
 @permission_required(VIEW)
 def slots(request):
@@ -261,6 +567,10 @@ def slots(request):
         ctx["slots"] = services.available_slots(doctor, request.branch, day, exclude_pk=exclude)
         ctx["on_leave"] = services.on_leave(doctor, day)
         ctx["schedule"] = services.schedule_for(doctor, request.branch, day)
+        ctx["use_shifts"] = preferences_for(request.organization).use_doctor_shifts
+        shift = request.GET.get("shift", "")
+        if shift:
+            ctx["slots"] = [s for s in ctx["slots"] if s.shift == shift]
         patient = scoped(Patient, request).filter(pk=request.GET.get("patient") or 0).first()
         if patient:
             vt = services.suggest_visit_type(doctor, patient, day)

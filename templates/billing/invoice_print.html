@@ -1,7 +1,12 @@
 {% extends "print/a4.html" %}
+{% load ui %}
 {% block title %}Invoice {{ invoice.number }}{% endblock %}
 {% block print_label %}Print invoice{% endblock %}
 {% block document %}
+  {% print_layout layout_document as L %}{% include "print/_layout_css.html" %}
+  {% for copy_label in copies %}
+  <div {% if not forloop.first %}class="[break-before:page]"{% endif %}>
+    {% if copy_label %}<p class="mb-2 text-right text-label font-bold uppercase">{{ copy_label }}</p>{% endif %}
     {% include "print/_letterhead.html" with org=request.organization branch=invoice.branch doc_title="Invoice" doc_number=invoice.number doc_date=invoice.issued_at|default:invoice.created_at doc_status=invoice.get_status_display %}
     <section class="mt-5 grid grid-cols-2 gap-6 text-body">
       <div>
@@ -45,4 +50,6 @@
     {% endif %}
     {% if invoice.status == "cancelled" %}<p class="mt-6 text-center text-[20px] font-bold text-red uppercase">Cancelled — {{ invoice.cancel_reason }}</p>{% endif %}
     {% include "print/_footer.html" with org=request.organization terms=True note="Computer-generated invoice." %}
+  </div>
+  {% endfor %}
 {% endblock %}

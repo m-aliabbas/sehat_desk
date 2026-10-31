@@ -16,6 +16,7 @@ staticfiles/
 dist/
 build/
 *.spec
+!packaging/sehat_desk.spec
 
 # macOS
 .DS_Store

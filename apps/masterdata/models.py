@@ -110,13 +110,19 @@ WEEKDAYS = [
 
 
 class DoctorSchedule(TimeStampedModel):
-    """Weekly clinic hours for one doctor, in one branch, on one weekday."""
+    """Weekly clinic hours for one doctor, in one branch, on one weekday and shift."""
+
+    class Shift(models.TextChoices):
+        MORNING = "morning", "Morning"
+        EVENING = "evening", "Evening"
+        NIGHT = "night", "Night"
 
     doctor = models.ForeignKey(DoctorProfile, on_delete=models.CASCADE, related_name="schedules")
     branch = models.ForeignKey(
         "organizations.Branch", on_delete=models.PROTECT, related_name="doctor_schedules"
     )
     weekday = models.PositiveSmallIntegerField(choices=WEEKDAYS)
+    shift = models.CharField(max_length=10, choices=Shift.choices, default=Shift.MORNING)
     start_time = models.TimeField()
     end_time = models.TimeField()
     break_start = models.TimeField(null=True, blank=True)
@@ -128,7 +134,7 @@ class DoctorSchedule(TimeStampedModel):
         ordering = ["weekday", "start_time"]
         constraints = [
             models.UniqueConstraint(
-                fields=["doctor", "branch", "weekday"], name="uniq_schedule_per_day"
+                fields=["doctor", "branch", "weekday", "shift"], name="uniq_schedule_per_shift"
             )
         ]
 

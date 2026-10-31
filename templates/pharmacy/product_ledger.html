@@ -1,0 +1,54 @@
+{% extends "layouts/app.html" %}
+{% load ui pharmacy %}
+{% block title %}Stock ledger: {{ product.display_name }}{% endblock %}
+{% block page_title %}{{ product.display_name }}: stock ledger{% endblock %}
+{% block page_subtitle %}{{ current_branch.name }}. Counted in {{ product|unit_label:2 }}. Entries are never edited; a correction is a new entry.{% endblock %}
+{% block page_actions %}<button type="button" class="btn btn-secondary" onclick="window.print()">Print</button>{% endblock %}
+{% block content %}
+<form method="get" class="card mb-6 grid items-end gap-3 md:grid-cols-[auto_auto_1fr_auto]">
+  <div><label class="field-label" for="l-from">From</label><input id="l-from" type="date" name="from" value="{{ start|date:'Y-m-d' }}" class="input"></div>
+  <div><label class="field-label" for="l-to">To</label><input id="l-to" type="date" name="to" value="{{ end|date:'Y-m-d' }}" class="input"></div>
+  <div><label class="field-label" for="l-batch">Batch</label><select id="l-batch" name="batch" class="select" data-native><option value="">All batches</option>{% for b in batches %}<option value="{{ b.pk }}" {% if batch and b.pk == batch.pk %}selected{% endif %}>{{ b.label }} · exp {{ b.expiry_date|date:"m/y" }}</option>{% endfor %}</select></div>
+  <button class="btn btn-primary">Show</button>
+</form>
+<div class="mb-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+  <div class="stat-card bg-page"><p class="text-body text-ink">Opening balance</p><p class="mt-2 text-[24px] font-bold text-ink">{{ statement.opening }}</p><p class="text-label text-muted">{{ statement.opening|as_packs:product }}{% if statement.opening_value %} · cost {{ statement.opening_value|floatformat:"2g" }}{% endif %}</p></div>
+  <div class="stat-card bg-mint"><p class="text-body text-ink">Came in</p><p class="mt-2 text-[24px] font-bold text-ink">+{{ statement.total_in }}</p><p class="text-label text-muted">{{ statement.total_in|as_packs:product|default:"in this period" }}</p></div>
+  <div class="stat-card bg-amber-soft"><p class="text-body text-ink">Went out</p><p class="mt-2 text-[24px] font-bold text-ink">{% if statement.total_out %}−{% endif %}{{ statement.total_out }}</p><p class="text-label text-muted">{{ statement.total_out|as_packs:product|default:"in this period" }}</p></div>
+  <div class="stat-card bg-blue-soft"><p class="text-body text-ink">Closing balance</p><p class="mt-2 text-[24px] font-bold text-ink">{{ statement.closing }}</p><p class="text-label text-muted">{{ statement.closing|as_packs:product }}{% if statement.closing_value %} · cost {{ statement.closing_value|floatformat:"2g" }}{% endif %}</p></div>
+</div>
+<section class="card mb-6">
+  <h2 class="section-title mb-4">Movements</h2>
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th scope="col">When</th><th scope="col">Movement</th><th scope="col">Document</th><th scope="col">Batch</th><th scope="col" class="text-right">In</th><th scope="col" class="text-right">Out</th><th scope="col" class="text-right">Balance</th><th scope="col" class="text-right">Cost each</th><th scope="col" class="text-right">Sale price</th><th scope="col" class="text-right">Value</th><th scope="col">By</th></tr></thead>
+      <tbody>
+        <tr class="bg-page"><td colspan="6" class="font-medium">Opening balance on {{ start|date:"d M Y" }}</td><td class="text-right font-semibold">{{ statement.opening }}</td><td colspan="2"></td><td class="text-right">{{ statement.opening_value|floatformat:"2g" }}</td><td></td></tr>
+        {% for row in statement.rows %}{% with t=row.txn %}
+        <tr>
+          <td class="whitespace-nowrap">{{ t.created_at|date:"d M Y, H:i" }}</td>
+          <td>{{ t.get_kind_display }}{% if t.reason %}<p class="text-label text-muted">{{ t.reason }}</p>{% endif %}</td>
+          <td class="whitespace-nowrap">{% with doc=t.document %}{% if doc %}<a href="{{ doc.1 }}" class="font-mono hover:underline">{{ doc.0 }}</a>{% elif t.reference %}<span class="font-mono">{{ t.reference }}</span>{% else %}<span class="text-muted">—</span>{% endif %}{% endwith %}</td>
+          <td class="font-mono">{{ t.batch.label }}</td>
+          <td class="text-right font-semibold text-teal-deep">{% if t.quantity > 0 %}{{ t.quantity }}{% endif %}</td>
+          <td class="text-right font-semibold text-red">{% if t.quantity < 0 %}{{ t.quantity|abs_value }}{% endif %}</td>
+          <td class="text-right font-semibold">{{ row.balance }}</td>
+          <td class="text-right">{{ t.unit_cost|floatformat:"2g" }}</td>
+          <td class="text-right">{{ t.unit_price|floatformat:"2g" }}</td>
+          <td class="text-right">{{ t.value|floatformat:"2g" }}</td>
+          <td>{{ t.created_by }}</td>
+        </tr>
+        {% endwith %}{% empty %}
+        <tr><td colspan="11" class="text-center text-muted">No stock moved in this period.</td></tr>
+        {% endfor %}
+        <tr class="bg-page"><td colspan="6" class="font-medium">Closing balance on {{ end|date:"d M Y" }}</td><td class="text-right font-semibold">{{ statement.closing }}</td><td colspan="2"></td><td class="text-right">{{ statement.closing_value|floatformat:"2g" }}</td><td></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+<section class="card">
+  <h2 class="section-title mb-1">Price changes</h2>
+  <p class="mb-4 text-label text-muted">Prices per {{ product|unit_label }}. A price change moves no stock, so it does not change the balances above.</p>
+  {% include "pharmacy/_price_changes.html" with changes=price_changes %}
+</section>
+{% endblock %}

@@ -66,7 +66,7 @@
         {% for e in rx_form.medicine_name.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
         <div id="rx-med-results" class="mt-1" @click="const b = $event.target.closest('[data-med-id]'); if (b) { medId = b.dataset.medId; medName = b.dataset.medName; picked = b.dataset.medGeneric; $refs.route.value = b.dataset.medRoute; $el.innerHTML = ''; $refs.dose.focus(); }"></div>
       </div>
-      <div class="field md:col-span-1"><label class="field-label" for="rx-dose">Dose <span class="text-red" aria-hidden="true">*</span></label><input id="rx-dose" name="dose" x-ref="dose" class="input" maxlength="40" required value="{{ rx_form.dose.value|default_if_none:'' }}" placeholder="1 tablet">{% for e in rx_form.dose.errors %}<p class="field-error">{{ e }}</p>{% endfor %}</div>
+      <div class="field md:col-span-1"><label class="field-label" for="rx-dose">Dose</label><input id="rx-dose" name="dose" x-ref="dose" class="input" maxlength="40" value="{{ rx_form.dose.value|default_if_none:'' }}" placeholder="1 tablet">{% for e in rx_form.dose.errors %}<p class="field-error">{{ e }}</p>{% endfor %}</div>
       <div class="field md:col-span-2"><label class="field-label" for="rx-route">Route</label><select id="rx-route" name="route" x-ref="route" class="select">{% for v, l in rx_form.fields.route.choices %}<option value="{{ v }}" {% if rx_form.route.value == v %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
       {% include "components/field.html" with field=rx_form.frequency %}
       {% include "components/field.html" with field=rx_form.duration_value %}

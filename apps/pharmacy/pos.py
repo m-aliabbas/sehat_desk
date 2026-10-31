@@ -16,17 +16,21 @@ from decimal import Decimal
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
-from django.db.models import Sum
+from django.db.models import Q, Sum
 from django.utils import timezone
 
+from apps.appointments.models import Appointment
 from apps.billing import services as billing
 from apps.billing.models import InvoiceItem, to_money
 from apps.core.models import next_number
+from apps.organizations import field_rules
+from apps.organizations.models import preferences_for
 from apps.prescriptions.models import Prescription, PrescriptionItem
 
 from . import stock
 from .models import (
     InventoryBatch,
+    PharmacyCartReturn,
     PharmacySale,
     PharmacySaleItem,
     PharmacySaleReturn,
@@ -233,6 +237,43 @@ def set_quantity(item, *, request, quantity: int) -> PharmacySaleItem | None:
 
 
 @transaction.atomic
+def set_line_discount(item, *, request, percent) -> PharmacySaleItem:
+    """A percent off one row. The amount follows the quantity."""
+    _need(request, DISCOUNT, "You are not allowed to give discounts on pharmacy sales.")
+    item = _lock_item(item, request)
+    percent = Decimal(percent or 0)
+    if not 0 <= percent <= 100:
+        raise PosError("The discount must be between 0 and 100 percent.")
+    item.discount_percent = percent
+    item.discount_by = request.user if percent else None
+    billing.check_discount_cap(item.sale.organization, item.discount_amount, item.gross, PosError)
+    item.save(update_fields=["discount_percent", "discount_by", "updated_at"])
+    return item
+
+
+@transaction.atomic
+def set_discount_note(sale, *, request, asked_by, reason) -> PharmacySale:
+    """Who asked for this sale's discounts, and why. Kept for the discount trail."""
+    _need(request, DISCOUNT, "You are not allowed to give discounts on pharmacy sales.")
+    sale = _lock_cart(sale, request, any_till=True)
+    if asked_by is not None and asked_by.organization_id != sale.organization_id:
+        raise PosError("Choose someone from this hospital.")
+    sale.discount_asked_by = asked_by
+    sale.discount_reason = reason.strip()[:200]
+    sale.save(update_fields=["discount_asked_by", "discount_reason", "updated_at"])
+    return sale
+
+
+def rx_only_without_prescription(sale) -> list[PharmacySaleItem]:
+    """Rx-only lines sold with no prescription line, for the audit log and the till's notice."""
+    return [
+        i
+        for i in sale.items.select_related("product")
+        if i.product.requires_prescription and not i.prescription_item_id
+    ]
+
+
+@transaction.atomic
 def change_batch(item, *, request, batch) -> PharmacySaleItem:
     """Sell this line from another batch of the same product (its price follows the batch)."""
     item = _lock_item(item, request)
@@ -305,22 +346,154 @@ def attach_prescription(sale, *, request, prescription) -> PharmacySale:
 
 
 @transaction.atomic
+def attach_paper_prescription(sale, *, request, doctor) -> PharmacySale:
+    """The patient brought a handwritten prescription: an empty one to record against. What is
+    sold gets added to it at checkout."""
+    sale = _lock_cart(sale, request)
+    if sale.patient_id is None:
+        raise PosError("Attach the patient first: a prescription belongs to a patient.")
+    if sale.prescription_id:
+        raise PosError(f"{sale.prescription.number} is already attached.")
+    if doctor.organization_id != sale.organization_id:
+        raise PosError("Choose a doctor from this hospital.")
+    year = timezone.localdate().year
+    org = sale.organization
+    sale.prescription = Prescription.objects.create(
+        organization=org,
+        branch=sale.branch,
+        number=f"RX-{year}-{next_number(org, f'prescription:{year}'):05d}",
+        patient=sale.patient,
+        doctor=doctor,
+        status=Prescription.Status.PAPER,
+    )
+    sale.save(update_fields=["prescription", "updated_at"])
+    return sale
+
+
+def visits_without_rx(request, *, patient=None, q="") -> list[dict]:
+    """Today's reception visits with nothing for the pharmacy yet. The doctor may have written on
+    paper, so the till can tag the sale to the visit (attach_paper_prescription)."""
+    from apps.queue.models import QueueToken
+
+    today = timezone.localdate()
+    tokens = QueueToken.objects.filter(branch=request.branch, date=today).exclude(
+        status=QueueToken.Status.CANCELLED
+    )
+    appointments = Appointment.objects.filter(branch=request.branch, date=today).exclude(
+        status__in=Appointment.RELEASED_STATUSES
+    )
+    if patient is not None:
+        tokens = tokens.filter(patient=patient)
+        appointments = appointments.filter(patient=patient)
+    if q:
+        words = " ".join(q.lower().split())
+        tokens = tokens.filter(
+            Q(patient__mrn__icontains=q) | Q(patient__name_search__icontains=words)
+        )
+        appointments = appointments.filter(
+            Q(patient__mrn__icontains=q) | Q(patient__name_search__icontains=words)
+        )
+    handled = set(
+        Prescription.objects.filter(branch=request.branch)
+        .filter(
+            Q(status=Prescription.Status.PAPER, created_at__date=today)
+            | Q(sent_to_pharmacy_at__date=today)
+        )
+        .values_list("patient_id", "doctor_id")
+    )
+    visits = {}
+    for visit in [
+        *tokens.select_related("patient", "doctor__user").order_by("created_at")[:100],
+        *appointments.select_related("patient", "doctor__user").order_by("start_time")[:100],
+    ]:
+        key = (visit.patient_id, visit.doctor_id)
+        if key not in handled and key not in visits:
+            visits[key] = {
+                "patient": visit.patient,
+                "doctor": visit.doctor,
+                "label": getattr(visit, "label", None) or visit.number,
+                "status": visit.get_status_display(),
+            }
+    return list(visits.values())
+
+
+@transaction.atomic
+def tag_visit(sale, *, request, patient, doctor=None) -> PharmacySale:
+    """Put a visit's patient on the sale and, when the doctor is known, an empty paper Rx."""
+    sale = _lock_cart(sale, request)
+    if sale.patient_id and sale.patient_id != patient.pk:
+        raise PosError(f"This sale is for {sale.patient.full_name}. Finish or clear it first.")
+    sale = attach_patient(sale, request=request, patient=patient)
+    if doctor is not None:
+        sale = attach_paper_prescription(sale, request=request, doctor=doctor)
+    return sale
+
+
+def suggested_doctor(sale):
+    """Whoever the patient saw most recently: the likely author of a handwritten prescription."""
+    if not sale or not sale.patient_id:
+        return None
+    appointment = (
+        Appointment.objects.filter(patient=sale.patient, branch=sale.branch)
+        .exclude(status__in=Appointment.RELEASED_STATUSES)
+        .filter(date__lte=timezone.localdate())
+        .order_by("-date", "-start_time")
+        .first()
+    )
+    return appointment.doctor if appointment else None
+
+
+@transaction.atomic
 def detach_prescription(sale, *, request) -> PharmacySale:
     sale = _lock_cart(sale, request)
+    rx = sale.prescription
     sale.items.update(prescription_item=None, substituted=False, substitution_reason="")
     sale.prescription = None
     sale.save(update_fields=["prescription", "updated_at"])
+    if rx and rx.status == Prescription.Status.PAPER and not rx.items.exists():
+        rx.delete()  # attached by mistake, nothing was ever recorded on it
     return sale
+
+
+def _add_sold_to_prescription(sale, request) -> list[PrescriptionItem]:
+    """Medicines sold against an attached prescription go on it, marked as added at the pharmacy.
+    Existing lines are never changed. The doctor's directions are not invented."""
+    added = []
+    rx = sale.prescription
+    order = rx.items.count()
+    for line in sale.items.filter(prescription_item__isnull=True).select_related("product"):
+        order += 1
+        product = line.product
+        item = PrescriptionItem.objects.create(
+            prescription=rx,
+            medicine=product.medicine,
+            medicine_name=product.display_name,
+            generic_name=product.generic_name,
+            dose="",
+            frequency="",
+            quantity=line.quantity,
+            sort_order=order,
+            added_at_pharmacy=True,
+            added_by=request.user,
+        )
+        line.prescription_item = item
+        line.save(update_fields=["prescription_item", "updated_at"])
+        added.append(item)
+    return added
 
 
 def totals(sale) -> dict:
     items = list(sale.items.all())
     lines = sum((i.line_total for i in items), ZERO)
     discount = min(to_money(sale.discount), lines)
+    returns = sum((r.amount for r in pending_returns(sale)), ZERO)
     return {
+        "returns": returns,
+        "net": lines - discount - returns,
         "lines": len(items),
         "units": sum(i.quantity for i in items),
         "subtotal": sum((i.gross for i in items), ZERO),
+        "line_discount": sum((i.discount_amount for i in items), ZERO),
         "tax": sum((i.tax_amount for i in items), ZERO),
         "lines_total": lines,
         "discount": discount,
@@ -340,7 +513,8 @@ def set_discount(sale, *, request, amount, reason) -> PharmacySale:
     if amount and not reason.strip():
         raise PosError("Give a reason for the discount.")
     sale.discount = amount
-    sale.discount_reason = reason.strip()[:200] if amount else ""
+    keep_note = sale.items.filter(discount_percent__gt=0).exists()
+    sale.discount_reason = reason.strip()[:200] if amount or keep_note else ""
     sale.discount_by = request.user if amount else None
     sale.save(update_fields=["discount", "discount_reason", "discount_by", "updated_at"])
     return sale
@@ -379,6 +553,7 @@ def resume(sale, *, request) -> PharmacySale:
 
 def _void(sale):
     sale.items.all().delete()  # cart lines only; no stock or money was ever posted
+    sale.cart_returns.filter(settled_by=None).delete()
     sale.status = Status.VOIDED
     sale.save(update_fields=["status", "updated_at"])
 
@@ -405,8 +580,19 @@ def checkout_problems(sale) -> list[str]:
     items = list(sale.items.select_related("product", "batch"))
     if not items:
         problems.append("The cart is empty.")
+    org = sale.organization
+    if field_rules.is_required(org, "till.customer") and not (
+        sale.patient_id or sale.customer_name
+    ):
+        problems.append("Enter the customer's name or attach the patient.")
+    if sale.discount or any(i.discount_percent for i in items):
+        if field_rules.is_required(org, "till.discount_reason") and not sale.discount_reason:
+            problems.append("Give the reason for the discount.")
+        if field_rules.is_required(org, "till.discount_asked_by") and not sale.discount_asked_by_id:
+            problems.append("Say who asked for the discount.")
+    strict = preferences_for(org).pharmacy_require_prescription
     for item in items:
-        if item.product.requires_prescription and not item.prescription_item_id:
+        if strict and item.product.requires_prescription and not item.prescription_item_id:
             problems.append(
                 f"{item.product} needs a prescription. Attach the patient's prescription."
             )
@@ -438,6 +624,9 @@ def checkout(sale, *, request, payments: list[dict]) -> PharmacySale:
     if problems:
         raise PosError(problems[0])
     t = totals(sale)
+    returned = _settle_returns(sale, request)
+    if returned:
+        sale.refresh_from_db()
     paid = sum((to_money(p["amount"]) for p in payments), ZERO)
     if paid != t["grand_total"]:
         raise PosError(
@@ -462,6 +651,10 @@ def checkout(sale, *, request, payments: list[dict]) -> PharmacySale:
                 unit_price=item.unit_price,
                 quantity=item.quantity,
                 tax_percent=item.tax_percent,
+                discount=item.discount_amount,
+                discount_reason=(sale.discount_reason or "Line discount at the till")
+                if item.discount_percent
+                else "",
             )
             item.stock_txn = stock.sell(
                 item.batch, request=request, quantity=item.quantity, reference=sale.number
@@ -494,6 +687,7 @@ def checkout(sale, *, request, payments: list[dict]) -> PharmacySale:
     sale.grand_total = invoice.grand_total
     sale.save(update_fields=["invoice", "status", "completed_at", "grand_total", "updated_at"])
     if sale.prescription_id:
+        _add_sold_to_prescription(sale, request)
         refresh_dispense_status(sale.prescription)
     return sale
 
@@ -701,6 +895,113 @@ def return_items(sale, *, request, quantities: dict[int, int], reason: str):
     if sale.prescription_id:
         refresh_dispense_status(sale.prescription)
     return ret
+
+
+# --- Returns entered on the till ----------------------------------------------------------------
+
+
+def pending_returns(sale):
+    return sale.cart_returns.filter(settled_by=None).select_related(
+        "source__product", "source__batch", "source__sale__invoice"
+    )
+
+
+def _returnable_sources(sale, product):
+    """Past sale lines of this product that can still come back: this customer's first, then
+    newest first. Walk-in customers rarely keep receipts, so any sale of it here will do."""
+    held = {r.source_id: r.quantity for r in sale.cart_returns.filter(settled_by=None)}
+    lines = PharmacySaleItem.objects.filter(
+        product=product, sale__branch=sale.branch, sale__status=Status.COMPLETED
+    ).select_related("sale")
+    if sale.patient_id:
+        mine = [i for i in lines.filter(sale__patient=sale.patient).order_by("-sale__completed_at")]
+        others = lines.exclude(sale__patient=sale.patient)
+    else:
+        mine, others = [], lines
+    for line in [*mine, *others.order_by("-sale__completed_at")[:200]]:
+        free = line.quantity - line.returned_quantity - held.get(line.pk, 0)
+        if free > 0:
+            yield line, free
+
+
+@transaction.atomic
+def add_return(sale, *, request, product, quantity: int) -> list[PharmacyCartReturn]:
+    """Put a return on the till, matched to the sales it came from."""
+    _need(request, REFUND, "You are not allowed to process pharmacy returns.")
+    sale = _lock_cart(sale, request)
+    if product.organization_id != sale.organization_id:
+        raise PosError("That product is not available.")
+    if quantity <= 0:
+        raise PosError("Enter a quantity greater than zero.")
+    rows, remaining = [], quantity
+    for line, free in _returnable_sources(sale, product):
+        take = min(free, remaining)
+        row, _ = PharmacyCartReturn.objects.get_or_create(
+            sale=sale, source=line, settled_by=None, defaults={"quantity": 0}
+        )
+        row.quantity += take
+        row.save(update_fields=["quantity", "updated_at"])
+        rows.append(row)
+        remaining -= take
+        if remaining == 0:
+            return rows
+    raise PosError(
+        f"Only {quantity - remaining} {product.unit_label(quantity - remaining)} of {product} "
+        "were sold here and can come back. Use a stock adjustment for anything else."
+    )
+
+
+@transaction.atomic
+def item_to_return(item, *, request) -> list[PharmacyCartReturn]:
+    """The small Return button on a till row: this entry is coming back, not going out."""
+    item = _lock_item(item, request)
+    product, quantity, sale = item.product, item.quantity, item.sale
+    item.delete()
+    return add_return(sale, request=request, product=product, quantity=quantity)
+
+
+@transaction.atomic
+def set_return_quantity(row, *, request, quantity: int) -> None:
+    _need(request, REFUND, "You are not allowed to process pharmacy returns.")
+    _lock_cart(row.sale, request)
+    if row.settled_by_id:
+        raise PosError("That return is already done.")
+    if quantity <= 0:
+        row.delete()
+        return
+    left = row.source.quantity - row.source.returned_quantity
+    if quantity > left:
+        raise PosError(f"Only {left} can come back from sale {row.source.sale.number}.")
+    row.quantity = quantity
+    row.save(update_fields=["quantity", "updated_at"])
+
+
+def _settle_returns(sale, request) -> list:
+    done = []
+    for row in pending_returns(sale):
+        ret = return_items(
+            row.source.sale,
+            request=request,
+            quantities={row.source_id: row.quantity},
+            reason=row.reason,
+        )
+        row.settled_by = ret
+        row.save(update_fields=["settled_by", "updated_at"])
+        done.append(ret)
+    return done
+
+
+@transaction.atomic
+def settle_returns_only(sale, *, request) -> list:
+    """A till entry that only has returns: restock and refund, with nothing to charge."""
+    sale = _lock_cart(sale, request)
+    if sale.items.exists():
+        raise PosError("This cart also has items to sell. Take payment instead.")
+    done = _settle_returns(sale, request)
+    if not done:
+        raise PosError("There is nothing to return.")
+    _void(sale)
+    return done
 
 
 # --- Lookups -----------------------------------------------------------------------------------

@@ -1,5 +1,5 @@
 {% extends "layouts/app.html" %}
-{% load ui %}
+{% load ui pharmacy %}
 {% block title %}{{ vendor.name }}{% endblock %}
 {% block page_title %}{{ vendor.name }}{% endblock %}
 {% block page_subtitle %}{{ vendor.contact_person|default:"" }}{% if vendor.phone %} · {{ vendor.phone }}{% endif %}{% if vendor.email %} · {{ vendor.email }}{% endif %}{% endblock %}
@@ -7,31 +7,40 @@
   {% if not vendor.is_active %}{% status_chip "inactive" "Inactive" %}{% endif %}
   <a href="{% url 'pharmacy:vendor-edit' vendor.pk %}" class="btn btn-secondary">Edit</a>
   <form method="post" action="{% url 'pharmacy:vendor-toggle' vendor.pk %}">{% csrf_token %}<button class="btn btn-ghost">{% if vendor.is_active %}Deactivate{% else %}Activate{% endif %}</button></form>
+  {% if "finance.expense.manage" in sd_perms %}<a href="{% url 'finance:supplier-pay' %}?vendor={{ vendor.pk }}" class="btn btn-secondary">Pay supplier</a>{% endif %}
   {% if vendor.is_active %}<a href="{% url 'pharmacy:purchase-create' %}?vendor={{ vendor.pk }}" class="btn btn-primary">{% icon "plus" "h-4 w-4" %} New purchase</a>{% endif %}
 {% endblock %}
 {% block content %}
 {% include "pharmacy/purchasing/_tabs.html" with active="suppliers" %}
+<div class="mb-6 grid gap-4 md:grid-cols-4">
+  <div class="stat-card bg-blue-soft"><p class="text-body text-ink">Total purchased</p><p class="mt-2 text-[22px] font-bold text-ink">{{ stats.purchased|floatformat:"0g" }}</p></div>
+  <div class="stat-card bg-mint"><p class="text-body text-ink">Total paid</p><p class="mt-2 text-[22px] font-bold text-ink">{{ stats.paid|floatformat:"0g" }}</p></div>
+  <div class="stat-card bg-violet-soft"><p class="text-body text-ink">Returned</p><p class="mt-2 text-[22px] font-bold text-ink">{{ stats.returned|floatformat:"0g" }}</p></div>
+  <div class="stat-card bg-amber-soft"><p class="text-body text-ink">Balance owed</p><p class="mt-2 text-[22px] font-bold text-ink">{{ balance|floatformat:"0g" }}</p></div>
+</div>
+<p class="mb-4 flex flex-wrap gap-3 text-label">Reports: <a class="underline" href="{% url 'reports:report' 'supplier-invoices' %}?vendor={{ vendor.pk }}&amp;branch=all">Invoices</a><a class="underline" href="{% url 'reports:report' 'supplier-paid' %}?vendor={{ vendor.pk }}&amp;branch=all">Payments</a><a class="underline" href="{% url 'reports:report' 'supplier-returns' %}?vendor={{ vendor.pk }}&amp;branch=all">Returns</a>{% if "reports.financial.view" in sd_perms %}<a class="underline" href="{% url 'reports:report' 'purchase-tax' %}?vendor={{ vendor.pk }}&amp;branch=all">Tax</a>{% endif %}<a class="underline" href="{% url 'reports:report' 'must-purchase' %}?vendor={{ vendor.pk }}">To buy</a></p>
 <div class="grid gap-6 xl:grid-cols-3">
   <section class="card xl:col-span-2">
-    <div class="card-header"><h2 class="section-title">Supplier account</h2><p class="text-right"><span class="text-label text-muted">Balance owed</span><br><span class="text-[24px] font-bold">{{ organization.currency }} {{ balance|floatformat:"2g" }}</span></p></div>
+    <div class="card-header"><div><h2 class="section-title">Supplier account</h2><a class="text-label underline" href="{% url 'reports:report' 'supplier-statement' %}?vendor={{ vendor.pk }}&amp;branch=all">Full ledger, by date, with print and Excel</a></div><p class="text-right"><span class="text-label text-muted">Balance owed</span><br><span class="text-[24px] font-bold">{{ organization.currency }} {{ balance|floatformat:"2g" }}</span></p></div>
     {% if entries %}
     <div class="table-wrap">
       <table class="table">
-        <thead><tr><th scope="col">Date</th><th scope="col">Entry</th><th scope="col">Reference</th><th scope="col" class="text-right">Amount</th><th scope="col" class="text-right">Balance</th></tr></thead>
+        <thead><tr><th scope="col">Date</th><th scope="col">Entry</th><th scope="col">Reference</th><th scope="col" class="text-right">Added</th><th scope="col" class="text-right">Paid / returned</th><th scope="col" class="text-right">Balance</th></tr></thead>
         <tbody>
           {% for e in entries %}
           <tr>
             <td class="whitespace-nowrap">{{ e.created_at|date:"d M Y" }}<p class="text-label text-muted">{{ e.branch.name }}</p></td>
             <td>{{ e.get_kind_display }}{% if e.note %}<p class="text-label text-muted">{{ e.note }}</p>{% endif %}</td>
             <td class="font-mono text-label">{% if e.purchase_return %}{{ e.purchase_return.number }}{% elif e.purchase %}<a class="hover:underline" href="{% url 'pharmacy:purchase-detail' e.purchase.pk %}">{{ e.purchase.number }}</a>{% else %}—{% endif %}</td>
-            <td class="text-right {% if e.amount < 0 %}text-teal-deep{% endif %}">{{ e.amount|floatformat:"2g" }}</td>
+            <td class="text-right">{% if e.amount > 0 %}{{ e.amount|floatformat:"2g" }}{% endif %}</td>
+            <td class="text-right text-teal-deep">{% if e.amount < 0 %}{{ e.amount|abs_value|floatformat:"2g" }}{% endif %}</td>
             <td class="text-right font-medium">{{ e.balance_after|floatformat:"2g" }}</td>
           </tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
-    {% else %}<p class="text-label text-muted">No entries yet. Received purchases add to the balance; returns reduce it.</p>{% endif %}
+    {% else %}<p class="text-label text-muted">No entries yet. Received purchases add to the balance; returns and payments reduce it.</p>{% endif %}
   </section>
   <div class="space-y-6">
     <section class="card">

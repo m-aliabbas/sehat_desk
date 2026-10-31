@@ -25,6 +25,8 @@ only signs everyone out and expires open document links; nothing is lost.
 | `SEHATDESK_BACKUP_KEEP` | `14` | How many backups to keep; older ones are deleted after each new backup. |
 | `SEHATDESK_BACKUP_DIR` | `<data folder>/backups` | Where backups are written. Point it at a second disk if the server has one. |
 | `SEHATDESK_BACKUP_KEY` | empty | Encryption key. When set, every backup is AES-256-GCM encrypted. |
+| `SEHATDESK_GDRIVE_TIMES` | `15:00,22:00` | Daily Google Drive upload times, hospital time zone. Empty turns the worker off. |
+| `SEHATDESK_GDRIVE_KEEP` | `60` | Uploads kept in Drive (30 days at two a day); older ones go to Drive's trash. `0` keeps all. |
 
 **Encryption key.** Create one with `python manage.py backup --generate-key`, put it in the
 server's environment / env file as `SEHATDESK_BACKUP_KEY`, and store a copy **off the server**
@@ -39,14 +41,20 @@ full copies of every patient record.
 - `serve.py` (what the desktop shortcut starts) makes a backup at start-up if the last one is
   older than `SEHATDESK_BACKUP_HOURS`, then checks every hour.
 - After each backup the oldest files beyond `SEHATDESK_BACKUP_KEEP` are deleted.
-- **Settings → System** lists the latest backups, says whether they are encrypted, warns when
+- **Settings → Backup** lists the latest backups, says whether they are encrypted, warns when
   no backup is newer than twice the interval, and has **Back up now** (writes to the server's
   backup folder; backups are never downloaded through the browser).
 - Every manual backup is in the audit log (`system.backup`).
 
-**Off-site copy (the 3-2-1 rule).** Keep at least one recent encrypted backup away from the
-server: a weekly USB copy taken home by the owner, or a synced cloud folder. A fire or theft
-takes the server and the backup folder together.
+**Only administrators** (`admin.organization.manage`) see or use backups, restore and Google Drive.
+Backup and restore started from the page run in the background; the page shows the result.
+
+**Off-site copy: Google Drive.** Settings → Backup → **Connect Google account** (the sign-in opens in
+the browser on the server computer). A worker inside the server then uploads an encrypted backup at
+3 pm and 10 pm into the Drive folder "SehatDesk Backups". A time missed because the PC was off runs
+at the next start, and a failed upload is retried every 15 minutes. Drive uploads always use
+`SEHATDESK_BACKUP_KEY`, or if that is empty the key shipped with every build, so a fresh install can
+restore them. A weekly USB copy is still good practice.
 
 **Object storage.** If patient documents are kept in S3-compatible storage
 (`SEHATDESK_DOCUMENT_STORAGE`), they are not inside the backup file. Turn on bucket versioning
@@ -64,12 +72,27 @@ python manage.py backup --list           # list backups, newest first
 python manage.py backup --verify FILE    # prove a backup can be restored
 python manage.py backup --generate-key   # new encryption key
 python manage.py restore FILE --yes      # restore (server stopped)
+python manage.py gdrive_backup           # upload to Google Drive now (--connect, --status)
 ```
+
+On an installed copy use `sehat_desk.exe --manage <command>`; output goes to `logs\server.log` in
+the data folder (`%LOCALAPPDATA%\SehatDesk`).
 
 `--verify` decrypts the file, checks every checksum, and runs SQLite's integrity check on the
 database inside, without touching live data.
 
 ## 5. Restore procedure
+
+**From the screen (server keeps running).** Settings → Backup, administrators only. Choose a file
+(a SQLite `.sqlite3`/`.db`, or a backup `.zip`/`.zip.enc`), a row in the backup list, or **Restore from
+Drive…**, and type RESTORE. In the background the file is checked (a database from another program is
+refused), a safety backup goes to `<backup folder>/pre-restore/` (last 3 kept), the data is copied into
+the live database, and migrations run. Staff see a "please wait" page during the copy and may need to
+sign in again. A SQLite file holds the database only: documents and media stay as they are. A full
+backup also replaces them; the previous folders move to `<data folder>/pre-restore-<timestamp>/`.
+**Undo:** restore the newest file from `pre-restore/`.
+
+**From the command line (server stopped):**
 
 1. **Stop the server.** Close the SehatDesk window / stop the service, so nobody saves anything
    during the restore. Tell staff to stop entering data.

@@ -130,6 +130,7 @@ def gross_summary(f):
     for item in PharmacySaleItem.objects.filter(sale__in=_sales(f)).select_related("sale", "batch"):
         d = days[local_date(item.sale.completed_at)]
         d["gross"] += item.gross
+        d["discount"] += item.discount_amount
         d["tax"] += item.tax_amount
         d["cost"] += item.batch.purchase_cost * item.quantity
     for line in PharmacySaleReturnItem.objects.filter(sale_return__in=_returns(f)).select_related(

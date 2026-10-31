@@ -5,6 +5,7 @@ Till actions are htmx requests that return the re-rendered cart (#pos-cart); err
 as a toast. Without htmx they redirect to the till with a message."""
 
 import json
+import re
 from collections import defaultdict
 from datetime import date, timedelta
 
@@ -17,19 +18,32 @@ from django.views.decorators.http import require_GET, require_POST
 from django_htmx.http import HttpResponseClientRedirect
 
 from apps.accounts.decorators import has_perm, permission_required
+from apps.accounts.models import User
 from apps.audit import services as audit
 from apps.billing import services as billing
 from apps.billing.models import to_money
 from apps.core.scoping import get_scoped_or_404, scoped
+from apps.core.security import same_origin_frame
+from apps.masterdata.models import DoctorProfile
+from apps.organizations.models import preferences_for
 from apps.patients.models import Patient
 from apps.prescriptions.models import Prescription, PrescriptionItem
+from apps.prescriptions.services import allergy_conflicts
 
 from . import pos, stock
-from .models import InventoryBatch, PharmacySale, PharmacySaleItem, PharmacySaleReturn, Product
+from .models import (
+    InventoryBatch,
+    PharmacyCartReturn,
+    PharmacySale,
+    PharmacySaleItem,
+    PharmacySaleReturn,
+    Product,
+)
 
 SELL, DISCOUNT, REFUND, COLLECT = pos.SELL, pos.DISCOUNT, pos.REFUND, pos.COLLECT
 Status = PharmacySale.Status
 MAX_PAYMENT_ROWS = 3
+_QTY_PREFIX = re.compile(r"^(\d+)\*\s*")  # "3*panadol" or "3*<barcode>" adds three
 
 
 def _crumbs(*extra):
@@ -71,13 +85,22 @@ def _cart_context(request):
             i.batch_options = options.get(i.product_id, [])
             if i.batch not in i.batch_options:
                 i.batch_options = [i.batch, *i.batch_options]
-            i.near_expiry = 0 <= i.batch.days_to_expiry <= near_days
+            days = i.product.expiry_alert_days
+            i.near_expiry = 0 <= i.batch.days_to_expiry <= (near_days if days is None else days)
             left = on_hand[i.product_id] - in_cart[i.product_id]
             i.low_after = i.product.reorder_level and left <= i.product.reorder_level
             i.left_after = left
+            if cart.patient_id:
+                i.allergy_hits = allergy_conflicts(
+                    cart.patient, i.product.brand_name, i.product.generic_name
+                )
     return {
         "cart": cart,
         "items": items,
+        "returns": list(pos.pending_returns(cart)) if cart else [],
+        "staff": User.objects.filter(organization=request.organization, is_active=True)
+        if has_perm(request, DISCOUNT)
+        else [],
         "totals": pos.totals(cart) if cart else None,
         "problems": pos.checkout_problems(cart) if cart and items else [],
         "held_count": scoped(PharmacySale, request).filter(status=Status.HELD).count(),
@@ -124,18 +147,30 @@ def till(request):
     return render(
         request,
         "pharmacy/pos/till.html",
-        {**_cart_context(request), "today": _today(request), "breadcrumbs": None},
+        {
+            **_cart_context(request),
+            "today": _today(request),
+            "breadcrumbs": None,
+            "last_sale": scoped(PharmacySale, request)
+            .filter(status=Status.COMPLETED, pk=_int(request.GET.get("sale")))
+            .first(),
+            "auto_print": preferences_for(request.organization).pharmacy_auto_print_receipt,
+        },
     )
 
 
 @require_GET
 @permission_required(SELL)
 def search(request):
-    q = request.GET.get("q", "")
+    q = _QTY_PREFIX.sub("", request.GET.get("q", ""))
     return render(
         request,
         "pharmacy/pos/_search_results.html",
-        {"results": pos.search_products(request, q), "q": q.strip()},
+        {
+            "results": pos.search_products(request, q),
+            "q": q.strip(),
+            "returning": bool(request.GET.get("as_return")),
+        },
     )
 
 
@@ -145,10 +180,13 @@ def add(request):
     """Add a product (from a search result), or a scanned barcode/SKU (q)."""
     quantity = max(_int(request.POST.get("quantity"), 1), 1)
     product = None
+    typed = _QTY_PREFIX.match(request.POST.get("q", "").strip())
     if request.POST.get("product", "").isdigit():
         product = get_scoped_or_404(Product, request, pk=request.POST["product"])
     elif request.POST.get("q", "").strip():
-        q = request.POST["q"].strip()
+        q = _QTY_PREFIX.sub("", request.POST["q"].strip())
+        if typed:
+            quantity = max(int(typed[1]), 1)
         matches = pos.search_products(request, q)
         exact = [p for p in matches if q.lower() in (p.barcode.lower(), p.sku.lower())]
         if len(exact) == 1 or len(matches) == 1:
@@ -162,11 +200,17 @@ def add(request):
             )
     if product is None:
         return _cart_reply(request, error="Choose a product.")
-    if request.POST.get("qty_unit") == "pack":
+    unit = request.POST.get("qty_unit")
+    if unit == "box":
+        quantity *= product.box_size
+    elif unit == "pack" or not product.allow_loose_sale:
         quantity *= product.pack_size
     try:
         cart = pos.open_cart(request)
-        pos.add_product(cart, request=request, product=product, quantity=quantity)
+        if request.POST.get("as_return"):
+            pos.add_return(cart, request=request, product=product, quantity=quantity)
+        else:
+            pos.add_product(cart, request=request, product=product, quantity=quantity)
     except pos.PosError as err:
         return _cart_reply(request, error=err.message)
     return _cart_reply(request)
@@ -189,13 +233,97 @@ def item(request, pk):
     try:
         if request.POST.get("action") == "remove":
             pos.remove_item(line, request=request)
+        elif request.POST.get("action") == "return":
+            pos.item_to_return(line, request=request)
+        elif "discount_percent" in request.POST:
+            pos.set_line_discount(line, request=request, percent=request.POST["discount_percent"])
+            audit.record(
+                request,
+                "pharmacy_sale.discount",
+                line.sale,
+                summary=f"{line.sale.number}: {line.product} {request.POST['discount_percent']}%",
+            )
         elif "batch" in request.POST:
             batch = get_scoped_or_404(InventoryBatch, request, pk=_int(request.POST["batch"]))
             pos.change_batch(line, request=request, batch=batch)
         else:
-            pos.set_quantity(line, request=request, quantity=_int(request.POST.get("quantity")))
+            size = {"box": line.product.box_size, "pack": line.product.pack_size}.get(
+                request.POST.get("unit"), 1
+            )
+            pos.set_quantity(
+                line, request=request, quantity=_int(request.POST.get("quantity")) * size
+            )
+    except (ArithmeticError, ValueError):
+        return _cart_reply(request, error="Enter a valid discount.")
     except pos.PosError as err:
         return _cart_reply(request, error=err.message)
+    return _cart_reply(request)
+
+
+@require_POST
+@permission_required(SELL, REFUND)
+def return_row(request, pk):
+    """Change the quantity of a return on the till, or take it off."""
+    row = get_object_or_404(
+        PharmacyCartReturn.objects.select_related("sale", "source__sale"),
+        pk=pk,
+        sale__organization=request.organization,
+        sale__branch=request.branch,
+    )
+    quantity = 0 if request.POST.get("action") == "remove" else _int(request.POST.get("quantity"))
+    try:
+        pos.set_return_quantity(row, request=request, quantity=quantity)
+    except pos.PosError as err:
+        return _cart_reply(request, error=err.message)
+    return _cart_reply(request)
+
+
+@require_POST
+@permission_required(SELL, REFUND)
+def returns_settle(request):
+    """A till entry with only returns: no payment to take, just restock and refund."""
+    cart = pos.current_cart(request)
+    if cart is None:
+        return _cart_reply(request, error="There is nothing to return.")
+    try:
+        done = pos.settle_returns_only(cart, request=request)
+    except pos.PosError as err:
+        return _cart_reply(request, error=err.message)
+    for ret in done:
+        audit.record(
+            request,
+            "pharmacy_sale.return",
+            ret,
+            summary=f"{ret.number} on {ret.sale.number}: {ret.amount} refunded — till",
+        )
+    total = sum(r.amount for r in done)
+    return _cart_reply(request, success=f"Returned to shelf. Give back {total:,.2f}.")
+
+
+@require_POST
+@permission_required(DISCOUNT)
+def discount_note(request):
+    """Who asked for the discount and why, from the sale summary."""
+    cart = pos.current_cart(request)
+    if cart is None:
+        return _cart_reply(request, error="There is no sale in progress.")
+    asked_by = None
+    if request.POST.get("asked_by", "").isdigit():
+        asked_by = get_object_or_404(
+            User, pk=request.POST["asked_by"], organization=request.organization
+        )
+    try:
+        pos.set_discount_note(
+            cart, request=request, asked_by=asked_by, reason=request.POST.get("reason", "")
+        )
+    except pos.PosError as err:
+        return _cart_reply(request, error=err.message)
+    audit.record(
+        request,
+        "pharmacy_sale.discount",
+        cart,
+        summary=f"{cart.number}: asked by {asked_by or 'not given'}",
+    )
     return _cart_reply(request)
 
 
@@ -219,6 +347,33 @@ def customer(request):
     return _cart_reply(request)
 
 
+def _tag_visit(request, cart):
+    """From the till's modal (htmx) or the Prescriptions page (a plain post, back to the till)."""
+    patient = get_scoped_or_404(Patient, request, pk=_int(request.POST.get("patient")))
+    doctor = None
+    if request.POST.get("doctor"):
+        doctor = get_scoped_or_404(DoctorProfile, request, pk=_int(request.POST.get("doctor")))
+    try:
+        cart = pos.tag_visit(cart, request=request, patient=patient, doctor=doctor)
+    except pos.PosError as err:
+        if request.htmx:
+            return _cart_reply(request, error=err.message)
+        messages.error(request, err.message)
+        return redirect("pharmacy:pos")
+    if cart.prescription_id:
+        audit.record(
+            request,
+            "prescription.paper",
+            cart.prescription,
+            summary=f"{cart.prescription.number} on {cart.number} from a visit",
+        )
+    text = f"{patient.full_name} tagged to this sale."
+    if request.htmx:
+        return _cart_reply(request, success=text)
+    messages.success(request, text)
+    return redirect("pharmacy:pos")
+
+
 @permission_required(SELL)
 def prescription(request):
     """GET: modal listing prescriptions waiting at this pharmacy. POST: attach (rx) or detach."""
@@ -228,6 +383,20 @@ def prescription(request):
             if request.POST.get("action") == "detach":
                 pos.detach_prescription(cart, request=request)
                 return _cart_reply(request, success="Prescription removed from the sale.")
+            if request.POST.get("action") == "paper":
+                doctor = get_scoped_or_404(
+                    DoctorProfile, request, pk=_int(request.POST.get("doctor"))
+                )
+                cart = pos.attach_paper_prescription(cart, request=request, doctor=doctor)
+                audit.record(
+                    request,
+                    "prescription.paper",
+                    cart.prescription,
+                    summary=f"{cart.prescription.number} on {cart.number}",
+                )
+                return _cart_reply(request, success="Handwritten prescription attached.")
+            if request.POST.get("action") == "visit":
+                return _tag_visit(request, cart)
             rx = get_scoped_or_404(Prescription, request, pk=_int(request.POST.get("rx")))
             pos.attach_prescription(cart, request=request, prescription=rx)
         except pos.PosError as err:
@@ -247,7 +416,16 @@ def prescription(request):
     return render(
         request,
         "pharmacy/pos/_rx_modal.html",
-        {"prescriptions": rxs.order_by("-sent_to_pharmacy_at")[:30], "cart": cart, "q": q},
+        {
+            "prescriptions": rxs.order_by("-sent_to_pharmacy_at")[:30],
+            "cart": cart,
+            "q": q,
+            "doctors": scoped(DoctorProfile, request).filter(is_active=True).select_related("user"),
+            "suggested_doctor": pos.suggested_doctor(cart),
+            "visits": pos.visits_without_rx(
+                request, patient=cart.patient if cart and cart.patient_id else None, q=q
+            )[:30],
+        },
     )
 
 
@@ -345,6 +523,7 @@ def pay(request):
     error = ""
     if request.method == "POST":
         try:
+            unprescribed = pos.rx_only_without_prescription(cart)
             sale = pos.checkout(cart, request=request, payments=_payment_rows(request))
         except pos.PosError as err:
             error = err.message
@@ -356,6 +535,13 @@ def pay(request):
                 summary=f"{sale.number} {sale.grand_total} invoice {sale.invoice.number}"
                 + (f" for {sale.prescription.number}" if sale.prescription_id else ""),
             )
+            for line in unprescribed:
+                audit.record(
+                    request,
+                    "pharmacy_sale.rx_only_no_prescription",
+                    sale,
+                    summary=f"{sale.number}: {line.product} × {line.quantity}",
+                )
             for line in sale.items.filter(substituted=True).select_related("product"):
                 audit.record(
                     request,
@@ -365,7 +551,7 @@ def pay(request):
                     f"{line.prescription_item.medicine_name if line.prescription_item else '—'}"
                     f" — {line.substitution_reason}",
                 )
-            url = f"{reverse('pharmacy:sale-detail', args=[sale.pk])}?done=1"
+            url = f"{reverse('pharmacy:pos')}?sale={sale.pk}"  # straight on to the next customer
             return HttpResponseClientRedirect(url) if request.htmx else redirect(url)
     return render(
         request,
@@ -471,6 +657,7 @@ def rx_queue(request):
             "today_count": scoped(Prescription, request)
             .filter(sent_to_pharmacy_at__date=today)
             .count(),
+            "visits": pos.visits_without_rx(request, q=q)[:50],
             "breadcrumbs": _crumbs({"label": "Prescriptions"}),
         },
     )
@@ -629,6 +816,8 @@ def sale_detail(request, pk):
                 "items__sale_item__product", "refunds__method"
             ),
             "done": request.GET.get("done") == "1",
+            "auto_print": request.GET.get("done") == "1"
+            and preferences_for(request.organization).pharmacy_auto_print_receipt,
             "can_return": has_perm(request, REFUND) and any(i.returned < i.quantity for i in items),
             "breadcrumbs": _crumbs(
                 {"label": "Sales", "url": reverse("pharmacy:sale-list")}, {"label": sale.number}
@@ -638,6 +827,7 @@ def sale_detail(request, pk):
 
 
 @require_GET
+@same_origin_frame
 @permission_required(SELL, REFUND, any_of=True)
 def sale_receipt(request, pk):
     """Pharmacy receipt (design screen 130), sized for 80 mm printers."""
@@ -650,6 +840,7 @@ def sale_receipt(request, pk):
             "items": sale.items.select_related("product", "batch"),
             "payments": sale.invoice.payments.select_related("method"),
             "billing_settings": billing.settings_for(request.organization),
+            "auto_print": request.GET.get("print") == "1",
         },
     )
 

@@ -9,7 +9,7 @@ from django.views.decorators.http import require_POST
 from apps.accounts.decorators import permission_required
 from apps.audit import services as audit
 from apps.core.scoping import get_scoped_or_404, scoped
-from apps.organizations.models import Branch
+from apps.organizations.models import Branch, preferences_for
 
 from .forms import (
     DepartmentForm,
@@ -175,11 +175,37 @@ def doctor_detail(request, pk):
     branch = next(
         (b for b in branches if str(b.pk) == request.GET.get("branch", "")), request.branch
     )
-    existing = {s.weekday: s for s in doctor.schedules.filter(branch=branch)}
+    use_shifts = preferences_for(request.organization).use_doctor_shifts
+    Shift = DoctorSchedule.Shift
+    shift = request.GET.get("shift", "") if use_shifts else ""
+    if use_shifts and shift not in Shift.values:
+        shift = Shift.MORNING
+    schedules = doctor.schedules.filter(branch=branch)
+    if use_shifts:
+        existing = {s.weekday: s for s in schedules.filter(shift=shift)}
+    else:
+        # One row a day: the earliest running clinic wins over stopped ones.
+        existing = {s.weekday: s for s in schedules.order_by("is_active", "-start_time")}
 
     if request.method == "POST" and "save_schedule" in request.POST:
         formset = ScheduleFormSet(request.POST, prefix="days")
-        if formset.is_valid():
+        saved = formset.is_valid()
+        if saved:
+            for f in formset:
+                c = f.cleaned_data
+                if not c["enabled"]:
+                    continue
+                sched = existing.get(c["weekday"])
+                clash = schedules.filter(
+                    weekday=c["weekday"],
+                    is_active=True,
+                    start_time__lt=c["end_time"],
+                    end_time__gt=c["start_time"],
+                ).exclude(pk=sched.pk if sched else None)
+                if clash.exists():
+                    f.add_error(None, f"Overlaps the {clash.first().get_shift_display()} shift.")
+                    saved = False
+        if saved:
             with transaction.atomic():
                 for f in formset:
                     c = f.cleaned_data
@@ -190,7 +216,10 @@ def doctor_detail(request, pk):
                             sched.save(update_fields=["is_active", "updated_at"])
                         continue
                     sched = sched or DoctorSchedule(
-                        doctor=doctor, branch=branch, weekday=c["weekday"]
+                        doctor=doctor,
+                        branch=branch,
+                        weekday=c["weekday"],
+                        shift=shift or Shift.MORNING,
                     )
                     for field in ("start_time", "end_time", "break_start", "break_end", "room"):
                         setattr(sched, field, c[field])
@@ -198,7 +227,7 @@ def doctor_detail(request, pk):
                     sched.save()
             audit.record(request, "doctor.schedule_update", doctor, summary=f"branch={branch.code}")
             messages.success(request, f"Schedule for {branch.name} saved.")
-            return redirect(f"{request.path}?branch={branch.pk}")
+            return redirect(f"{request.path}?branch={branch.pk}&shift={shift}")
     else:
         initial = []
         for day, _ in WEEKDAYS:
@@ -224,6 +253,9 @@ def doctor_detail(request, pk):
             "doctor": doctor,
             "branches": branches,
             "schedule_branch": branch,
+            "use_shifts": use_shifts,
+            "shift": shift,
+            "shifts": Shift.choices,
             "formset": formset,
             "rows": rows,
             "leaves": doctor.leaves.all()[:20],

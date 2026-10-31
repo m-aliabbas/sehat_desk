@@ -1,0 +1,9 @@
+{% if error %}<p class="text-label text-amber" role="alert">{{ error }}</p>
+{% elif not files %}<p class="text-label text-muted">No backups in Google Drive yet.</p>
+{% else %}
+<div class="table-wrap mt-3"><table class="table">
+  <thead><tr><th scope="col">Created (UTC)</th><th scope="col">File</th><th scope="col">Size</th><th scope="col">Restore</th></tr></thead>
+  <tbody>{% for f in files %}<tr><td class="whitespace-nowrap">{{ f.created }}</td><td class="font-mono text-label">{{ f.name }}</td><td>{{ f.size|filesizeformat }}</td>
+    <td><form method="post" action="{% url 'core:restore-drive' %}" class="flex gap-2">{% csrf_token %}<input type="hidden" name="file_id" value="{{ f.id }}"><input name="confirm" class="input w-28" placeholder="Type RESTORE" aria-label="Type RESTORE to confirm" required autocomplete="off"><button class="btn btn-danger btn-sm">Restore</button></form></td></tr>{% endfor %}</tbody>
+</table></div>
+{% endif %}

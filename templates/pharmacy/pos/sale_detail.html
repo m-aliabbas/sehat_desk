@@ -10,6 +10,7 @@
 {% endblock %}
 {% block content %}
 {% include "pharmacy/pos/_tabs.html" with active="sales" %}
+{% if auto_print %}<iframe title="Receipt" src="{% url 'pharmacy:sale-receipt' sale.pk %}?print=1" class="absolute h-0 w-0 border-0"></iframe>{% endif %}
 {% if done %}
   <div class="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-control bg-mint p-4 text-teal-deep" role="status">
     <p class="flex items-center gap-2 font-medium">{% icon "check-circle" "h-5 w-5" %} Sale completed · {{ organization.currency }} {{ sale.grand_total|floatformat:"2g" }} paid. Stock updated.</p>
@@ -53,7 +54,7 @@
   <section class="card">
     <h2 class="section-title mb-3">Payment</h2>
     <dl class="space-y-2 text-body">
-      <div class="flex justify-between"><dt class="text-muted">Invoice</dt><dd>{% if "billing.view" in sd_perms %}<a class="font-mono hover:underline" href="{% url 'billing:invoice-detail' sale.invoice.pk %}">{{ sale.invoice.number }}</a>{% else %}<span class="font-mono">{{ sale.invoice.number }}</span>{% endif %}</dd></div>
+      <div class="flex justify-between"><dt class="text-muted">Invoice</dt><dd>{% if "billing.view" in sd_perms %}<a class="font-mono hover:underline" href="{% url 'billing:invoice-detail' sale.invoice.pk %}">{{ sale.invoice.number }}</a> · <a class="hover:underline" href="{% url 'billing:invoice-print' sale.invoice.pk %}" target="_blank">A4</a>{% else %}<span class="font-mono">{{ sale.invoice.number }}</span>{% endif %}</dd></div>
       {% if sale.prescription %}<div class="flex justify-between"><dt class="text-muted">Prescription</dt><dd><a class="font-mono hover:underline" href="{% url 'pharmacy:rx-detail' sale.prescription.pk %}">{{ sale.prescription.number }}</a></dd></div>{% endif %}
       <div class="flex justify-between"><dt class="text-muted">Subtotal</dt><dd>{{ sale.invoice.subtotal|floatformat:"2g" }}</dd></div>
       {% if sale.invoice.tax_total %}<div class="flex justify-between"><dt class="text-muted">Tax</dt><dd>{{ sale.invoice.tax_total|floatformat:"2g" }}</dd></div>{% endif %}

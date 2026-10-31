@@ -15,7 +15,8 @@ The consultation note, diagnoses, and the doctor's workspace. PRD §6. PROJECT_N
 - Only the encounter's own doctor writes or signs it (`consultation.create`/`consultation.sign`).
 - Completing copies the note, diagnoses and prescription into an `EncounterVersion` that is never
   edited. Reopening keeps old versions; refused once the pharmacy has dispensed.
-- Completing needs a chief complaint and a diagnosis; follow-up date not in the past.
+- Nothing is required to complete: a doctor may only add a medicine or order a test. Only a follow-up
+  date in the past is refused. The workspace shows medicines, tests and procedures first.
 - Starting from a token moves the token to in_consultation and the appointment to with_doctor.
 - Audit note saves by field name only, never the text.
 - AI suggestions are drafts; saving one needs the doctor's action and `audit.record_ai_acceptance`.

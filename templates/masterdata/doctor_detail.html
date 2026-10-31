@@ -30,6 +30,11 @@
         <button class="btn btn-primary" name="save_schedule" value="1">Save schedule</button>
       </div>
     </div>
+    {% if use_shifts %}
+    <div class="mb-4 flex flex-wrap gap-2" role="tablist" aria-label="Shift">
+      {% for value, label in shifts %}<a role="tab" aria-selected="{% if value == shift %}true{% else %}false{% endif %}" href="?branch={{ schedule_branch.pk }}&amp;shift={{ value }}" class="btn btn-sm {% if value == shift %}btn-primary{% else %}btn-secondary{% endif %}">{{ label }}</a>{% endfor %}
+    </div>
+    {% endif %}
     {% if formset.non_form_errors %}{% for e in formset.non_form_errors %}{% include "components/alert.html" with level="danger" message=e %}{% endfor %}{% endif %}
     <div class="table-wrap">
       <table class="table">

@@ -16,8 +16,13 @@ management commands.
 - `pdf.py` — `weasyprint_html()`: loads WeasyPrint (adds Homebrew/MacPorts lib dirs on macOS),
   None if unavailable. Every PDF export uses it.
 - `backup.py` — backup/restore (docs/BACKUP_AND_RECOVERY.md).
+- `backup_jobs.py` — background backup, live restore (SQLite file, backup file or Drive),
+  `RestoreMaintenanceMiddleware`. Status in `DATA_DIR/backup_job.json`.
+- `gdrive.py` — Google Drive sign-in, upload at `SEHATDESK_GDRIVE_TIMES`, retention; `worker_loop` runs in
+  `serve.py`. All of it lives on Settings → Backup (`core:backups`, `templates/core/backups.html`) and
+  needs `admin.organization.manage`. The upload worker runs under `serve.py`, not `runserver`.
 - `demo_data.py` — catalogue for `seed_demo`.
-- `management/commands/` — `backup`, `restore`, `tailwind`, `loadtest`, `seed_demo`.
+- `management/commands/` — `backup`, `restore`, `gdrive_backup`, `tailwind`, `loadtest`, `seed_demo`.
 
 ## Rules
 - Anything every app needs goes here; app-specific logic does not.

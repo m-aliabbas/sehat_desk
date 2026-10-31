@@ -1,0 +1,214 @@
+{% load ui %}
+{# The booking form, on the reception desk and alone when a save is refused. Context: appointments.views.visit_context #}
+{{ doctors|json_script:"doctor-data" }}
+<form method="post" action="{% url 'appointments:visit-new' %}" class="grid gap-4 xl:grid-cols-3" novalidate
+      x-data="{
+        mode: '{% if new_mode %}new{% else %}find{% endif %}',
+        patientId: '{{ form.patient.value|default:'' }}',
+        patientLabel: '{% if patient %}{{ patient.full_name|escapejs }} · {{ patient.mrn }}{% endif %}',
+        search: '',
+        doctors: JSON.parse(document.getElementById('doctor-data').textContent),
+        doctorId: '{{ form.doctor.value|default:'' }}',
+        doctorQuery: '',
+        doctorOpen: false,
+        doctorIndex: 0,
+        date: '{{ form.date.value|date:'Y-m-d'|default:form.date.value }}',
+        today: '{{ today|date:'Y-m-d' }}',
+        tomorrow: '{{ tomorrow|date:'Y-m-d' }}',
+        shift: '{{ form.shift.value|default:'' }}',
+        pickTime: {% if form.time.value %}true{% else %}false{% endif %},
+        time: '{{ form.time.value|default:''|slice:':5' }}',
+        fee: '',
+        collect: {% if form.is_bound %}{{ form.collect.value|yesno:'true,false' }}{% else %}true{% endif %},
+        showVitals: true,
+        get matches() {
+          const q = this.doctorQuery.trim().toLowerCase();
+          return this.doctors.filter(d => !q || (d.name + ' ' + d.dept).toLowerCase().includes(q)).slice(0, 8);
+        },
+        get doctor() { return this.doctors.find(d => String(d.id) === String(this.doctorId)); },
+        chooseDoctor(d) { this.doctorId = d.id; this.fee = d.fee; this.doctorQuery = ''; this.doctorOpen = false; this.$nextTick(() => { this.refreshSlots(); this.$refs.save.focus(); }); },
+        refreshSlots() { this.$nextTick(() => document.body.dispatchEvent(new Event('visit-changed'))); },
+        get isToday() { return this.date === this.today; },
+        get timeLabel() { return this.pickTime && this.time ? this.time : (this.isToday ? 'Next in the queue' : 'First free slot'); },
+      }"
+      x-init="if (doctor) fee = doctor.fee; $watch('date', v => collect = v === today)"
+      @patient-picked="patientId = $event.detail.id; patientLabel = $event.detail.label; search = ''; refreshSlots(); $nextTick(() => { if (!doctor) $refs.doctorInput.focus(); else $refs.save.focus(); })"
+      @keydown.f2.window.prevent="patientId = ''; mode = 'find'; $nextTick(() => document.getElementById('patient-search').focus())"
+      @keydown.f3.window.prevent="doctorId = ''; $nextTick(() => $refs.doctorInput.focus())"
+      @keydown.f4.window.prevent="pickTime = !pickTime; time = ''; refreshSlots()"
+      @keydown.f8.window.prevent="$refs.save.click()"
+      @slot-picked.window="time = $event.detail"
+      @fee-suggested.window="fee = $event.detail"
+      @keydown.enter="if ($event.target.tagName === 'INPUT') $event.preventDefault()">
+  {% csrf_token %}
+  <input type="hidden" name="mode" :value="mode">
+  <input type="hidden" name="patient" :value="mode === 'find' ? patientId : ''" id="visit-patient">
+  <input type="hidden" name="doctor" :value="doctorId" id="visit-doctor">
+  <input type="hidden" name="time" :value="pickTime ? time : ''">
+  <input type="hidden" name="shift" :value="shift" id="visit-shift">
+  <input type="hidden" name="key" value="{{ idempotency_key }}">
+
+  <div class="space-y-6 xl:col-span-2">
+    {% for e in form.non_field_errors %}{% include "components/alert.html" with level="danger" title="Could not save the visit" message=e %}{% endfor %}
+
+    <section class="card">
+      <div class="mb-4 flex items-center justify-between gap-3">
+        <h2 class="section-title">1. Patient</h2>
+        {% if can_register %}
+        <button type="button" class="btn btn-ghost btn-sm" x-show="mode === 'find' && !patientId" @click="mode = 'new'">{% icon "plus" "h-4 w-4" %} New patient</button>
+        <button type="button" class="btn btn-ghost btn-sm" x-show="mode === 'new'" @click="mode = 'find'">Find existing patient</button>
+        {% endif %}
+      </div>
+      <div x-show="mode === 'find'">
+        <template x-if="patientId">
+          <div class="flex items-center justify-between rounded-control border border-teal/30 bg-mint/40 p-3">
+            <span class="font-medium" x-text="patientLabel"></span>
+            <button type="button" class="btn btn-ghost btn-sm" @click="patientId = ''; patientLabel = ''">Change</button>
+          </div>
+        </template>
+        <div x-show="!patientId" class="relative">
+          <label class="field-label" for="patient-search">Search by name, phone, CNIC or MRN</label>
+          <input id="patient-search" type="search" class="input mt-1.5" placeholder="Start typing…" autocomplete="off" autofocus
+                 x-model="search" name="q"
+                 @keydown.enter.prevent="document.querySelector('#patient-results button')?.click()"
+                 @keydown.down.prevent="document.querySelector('#patient-results button')?.focus()"
+                 hx-get="{% url 'patients:lookup' %}" hx-trigger="input changed delay:200ms" hx-target="#patient-results">
+          <div id="patient-results" class="absolute z-20 mt-1 w-full" x-show="search.length >= 2"
+               @keydown.down.prevent="$event.target.closest('li')?.nextElementSibling?.querySelector('button')?.focus()"
+               @keydown.up.prevent="($event.target.closest('li')?.previousElementSibling?.querySelector('button') || document.getElementById('patient-search')).focus()"></div>
+        </div>
+      </div>
+      {% if can_register %}
+      <div x-show="mode === 'new'" x-cloak class="grid gap-4 md:grid-cols-2">
+        {% for e in patient_form.non_field_errors %}<div class="md:col-span-2">{% include "components/alert.html" with level="warning" message=e %}</div>{% endfor %}
+        {% if patient_form.duplicates %}
+        <div class="md:col-span-2 rounded-control border border-amber p-3 text-body">
+          <p class="font-medium">Possible matches</p>
+          <ul class="mt-1 text-label">{% for m in patient_form.duplicates %}<li>{{ m.patient.full_name }} · {{ m.patient.mrn }} · {{ m.patient.phone_display }}</li>{% endfor %}</ul>
+          {% include "components/field.html" with field=patient_form.not_duplicate %}
+        </div>
+        {% endif %}
+        {% include "components/field.html" with field=patient_form.full_name %}
+        {% include "components/field.html" with field=patient_form.phone %}
+        {% include "components/field.html" with field=patient_form.age_years %}
+        {% include "components/field.html" with field=patient_form.gender %}
+        {% include "components/field.html" with field=patient_form.cnic %}
+      </div>
+      {% endif %}
+    </section>
+
+    <section class="card">
+      <h2 class="section-title mb-4">2. Doctor and time</h2>
+      <div class="relative" @click.outside="doctorOpen = false">
+        <template x-if="doctor">
+          <div class="flex items-center justify-between rounded-control border border-teal/30 bg-mint/40 p-3">
+            <span><span class="font-medium" x-text="doctor.name"></span><span class="block text-label text-muted" x-text="doctor.dept + ' · ' + doctor.today"></span></span>
+            <button type="button" class="btn btn-ghost btn-sm" @click="doctorId = ''; $nextTick(() => $refs.doctorInput.focus())">Change</button>
+          </div>
+        </template>
+        <div x-show="!doctor">
+          <label class="field-label" for="doctor-search">Doctor or department</label>
+          <input id="doctor-search" x-ref="doctorInput" class="input mt-1.5" placeholder="Start typing…" autocomplete="off" role="combobox" :aria-expanded="doctorOpen"
+                 x-model="doctorQuery" @focus="doctorOpen = true" @input="doctorOpen = true; doctorIndex = 0"
+                 @keydown.down.prevent="doctorIndex = Math.min(doctorIndex + 1, matches.length - 1)"
+                 @keydown.up.prevent="doctorIndex = Math.max(doctorIndex - 1, 0)"
+                 @keydown.enter.prevent="if (matches[doctorIndex]) chooseDoctor(matches[doctorIndex])"
+                 @keydown.escape="doctorOpen = false">
+          <ul x-show="doctorOpen && matches.length" x-cloak class="absolute z-20 mt-1 w-full divide-y divide-line overflow-hidden rounded-card border border-line bg-white shadow-lg" role="listbox">
+            <template x-for="(d, i) in matches" :key="d.id">
+              <li role="option" :aria-selected="i === doctorIndex">
+                <button type="button" class="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-mint/50" :class="i === doctorIndex && 'bg-mint/50'" @click="chooseDoctor(d)">
+                  <span><span class="font-medium" x-text="d.name"></span><span class="block text-label text-muted" x-text="d.dept + ' · ' + d.today"></span></span>
+                  <span class="text-label text-muted">{{ organization.currency }} <span x-text="d.fee"></span></span>
+                </button>
+              </li>
+            </template>
+          </ul>
+        </div>
+        {% for e in form.doctor.errors %}<p class="field-error mt-2">{{ e }}</p>{% endfor %}
+      </div>
+
+      <div class="mt-5 flex flex-wrap items-end gap-3">
+        <div class="flex gap-2" role="group" aria-label="Quick date">
+          <button type="button" class="btn btn-sm" :class="date === today ? 'btn-primary' : 'btn-secondary'" @click="date = today; refreshSlots()">Today</button>
+          <button type="button" class="btn btn-sm" :class="date === tomorrow ? 'btn-primary' : 'btn-secondary'" @click="date = tomorrow; refreshSlots()">Tomorrow</button>
+        </div>
+        <div class="field">
+          <label class="field-label" for="id_date">Date</label>
+          <input id="id_date" type="date" name="date" class="input" x-model="date" :min="today" @change="refreshSlots()">
+        </div>
+        {% if prefs.use_doctor_shifts %}
+        <div class="flex gap-2" role="group" aria-label="Shift">
+          <button type="button" class="btn btn-sm" :class="shift === '' ? 'btn-primary' : 'btn-secondary'" @click="shift = ''; refreshSlots()">Any shift</button>
+          {% for value, label in shifts %}<button type="button" class="btn btn-sm" :class="shift === '{{ value }}' ? 'btn-primary' : 'btn-secondary'" @click="shift = '{{ value }}'; refreshSlots()">{{ label }}</button>{% endfor %}
+        </div>
+        {% endif %}
+      </div>
+      {% for e in form.date.errors %}<p class="field-error mt-2">{{ e }}</p>{% endfor %}
+
+      <div class="mt-4 flex items-center justify-between gap-3 rounded-control bg-page p-3 text-body">
+        <span><span class="text-muted">Time:</span> <span class="font-medium" x-text="timeLabel"></span></span>
+        <button type="button" class="btn btn-ghost btn-sm" @click="pickTime = !pickTime; time = ''; refreshSlots()" x-text="pickTime ? 'Use automatic time' : 'Choose a time'"></button>
+      </div>
+      <div x-show="pickTime" x-cloak id="slot-panel" class="mt-4"
+           hx-get="{% url 'appointments:slots' %}" hx-trigger="load, visit-changed from:body delay:50ms"
+           hx-include="#visit-doctor, #id_date, #visit-patient, #visit-shift">
+      </div>
+    </section>
+
+    {% if can_vitals %}
+    <section class="card">
+      <button type="button" class="flex w-full items-center justify-between text-left" @click="showVitals = !showVitals" :aria-expanded="showVitals">
+        <span class="section-title">3. Vitals <span class="text-label font-normal text-muted">optional</span></span>
+        <span class="text-label text-teal-deep" x-text="showVitals ? 'Hide' : 'Add'"></span>
+      </button>
+      <div x-show="showVitals" x-cloak class="mt-4 grid grid-cols-2 gap-4 md:grid-cols-4">
+        {% for e in vitals_form.non_field_errors %}<div class="col-span-full">{% include "components/alert.html" with level="danger" message=e %}</div>{% endfor %}
+        {% include "components/field.html" with field=vitals_form.bp_systolic %}
+        {% include "components/field.html" with field=vitals_form.bp_diastolic %}
+        {% include "components/field.html" with field=vitals_form.pulse %}
+        {% include "components/field.html" with field=vitals_form.spo2 %}
+        {% include "components/field.html" with field=vitals_form.temperature %}
+        {% include "components/field.html" with field=vitals_form.temperature_unit %}
+        {% include "components/field.html" with field=vitals_form.weight_kg %}
+        {% include "components/field.html" with field=vitals_form.height_cm %}
+      </div>
+    </section>
+    {% endif %}
+  </div>
+
+  <aside class="space-y-6">
+    <section class="card xl:sticky xl:top-20">
+      <h2 class="section-title mb-4">Fee and papers</h2>
+      <p class="flex items-baseline justify-between text-body"><span class="text-muted">Doctor's fee</span><span class="text-[22px] font-bold">{{ organization.currency }} <span x-text="fee || '—'"></span></span></p>
+      {% if can_collect and prefs.opd_collect_fee_upfront %}
+      <label class="mt-4 flex items-center gap-2 text-body">
+        <input type="checkbox" class="checkbox" name="collect" x-model="collect">
+        <span x-text="isToday ? 'Fee received now' : 'Fee received in advance'"></span>
+      </label>
+      <div x-show="collect" class="mt-3 space-y-3">
+        <div class="field">
+          <label class="field-label" for="id_method">Paid by</label>
+          <select id="id_method" name="method" class="select">
+            {% for m in methods %}<option value="{{ m.pk }}" {% if form.method.value|stringformat:"s" == m.pk|stringformat:"s" %}selected{% endif %}>{{ m.name }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="field">
+          <label class="field-label" for="id_reference">Reference <span class="text-label text-muted">(not for cash)</span></label>
+          <input id="id_reference" name="reference" class="input" maxlength="80" value="{{ form.reference.value|default:'' }}">
+        </div>
+      </div>
+      {% endif %}
+      <div class="field mt-4">
+        <label class="field-label" for="id_reason">Reason for visit <span class="text-label text-muted">(optional)</span></label>
+        <input id="id_reason" name="reason" class="input" maxlength="200" value="{{ form.reason.value|default:'' }}">
+      </div>
+      <ul class="mt-4 space-y-1 text-label text-muted" x-show="isToday">
+        <li>Prints: {% if prefs.opd_print_blank_prescription %}empty prescription, {% endif %}token{% if prefs.opd_collect_fee_upfront %}, fee invoice{% if prefs.opd_print_office_copy %} (patient and office copy){% endif %}{% endif %}.</li>
+      </ul>
+      <p class="mt-4 text-label text-muted" x-show="!isToday" x-cloak>Pre-booking. The token and prescription print when the patient arrives.</p>
+      <button type="submit" x-ref="save" class="btn btn-primary mt-5 w-full" :disabled="(mode === 'find' && !patientId) || !doctorId || (pickTime && !time)" x-text="isToday ? 'Save and print (F8)' : 'Save booking (F8)'"></button>
+      <p class="mt-3 flex flex-wrap gap-x-3 text-label text-muted" aria-label="Keyboard shortcuts"><span><kbd class="font-mono font-semibold text-ink">F2</kbd> patient</span><span><kbd class="font-mono font-semibold text-ink">F3</kbd> doctor</span><span><kbd class="font-mono font-semibold text-ink">F4</kbd> time</span><span><kbd class="font-mono font-semibold text-ink">Enter</kbd> pick first</span></p>
+    </section>
+  </aside>
+</form>

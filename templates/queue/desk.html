@@ -2,13 +2,14 @@
 {% load ui %}
 {% block title %}Reception &amp; tokens{% endblock %}
 {% block page_title %}Reception &amp; token desk{% endblock %}
-{% block page_subtitle %}Register arrivals, issue tokens, and keep every clinic moving.{% endblock %}
+{% block page_subtitle %}Patient, doctor, save: the token, fee slip and empty prescription print by themselves.{% endblock %}
 {% block page_actions %}
+  {% if features.lab %}<a href="{% url 'lab:tests' %}" class="btn btn-secondary">Lab tests</a>{% endif %}
+  {% if can_book %}<a href="{% url 'appointments:list' %}" class="btn btn-secondary">All bookings</a>{% endif %}
   <a href="{% url 'queue:counters' %}" class="btn btn-secondary">Counters &amp; display</a>
-  {% if "patient.create" in sd_perms %}<a href="{% url 'patients:register' %}?mode=quick" class="btn btn-secondary">{% icon "plus" "h-4 w-4" %} Register patient</a>{% endif %}
-  <a href="{% url 'queue:walk-in' %}" class="btn btn-primary">{% icon "ticket" "h-4 w-4" %} Walk-in token</a>
 {% endblock %}
 {% block content %}
+{% if can_book %}<div class="mb-6">{% include "appointments/_visit_form.html" %}</div>{% endif %}
 {% if request.GET.issued %}
   <div class="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-card border border-teal/30 bg-mint/60 p-4">
     <p class="font-medium">Token issued. Print the slip for the patient.</p>

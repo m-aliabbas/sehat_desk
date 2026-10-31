@@ -22,6 +22,9 @@ Each app has its own `CLAUDE.md` with its flow and rules. Open the one for the a
 ## Non-negotiable rules
 - **Scoping:** views query through `scoped(Model, request)` / `get_scoped_or_404(...)`. Another
   organization's record is a 404, never a 403.
+- **Own patients:** someone who is only a doctor (`patients.services.own_doctor_only`) sees only their
+  own patients on every screen. Lists use `limit_to_own_patients` / `limit_records_to_own_patients`,
+  single records `require_own_patient`; others are a 404. A new patient-data screen must do the same.
 - **Permissions:** every view has `@permission_required("code", ...)` (`apps/accounts/decorators.py`)
   or is listed as public/personal in `apps/core/tests/test_url_inventory.py`. Codes live in
   `apps/accounts/permissions.py` (skill: `sehatdesk-permission`).

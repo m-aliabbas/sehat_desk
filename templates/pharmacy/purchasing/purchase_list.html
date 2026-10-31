@@ -3,7 +3,7 @@
 {% block title %}Purchases{% endblock %}
 {% block page_title %}Purchases{% endblock %}
 {% block page_subtitle %}{{ current_branch.name }} · purchase orders and goods received. Stock on an unreceived purchase cannot be sold.{% endblock %}
-{% block page_actions %}<a href="{% url 'pharmacy:purchase-create' %}" class="btn btn-primary">{% icon "plus" "h-4 w-4" %} New purchase</a>{% endblock %}
+{% block page_actions %}<a href="{% url 'pharmacy:purchase-auto' %}" class="btn btn-secondary">Automatic reorder{% if reorder_count %} · {{ reorder_count }}{% endif %}</a><a href="{% url 'pharmacy:purchase-create' %}" class="btn btn-primary">{% icon "plus" "h-4 w-4" %} New purchase</a>{% endblock %}
 {% block content %}
 {% include "pharmacy/purchasing/_tabs.html" with active="purchases" %}
 <section class="card">

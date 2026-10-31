@@ -1,0 +1,33 @@
+{% extends "layouts/app.html" %}
+{% block title %}Available lab tests{% endblock %}
+{% block page_title %}Available lab tests{% endblock %}
+{% block page_subtitle %}Every test and package this hospital offers, with its price, sample and time to result.{% endblock %}
+{% block page_actions %}{% if "lab.order.create" in sd_perms %}<a href="{% url 'lab:order-create' %}" class="btn btn-primary">New lab order</a>{% endif %}{% endblock %}
+{% block content %}
+<section class="card" x-data="{ q: '' }">
+  <label class="sr-only" for="test-search">Search tests</label>
+  <input id="test-search" type="search" class="input max-w-md" placeholder="Search test, code or group" autocomplete="off" autofocus x-model="q">
+  {% if panels %}
+  <h2 class="section-title mt-5 mb-2">Packages</h2>
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th scope="col">Package</th><th scope="col">Includes</th><th scope="col" class="text-right">Price</th></tr></thead>
+    <tbody>{% for p in panels %}<tr x-show="'{{ p.code|escapejs }} {{ p.name|escapejs }}'.toLowerCase().includes(q.toLowerCase())">
+      <td class="font-medium">{{ p.name }} <span class="font-mono text-label text-muted">{{ p.code }}</span></td>
+      <td class="text-label text-muted">{% for t in p.tests.all %}{{ t.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</td>
+      <td class="text-right">{{ organization.currency }} {{ p.price|floatformat:"0g" }}</td>
+    </tr>{% endfor %}</tbody>
+  </table></div>
+  {% endif %}
+  <h2 class="section-title mt-5 mb-2">Tests</h2>
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th scope="col">Test</th><th scope="col">Group</th><th scope="col">Sample</th><th scope="col">Result in</th><th scope="col" class="text-right">Price</th></tr></thead>
+    <tbody>{% for c in categories %}{% for t in c.tests.all %}<tr x-show="'{{ t.code|escapejs }} {{ t.name|escapejs }} {{ c.name|escapejs }}'.toLowerCase().includes(q.toLowerCase())">
+      <td class="font-medium">{{ t.name }} <span class="font-mono text-label text-muted">{{ t.code }}</span></td>
+      <td>{{ c.name }}</td>
+      <td>{{ t.get_sample_type_display }}</td>
+      <td>{{ t.turnaround_hours }} h</td>
+      <td class="text-right">{{ organization.currency }} {{ t.price|floatformat:"0g" }}</td>
+    </tr>{% endfor %}{% empty %}<tr><td colspan="5" class="py-6 text-center text-muted">No tests set up yet.</td></tr>{% endfor %}</tbody>
+  </table></div>
+</section>
+{% endblock %}

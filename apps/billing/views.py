@@ -25,7 +25,7 @@ from apps.ipd.models import AdmissionDeposit
 from apps.masterdata.models import Service
 from apps.patients.models import Patient
 
-from . import services
+from . import integrity, services
 from .models import ZERO, BillingSettings, Invoice, InvoiceItem, Payment, PaymentMethod, Refund
 
 Status = Invoice.Status
@@ -583,6 +583,19 @@ def refund(request, pk):
 # --- Prints ------------------------------------------------------------------------------------
 
 
+def _layout_document(invoice) -> str:
+    """Which Settings → Print layouts entry this invoice uses, by what it bills."""
+    kinds = set(invoice.items.values_list("kind", flat=True))
+    for kind, document in (
+        (InvoiceItem.Kind.PHARMACY, "pharmacy_invoice"),
+        (InvoiceItem.Kind.LAB, "lab_invoice"),
+        (InvoiceItem.Kind.PROCEDURE, "procedure_invoice"),
+    ):
+        if kind in kinds:
+            return document
+    return "invoice"
+
+
 @require_GET
 @permission_required(VIEW)
 def invoice_print(request, pk):
@@ -595,6 +608,8 @@ def invoice_print(request, pk):
         "billing/invoice_print.html",
         {
             "invoice": invoice,
+            "layout_document": _layout_document(invoice),
+            "copies": ["Patient copy", "Office copy"] if request.GET.get("copies") == "2" else [""],
             "items": invoice.items.all(),
             "payments": invoice.payments.select_related("method"),
             "refunds": invoice.refunds.select_related("method"),
@@ -763,3 +778,57 @@ def method_toggle(request, pk):
         request, f"{method.name} {'enabled' if method.is_active else 'disabled'} for new payments."
     )
     return redirect("billing:settings")
+
+
+# --- Ledger check and patient statement ----------------------------------------------------------
+
+
+@require_GET
+@permission_required("finance.view")
+def ledger_check(request):
+    """Do stored totals agree with the payments, refunds, stock moves and supplier entries?"""
+    return render(
+        request,
+        "billing/ledger_check.html",
+        {
+            "problems": integrity.all_problems(request.branch),
+            "can_repair": has_perm(request, REFUND),
+            "breadcrumbs": [
+                {"label": "Billing", "url": reverse("billing:invoice-list")},
+                {"label": "Ledger check"},
+            ],
+        },
+    )
+
+
+@require_POST
+@permission_required("finance.view", REFUND)
+def ledger_repair(request, pk):
+    invoice = _get_invoice(request, pk)
+    before = {
+        "amount_paid": str(invoice.amount_paid),
+        "amount_refunded": str(invoice.amount_refunded),
+        "grand_total": str(invoice.grand_total),
+        "status": invoice.status,
+    }
+    invoice = integrity.repair_invoice(invoice)
+    audit.record(
+        request,
+        "invoice.repair",
+        invoice,
+        changes={k: [v, str(getattr(invoice, k))] for k, v in before.items()},
+    )
+    messages.success(request, f"{invoice.number} now matches its payments and lines.")
+    return redirect("billing:ledger-check")
+
+
+@require_GET
+@permission_required(VIEW)
+def patient_ledger(request, pk):
+    """Printable statement of everything billed to and paid by one patient at this branch."""
+    patient = get_scoped_or_404(Patient, request, pk=pk)
+    return render(
+        request,
+        "billing/patient_ledger.html",
+        {"patient": patient, **integrity.patient_statement(patient, request.branch)},
+    )

@@ -1,0 +1,46 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}My patients' lab tests{% endblock %}
+{% block page_title %}My patients' lab tests{% endblock %}
+{% block page_subtitle %}{{ current_branch.name }} · the tests you ordered and their reports.{% endblock %}
+{% block page_actions %}
+  <a href="{% url 'lab:tests' %}" class="btn btn-secondary">Available tests</a>
+  {% if can_order %}<a href="{% url 'lab:order-create' %}" class="btn btn-primary">{% icon "plus" "h-4 w-4" %} New lab order</a>{% endif %}
+{% endblock %}
+{% block content %}
+<section class="card">
+  <nav class="tabs mb-5 overflow-x-auto" aria-label="Lab tests">
+    {% for key, label, n in tabs %}<a class="tab" href="?tab={{ key }}" {% if tab == key %}aria-selected="true"{% endif %}>{{ label }} <span class="chip chip-neutral ml-1">{{ n }}</span></a>{% endfor %}
+  </nav>
+  <form method="get" class="mb-5">
+    <input type="hidden" name="tab" value="{{ tab }}">
+    <input type="search" name="q" value="{{ q }}" class="input" placeholder="Patient name, MRN or order number" aria-label="Search">
+  </form>
+  {% if page_obj.object_list %}
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th scope="col">Patient</th><th scope="col">Tests</th><th scope="col">{% if tab == "ready" %}Received{% else %}Ordered{% endif %}</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+      <tbody>
+        {% for o in page_obj %}
+        <tr>
+          <td>{{ o.patient.full_name }}<p class="font-mono text-label text-muted">{{ o.patient.mrn }}</p></td>
+          <td>{% if tab == "ready" %}{% include "lab/_test_results.html" with items=o.items.all %}{% else %}{% for i in o.items.all %}{% if i.status != "cancelled" %}{{ i.test_name }}{% if not forloop.last %}, {% endif %}{% endif %}{% endfor %}{% endif %}<p class="font-mono text-label text-muted">{{ o.number }}</p></td>
+          <td class="whitespace-nowrap">{% if tab == "ready" %}{{ o.released_at|date:"d M, H:i" }}{% else %}{{ o.created_at|date:"d M, H:i" }}{% endif %}</td>
+          <td>{% status_chip o.status o.get_status_display %}</td>
+          <td class="text-right whitespace-nowrap">
+            {% if tab == "ready" %}<a href="{% url 'lab:report' o.pk %}" target="_blank" class="btn btn-secondary btn-sm">Report</a>{% endif %}
+            <a href="{% url 'lab:order-detail' o.pk %}" class="btn btn-ghost btn-sm">Open</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% include "components/pagination.html" with page_obj=page_obj %}
+  {% elif tab == "ready" %}
+    {% include "components/empty_state.html" with icon_name="inbox" title="No reports" message="Reports for the tests you order appear here once the lab releases them." %}
+  {% else %}
+    {% include "components/empty_state.html" with icon_name="flask" title="Nothing waiting" message="Tests you order appear here until the lab releases the report." %}
+  {% endif %}
+</section>
+{% endblock %}

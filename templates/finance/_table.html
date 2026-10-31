@@ -1,0 +1,10 @@
+{% load ui %}{# One breakdown.Table, on screen and in the PDF. Context: table #}
+<h2 class="card-header section-title">{{ table.title }}</h2>
+{% if table.rows %}
+<div class="table-wrap"><table class="table">
+  <thead><tr>{% for c in table.view_columns %}<th scope="col" class="{% if c.kind != 'text' %}num text-right{% endif %}">{{ c.label }}</th>{% endfor %}</tr></thead>
+  <tbody>{% for row in table.rows %}<tr>{% for c in table.view_columns %}{% with v=row|get_item:c.key %}<td class="{% if c.kind != 'text' %}num text-right{% endif %}">{% if v is None or v == "" %}{% if c.kind != "text" %}—{% endif %}{% elif c.kind == "money" %}{{ v|floatformat:"2g" }}{% elif c.kind == "percent" %}{{ v }}%{% else %}{{ v }}{% endif %}</td>{% endwith %}{% endfor %}</tr>{% endfor %}</tbody>
+  {% if table.totals %}<tfoot><tr class="font-bold">{% for c in table.view_columns %}{% with v=table.totals|get_item:c.key %}<td class="{% if c.kind != 'text' %}num text-right{% endif %}">{% if v is None or v == "" %}{% elif c.kind == "money" %}{{ v|floatformat:"2g" }}{% elif c.kind == "percent" %}{{ v }}%{% else %}{{ v }}{% endif %}</td>{% endwith %}{% endfor %}</tr></tfoot>{% endif %}
+</table></div>
+{% else %}<p class="text-label text-muted muted">Nothing in this period.</p>{% endif %}
+{% if table.note %}<p class="mt-3 text-label text-muted muted">{{ table.note }}</p>{% endif %}

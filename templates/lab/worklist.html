@@ -4,6 +4,7 @@
 {% block page_title %}Laboratory{% endblock %}
 {% block page_subtitle %}{{ current_branch.name }} · samples, processing, results and verification.{% endblock %}
 {% block page_actions %}
+  <a href="{% url 'lab:tests' %}" class="btn btn-secondary">Available tests</a>
   {% if "lab.catalog.manage" in sd_perms %}<a href="{% url 'lab:catalog' %}" class="btn btn-secondary">Test catalogue</a>{% endif %}
   {% if can_order %}<a href="{% url 'lab:order-create' %}" class="btn btn-primary">{% icon "plus" "h-4 w-4" %} New lab order</a>{% endif %}
 {% endblock %}

@@ -9,35 +9,31 @@
 {% endblock %}
 {% block content %}
 {% include "pharmacy/pos/_tabs.html" with active="pos" %}
-<div x-data
-     @keydown.f2.window.prevent="$refs.search.focus()"
+<form id="pos-add-form" hx-post="{% url 'pharmacy:pos-add' %}" hx-target="#pos-cart" hx-swap="outerHTML"
+      @htmx:after-request="if ($event.detail.successful && !/danger/.test($event.detail.xhr.getResponseHeader('HX-Trigger') || '')) { const s = document.getElementById('pos-search'); s.value = ''; s.dispatchEvent(new Event('input')); document.getElementById('pos-qty').value = 1; document.getElementById('pos-results').innerHTML = ''; s.focus(); }">{% csrf_token %}</form>
+{% if last_sale %}
+<div class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-control bg-mint p-3 text-teal-deep" role="status">
+  <p class="font-medium">{{ last_sale.number }} paid · {{ organization.currency }} {{ last_sale.grand_total|floatformat:"2g" }}{% if auto_print %} · receipt printing{% endif %}</p>
+  <span class="flex gap-2"><a href="{% url 'pharmacy:sale-receipt' last_sale.pk %}" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">Print again</a><a href="{% url 'pharmacy:sale-detail' last_sale.pk %}" class="btn btn-ghost btn-sm">Open sale</a></span>
+</div>
+{% if auto_print %}<iframe title="Receipt" src="{% url 'pharmacy:sale-receipt' last_sale.pk %}?print=1" class="absolute h-0 w-0 border-0"></iframe>{% endif %}
+<script>history.replaceState(null, "", location.pathname);</script>
+{% endif %}
+<div x-data="{ returning: false }"
+     @htmx:after-settle.window="if (!document.activeElement || document.activeElement === document.body) document.getElementById('pos-search')?.focus()"
+     @keydown.f2.window.prevent="document.getElementById('pos-search')?.focus()"
      @keydown.f4.window.prevent="document.getElementById('pos-hold')?.click()"
-     @keydown.f8.window.prevent="document.getElementById('pos-pay')?.click()">
-  <section class="card mb-6" x-data="{ q: '' }" @click.outside="q = ''">
-    <form hx-post="{% url 'pharmacy:pos-add' %}" hx-target="#pos-cart" hx-swap="outerHTML" @htmx:after-request="if ($event.detail.successful && $event.detail.requestConfig.verb === 'post') { q = ''; $refs.search.value = '' }" class="flex flex-wrap items-end gap-3">
-      {% csrf_token %}
-      <div class="relative min-w-[16rem] flex-1">
-        <label class="field-label" for="pos-search">Scan barcode / search product</label>
-        <input id="pos-search" x-ref="search" name="q" type="search" autocomplete="off" autofocus class="input mt-1.5"
-               placeholder="Scan or type medicine, generic, or SKU — Enter adds a scanned item"
-               x-model="q" hx-get="{% url 'pharmacy:pos-search' %}" hx-trigger="input changed delay:200ms" hx-target="#pos-results" hx-swap="innerHTML" hx-include="this">
-        <div id="pos-results" class="absolute z-20 mt-1 w-full" x-show="q.length >= 2"></div>
-      </div>
-      <div class="w-24">
-        <label class="field-label" for="pos-qty">Qty</label>
-        <input id="pos-qty" name="quantity" type="number" min="1" value="1" class="input mt-1.5">
-      </div>
-      <div class="w-48">
-        <label class="field-label" for="pos-qty-unit">Sold as</label>
-        <select id="pos-qty-unit" name="qty_unit" class="select mt-1.5">
-          <option value="unit">Loose units</option>
-          <option value="pack">Full packs (strip, box)</option>
-        </select>
-      </div>
-      <button class="btn btn-primary">{% icon "plus" "h-4 w-4" %} Add</button>
-    </form>
-  </section>
+     @keydown.f6.window.prevent="window.location = '{% url 'pharmacy:pos-held' %}'"
+     @keydown.f7.window.prevent="returning = !returning; document.getElementById('pos-return-flag').value = returning ? '1' : ''; document.getElementById('pos-search')?.focus()"
+     @keydown.f8.window.prevent="(document.getElementById('pos-pay-submit') || document.getElementById('pos-pay'))?.click()"
+     @keydown.f9.window.prevent="$dispatch('pos-customer')">
+  <p x-show="returning" x-cloak class="mb-3 rounded-control bg-amber-soft p-3 font-semibold" role="status">Return mode: what you enter now comes back into stock. F7 goes back to selling.</p>
   {% include "pharmacy/pos/_cart.html" %}
-  <p class="mt-4 text-label text-muted">Shortcuts: F2 search · F4 hold · F8 take payment. Availability is checked again when you take payment; expired batches are never sold.</p>
+  <p class="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-label text-muted" aria-label="Keyboard shortcuts">
+    <span><kbd class="font-mono font-semibold text-ink">↓</kbd> pick from list</span>
+    <span><kbd class="font-mono font-semibold text-ink">↑</kbd> last row's quantity</span>
+    <span>On a row <kbd class="font-mono font-semibold text-ink">U P B</kbd> single, pack, box</span>
+    <span><kbd class="font-mono font-semibold text-ink">F7</kbd> return</span>
+  </p>
 </div>
 {% endblock %}

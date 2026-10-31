@@ -14,6 +14,11 @@ from django.db.models import Q
 from django.urls import reverse
 
 from apps.core.scoping import scoped
+from apps.patients.services import (
+    limit_records_to_own_patients,
+    limit_to_own_patients,
+    own_doctor_only,
+)
 
 MIN_LENGTH = 2
 LAB_VIEW = (
@@ -66,7 +71,9 @@ def _patients(request, q, limit):
     from apps.patients.models import Patient
     from apps.patients.services import search_patients
 
-    results, _ = search_patients(scoped(Patient, request).filter(is_active=True), q)
+    results, _ = search_patients(
+        limit_to_own_patients(scoped(Patient, request), request).filter(is_active=True), q
+    )
     return [
         Hit(
             title=p.full_name,
@@ -101,6 +108,8 @@ def _appointments(request, q, limit):
     from apps.appointments.models import Appointment
 
     qs = scoped(Appointment, request).filter(Q(number__icontains=q) | _patient_q(q))
+    if own := own_doctor_only(request):
+        qs = qs.filter(doctor=own)
     return [
         Hit(
             title=f"{a.number} · {a.patient.full_name}",
@@ -121,6 +130,7 @@ def _lab_orders(request, q, limit):
     qs = scoped(LabOrder, request).filter(
         Q(number__icontains=q) | Q(samples__accession__iexact=q) | _patient_q(q)
     )
+    qs = limit_records_to_own_patients(qs, request)
     return [
         Hit(
             title=f"{o.number} · {o.patient.full_name}",

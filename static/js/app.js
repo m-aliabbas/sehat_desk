@@ -160,3 +160,186 @@ document.addEventListener("submit", (event) => {
     report(r.name || "UnhandledRejection", r.message || String(e.reason), "", "", "");
   });
 })();
+
+// ---- Searchable dropdowns -------------------------------------------------------
+// Any <select class="select"> with several options becomes a type-to-search box. The real select
+// stays in the form, hidden, so posting, htmx, Alpine and onchange all work unchanged.
+// Add data-native to keep a plain dropdown.
+(() => {
+  const MIN_OPTIONS = 6;
+
+  function enhance(select) {
+    if (select.dataset.sdSearch || select.hasAttribute("data-native") || select.multiple) return;
+    if (select.options.length < MIN_OPTIONS && !select.hasAttribute("data-searchable")) return;
+    select.dataset.sdSearch = "1";
+
+    const box = document.createElement("div");
+    box.className = "relative";
+    const input = document.createElement("input");
+    input.type = "text";
+    input.className = select.className.replace(/\bselect\b/, "input");
+    input.autocomplete = "off";
+    input.setAttribute("role", "combobox");
+    input.setAttribute("aria-expanded", "false");
+    const label = select.id && document.querySelector(`label[for="${CSS.escape(select.id)}"]`);
+    input.setAttribute(
+      "aria-label",
+      (label && label.textContent.trim()) || select.getAttribute("aria-label") || "Search"
+    );
+    if (select.id) {
+      if (label) label.setAttribute("for", `${select.id}-search`);
+      input.id = `${select.id}-search`;
+    }
+    const list = document.createElement("ul");
+    list.setAttribute("role", "listbox");
+    list.className =
+      "absolute z-30 mt-1 max-h-64 w-full min-w-[14rem] overflow-y-auto rounded-card border border-line bg-white shadow-lg";
+    list.hidden = true;
+
+    select.after(box);
+    box.append(input, list);
+    box.append(select);
+    select.hidden = true;
+    select.tabIndex = -1;
+    select.required = false; // a hidden field cannot show the browser's message; the server checks
+
+    let active = -1;
+    let shown = [];
+    let creating = "";
+    const current = () => select.options[select.selectedIndex];
+    const showCurrent = () => {
+      const opt = current();
+      input.value = opt && opt.value ? opt.textContent.trim() : "";
+      input.placeholder = opt && !opt.value ? opt.textContent.trim() : "Type to search…";
+    };
+    const close = () => {
+      list.hidden = true;
+      input.setAttribute("aria-expanded", "false");
+      showCurrent();
+    };
+    const mark = () => {
+      [...list.children].forEach((li, i) => {
+        li.setAttribute("aria-selected", i === active ? "true" : "false");
+        li.classList.toggle("bg-mint", i === active);
+      });
+      if (list.children[active]) list.children[active].scrollIntoView({ block: "nearest" });
+    };
+    const render = (query) => {
+      const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+      shown = [...select.options].filter((o) => {
+        const text = o.textContent.toLowerCase();
+        return !o.disabled && words.every((w) => text.includes(w));
+      });
+      list.replaceChildren(
+        ...shown.slice(0, 100).map((o, i) => {
+          const li = document.createElement("li");
+          li.setAttribute("role", "option");
+          li.className = "cursor-pointer px-3 py-2 text-body hover:bg-mint";
+          li.textContent = o.textContent.trim();
+          li.addEventListener("mousedown", (e) => {
+            e.preventDefault();
+            choose(i);
+          });
+          return li;
+        })
+      );
+      if (!shown.length) {
+        const li = document.createElement("li");
+        li.className = "px-3 py-2 text-label text-muted";
+        li.textContent = "No match";
+        list.append(li);
+      }
+      creating = "";
+      const typed = query.trim();
+      const exact = shown.some((o) => o.textContent.trim().toLowerCase() === typed.toLowerCase());
+      if (select.dataset.createUrl && typed.length >= 2 && !exact) {
+        creating = typed;
+        const li = document.createElement("li");
+        li.setAttribute("role", "option");
+        li.className = "cursor-pointer border-t border-line px-3 py-2 text-body font-medium text-teal-deep hover:bg-mint";
+        li.textContent = `+ Add "${typed}"`;
+        li.addEventListener("mousedown", (e) => {
+          e.preventDefault();
+          create();
+        });
+        list.querySelector("li:not([role])")?.remove();
+        list.append(li);
+      }
+      active = shown.length ? 0 : -1;
+      list.hidden = false;
+      input.setAttribute("aria-expanded", "true");
+      mark();
+    };
+    const moveOn = () => {
+      if (select.dataset.next) document.querySelector(select.dataset.next)?.focus();
+    };
+    const choose = (i) => {
+      const opt = shown[i];
+      if (!opt) return;
+      const changed = select.value !== opt.value;
+      select.value = opt.value;
+      close();
+      if (changed) select.dispatchEvent(new Event("change", { bubbles: true }));
+      moveOn();
+    };
+    const create = async () => {
+      const token = document.querySelector("[name=csrfmiddlewaretoken]");
+      const response = await fetch(select.dataset.createUrl, {
+        method: "POST",
+        body: new URLSearchParams({ name: creating, csrfmiddlewaretoken: token ? token.value : "" }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        window.dispatchEvent(new CustomEvent("toast", { detail: { level: "danger", message: data.error } }));
+        return;
+      }
+      select.add(new Option(data.name, data.id, true, true));
+      close();
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+      moveOn();
+    };
+
+    input.addEventListener("focus", () => {
+      input.select();
+      render("");
+    });
+    input.addEventListener("input", () => render(input.value));
+    input.addEventListener("blur", close);
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault();
+        if (list.hidden) render("");
+        const last = Math.min(shown.length, 100) - 1;
+        active = e.key === "ArrowDown" ? Math.min(active + 1, last) : Math.max(active - 1, 0);
+        mark();
+      } else if (e.key === "Enter" && !list.hidden) {
+        e.preventDefault();
+        if (active < 0 && creating) create();
+        else choose(active);
+      } else if (e.key === "Escape" && !list.hidden) {
+        e.stopPropagation();
+        close();
+      }
+    });
+    // Options or value changed by htmx or Alpine: keep the visible text right.
+    select.addEventListener("change", showCurrent);
+    new MutationObserver(showCurrent).observe(select, { childList: true });
+    showCurrent();
+    if (select.hasAttribute("data-autofocus")) input.focus();
+  }
+
+  function scan(root) {
+    if (root.matches && root.matches("select.select")) enhance(root);
+    if (root.querySelectorAll) root.querySelectorAll("select.select").forEach(enhance);
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    // Alpine fills x-model selects after load, so give it a tick before the first scan.
+    setTimeout(() => {
+      scan(document.body);
+      new MutationObserver((changes) => {
+        changes.forEach((c) => c.addedNodes.forEach(scan));
+      }).observe(document.body, { childList: true, subtree: true });
+    }, 0);
+  });
+})();

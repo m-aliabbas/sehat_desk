@@ -7,6 +7,7 @@ app_name = "finance"
 urlpatterns = [
     path("finance/", views.dashboard, name="dashboard"),
     path("finance/pnl/", views.pnl, name="pnl"),
+    path("finance/pnl/breakdown/", views.pnl_breakdown, name="pnl-breakdown"),
     path("finance/ledger/", views.ledger, name="ledger"),
     path("finance/ledger/doctors/", views.ledger_doctors, name="ledger-doctors"),
     path("finance/expenses/", views.expense_list, name="expense-list"),

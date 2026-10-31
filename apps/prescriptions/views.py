@@ -14,6 +14,7 @@ from apps.audit import services as audit
 from apps.core.scoping import get_scoped_or_404, scoped
 from apps.encounters import services as encounter_services
 from apps.encounters.models import Encounter
+from apps.patients.services import limit_records_to_own_patients
 
 from . import services
 from .forms import MedicineForm, PrescriptionItemForm
@@ -65,9 +66,8 @@ def panel_context(request, encounter, *, form=None, error="", conflict=None):
 
 
 def _get_encounter(request, pk):
-    return get_scoped_or_404(
-        Encounter.objects.select_related("patient", "doctor__user"), request, pk=pk
-    )
+    encounters = Encounter.objects.select_related("patient", "doctor__user")
+    return get_scoped_or_404(limit_records_to_own_patients(encounters, request), request, pk=pk)
 
 
 def _reply(request, encounter, **kwargs):
@@ -208,7 +208,12 @@ def copy_previous(request, pk, rx_pk):
     source = get_scoped_or_404(
         Prescription.objects.filter(patient=encounter.patient), request, all_branches=True, pk=rx_pk
     )
-    return _copy(request, encounter, [i.copy_fields() for i in source.items.all()], source.number)
+    return _copy(
+        request,
+        encounter,
+        [i.copy_fields() for i in source.items.filter(added_at_pharmacy=False)],
+        source.number,
+    )
 
 
 def _copy(request, encounter, items, source_label):
@@ -241,7 +246,9 @@ def _copy(request, encounter, items, source_label):
 @require_POST
 @permission_required(WRITE)
 def send(request, pk):
-    rx = get_scoped_or_404(Prescription, request, pk=pk)
+    rx = get_scoped_or_404(
+        limit_records_to_own_patients(Prescription.objects.all(), request), request, pk=pk
+    )
     try:
         services.send_to_pharmacy(rx, request=request)
     except services.PrescriptionError as err:
@@ -261,7 +268,7 @@ def print_rx(request, pk):
     if not _can_view_rx(request):
         raise PermissionDenied
     rx = get_scoped_or_404(
-        Prescription.objects.select_related(
+        limit_records_to_own_patients(Prescription.objects.all(), request).select_related(
             "patient",
             "doctor__user",
             "doctor__department",
@@ -282,10 +289,10 @@ def print_rx(request, pk):
             "rx": rx,
             "items": rx.items.all(),
             "patient": rx.patient,
-            "diagnoses": encounter.diagnoses.select_related("code"),
+            "diagnoses": encounter.diagnoses.select_related("code") if encounter else [],
             "encounter": encounter,
             "allergies": rx.patient.allergies.filter(entered_in_error=False),
-            "vitals": _visit_vitals(request, encounter),
+            "vitals": _visit_vitals(request, encounter) if encounter else [],
         },
     )
 

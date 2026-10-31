@@ -36,6 +36,9 @@ openpyxl>=3.1,<4.0
 # Backup encryption (AES-256-GCM). Prebuilt wheels for Windows and macOS.
 cryptography>=43.0,<47.0
 
+# Google Drive backups (apps/core/gdrive.py)
+PyDrive2>=1.20,<2.0
+
 # LAN discovery so the app is reachable as sehatdesk.local
 zeroconf>=0.132,<1.0
 

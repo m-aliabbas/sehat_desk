@@ -120,6 +120,12 @@
       disabled:bg-page disabled:text-muted aria-invalid:border-red aria-invalid:ring-red/20;
   }
   textarea.input { @apply h-auto min-h-24 py-2; }
+  /* Spinner arrows hide the digits in small boxes and nobody clicks them at a counter. */
+  input[type="number"].input { appearance: textfield; -moz-appearance: textfield; }
+  input[type="number"].input::-webkit-inner-spin-button,
+  input[type="number"].input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+  .table td .input, .table td .select { @apply h-9 px-2; }
+  .table td .select { @apply pr-7; background-position: right 0.4rem center; }
   .select {
     @apply appearance-none bg-no-repeat pr-9;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%2373869E' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");

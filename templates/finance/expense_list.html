@@ -3,7 +3,7 @@
 {% block title %}Expenses{% endblock %}
 {% block page_title %}Expenses{% endblock %}
 {% block page_subtitle %}Running costs by category and segment. Voided expenses stay on record but are not counted.{% endblock %}
-{% block page_actions %}{% if can_expense %}<a href="{% url 'finance:category-list' %}" class="btn btn-secondary">Categories</a><a href="{% url 'finance:expense-create' %}" class="btn btn-primary">{% icon "plus" "h-4 w-4" %} Record expense</a>{% endif %}{% endblock %}
+{% block page_actions %}{% if "finance.view" in sd_perms %}<a href="{% url 'finance:expense-list' %}{% querystring export='pdf' %}" class="btn btn-secondary">Download PDF</a> {% endif %}{% if can_expense %}<a href="{% url 'finance:category-list' %}" class="btn btn-secondary">Categories</a><a href="{% url 'finance:expense-create' %}" class="btn btn-primary">{% icon "plus" "h-4 w-4" %} Record expense</a>{% endif %}{% endblock %}
 {% block content %}
 {% include "finance/_tabs.html" with fin_tab="expenses" %}
 {% include "finance/_period.html" %}

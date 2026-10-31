@@ -3,6 +3,7 @@
 {% block title %}Receipt {{ sale.number }}{% endblock %}
 {% block print_label %}Print receipt{% endblock %}
 {% block document %}
+    {% if auto_print %}<script>window.addEventListener("load", () => window.print());</script>{% endif %}
     {% include "print/_thermal_header.html" with org=request.organization branch=sale.branch unit="Pharmacy" doc_title="Sale receipt" %}
     <dl class="space-y-1 text-label">
       <div class="flex justify-between"><dt>Sale</dt><dd class="font-mono">{{ sale.number }}</dd></div>

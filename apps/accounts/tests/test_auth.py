@@ -148,9 +148,9 @@ def test_htmx_request_after_timeout_redirects_whole_page(client, admin_user):
 def test_deactivated_user_session_ends_immediately(client, make_user):
     user = make_user("reception")
     client.force_login(user)
-    assert client.get("/").status_code == 200
+    assert client.get("/?view=overview").status_code == 200
     User.objects.filter(pk=user.pk).update(is_active=False)
-    assert client.get("/").status_code == 302
+    assert client.get("/?view=overview").status_code == 302
 
 
 def test_deactivated_organization_blocks_its_users(client, make_user, org):
@@ -193,10 +193,10 @@ def test_branch_scoped_role_only_applies_in_that_branch(client, make_user, branc
     doctor_role = org.roles.get(system_key="doctor")
     RoleAssignment.objects.create(user=user, role=doctor_role, branch=branch2)
     client.force_login(user)
-    perms = client.get("/").context["sd_perms"]
+    perms = client.get("/?view=overview").context["sd_perms"]
     assert "queue.manage" in perms and "consultation.sign" not in perms
     client.post("/workspace/switch/", {"branch": branch2.pk})
-    perms = client.get("/").context["sd_perms"]
+    perms = client.get("/?view=overview").context["sd_perms"]
     assert "consultation.sign" in perms and "queue.manage" not in perms
 
 
@@ -214,7 +214,7 @@ def test_switch_branch_ignores_external_next_url(client, make_user, branch2):
 def test_forced_password_change_blocks_other_pages(client, make_user):
     user = make_user("reception", must_change_password=True)
     client.force_login(user)
-    assert client.get("/").url == reverse("accounts:password-change")
+    assert client.get("/?view=overview").url == reverse("accounts:password-change")
     response = client.post(
         "/accounts/password/change/",
         {
@@ -226,7 +226,7 @@ def test_forced_password_change_blocks_other_pages(client, make_user):
     assert response.status_code == 302
     user.refresh_from_db()
     assert not user.must_change_password
-    assert client.get("/").status_code == 200  # session kept after change
+    assert client.get("/?view=overview").status_code == 200  # session kept after change
 
 
 def test_forgot_password_without_email_explains_admin_reset(client, admin_user):

@@ -1,0 +1,64 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}Add products{% endblock %}
+{% block page_title %}Add products{% endblock %}
+{% block page_subtitle %}One line per product. Enter moves to the next box and starts a new line. F8 saves.{% endblock %}
+{% block page_actions %}<a href="{% url 'pharmacy:product-create' %}" class="btn btn-ghost">Full form</a><a href="{% url 'pharmacy:uom' %}" class="btn btn-secondary">UoM</a><a href="{% url 'pharmacy:categories' %}" class="btn btn-secondary">Categories &amp; tax</a>{% endblock %}
+{% block content %}
+{% field_rule "product.tax" as tax_rule %}
+{{ category_defaults|json_script:"category-defaults" }}
+{{ rows|json_script:"bulk-rows" }}
+{{ packing_presets|json_script:"packing-presets-data" }}
+{% include "pharmacy/_packing_list.html" %}
+<form method="post" novalidate class="card" x-ref="form" @keydown.f8.window.prevent="$refs.form.requestSubmit()" x-data="{
+    defaults: JSON.parse(document.getElementById('category-defaults').textContent),
+    presets: JSON.parse(document.getElementById('packing-presets-data').textContent),
+    rows: [],
+    blank() { const last = this.rows[this.rows.length - 2]; return { brand_name: '', generic_name: '', category: last ? last.category : '', unit: last ? last.unit : 'tablet', pack_unit: last ? last.pack_unit : 'strip', pack_size: last ? last.pack_size : '10', box_unit: last ? last.box_unit : 'box', packs_per_box: last ? last.packs_per_box : '', pack_cost: '', pack_price: '', tax_percent: {{ request.organization.preferences.default_sale_tax_percent|floatformat:'-2' }}, reorder_packs: '', barcode: '', error: '' }; },
+    grow() { const last = this.rows[this.rows.length - 1]; if (!last || last.brand_name.trim()) this.rows.push(this.blank()); },
+    pickCategory(r) { const c = this.defaults[r.category]; if (c && Number(c.tax) > 0) r.tax_percent = c.tax; },
+    level(r) { return Number(r.packs_per_box) > 1 && Number(r.pack_size) > 1 ? 'box' : Number(r.pack_size) > 1 ? 'pack' : Number(r.packs_per_box) > 1 ? 'box' : 'unit'; },
+    topName(r) { const l = this.level(r); return (l === 'box' ? r.box_unit : l === 'pack' ? r.pack_unit : r.unit) || 'unit'; },
+    units(r) { return Math.max(Number(r.pack_size) || 1, 1) * Math.max(Number(r.packs_per_box) || 1, 1); },
+    perUnit(r) { if (!r.pack_price || this.units(r) === 1) return ''; return (Number(r.pack_price) / this.units(r)).toFixed(2) + ' per ' + (r.unit || 'unit'); },
+    use(r, p) { r.unit = p.unit; r.pack_unit = p.pack_unit; r.pack_size = String(p.pack_size); r.box_unit = p.box_unit; r.packs_per_box = p.packs_per_box > 1 ? String(p.packs_per_box) : ''; },
+    next(event) { event.preventDefault(); this.$nextTick(() => { const boxes = [...this.$refs.form.querySelectorAll('tbody input:not([type=hidden]), tbody select')]; boxes[boxes.indexOf(event.target) + 1]?.focus(); }); },
+    init() { this.rows = JSON.parse(document.getElementById('bulk-rows').textContent).map(r => ({ ...r, pack_size: r.pack_size || '1' })); this.grow(); this.$watch('rows', () => this.grow()); this.$nextTick(() => this.$refs.form.querySelector('tbody input')?.focus()); },
+  }" @keydown.enter="if ($event.target.closest('tbody')) next($event)">
+  {% csrf_token %}
+  <div class="table-wrap">
+  <table class="table table-fixed text-label [&_td]:px-1 [&_th]:px-1" style="min-width: 77rem">
+    <colgroup><col style="width: 11rem"><col style="width: 8rem"><col style="width: 7.5rem"><col style="width: 5.5rem"><col style="width: 5rem"><col style="width: 3.5rem"><col style="width: 5rem"><col style="width: 3.5rem"><col style="width: 5.75rem"><col style="width: 5.75rem">{% if tax_rule != "hidden" %}<col style="width: 4rem">{% endif %}<col style="width: 4rem"><col style="width: 7rem"><col style="width: 2rem"></colgroup>
+    <thead>
+      <tr><th scope="col">Name and strength</th><th scope="col">Generic</th><th scope="col">Category</th><th scope="col">Smallest unit</th><th scope="col">Pack</th><th scope="col">Holds</th><th scope="col">Bigger pack</th><th scope="col">Holds</th><th scope="col">Buy price</th><th scope="col">Sell price</th>{% if tax_rule != "hidden" %}<th scope="col">Tax %</th>{% endif %}<th scope="col" title="How many packs left before it shows as low stock">Reorder</th><th scope="col">Barcode</th><th scope="col"><span class="sr-only">Remove</span></th></tr>
+    </thead>
+    <tbody>
+      <template x-for="(r, i) in rows" :key="i">
+        <tr class="align-top">
+          <td><input name="brand_name" class="input" autocomplete="off" placeholder="Panadol 500 mg" x-model="r.brand_name" aria-label="Name and strength"><p class="field-error" x-show="r.error" x-text="r.error"></p></td>
+          <td><input name="generic_name" class="input" autocomplete="off" x-model="r.generic_name" aria-label="Generic"></td>
+          <td><select name="category" data-native class="select" x-model="r.category" @change="pickCategory(r)" aria-label="Category"><option value="">—</option>{% for c in categories %}<option value="{{ c.pk }}">{{ c.name }}</option>{% endfor %}</select></td>
+          <td><input name="unit" list="unit-names" class="input" autocomplete="off" x-model="r.unit" aria-label="Smallest unit sold"></td>
+          <td><input name="pack_unit" list="pack-names" class="input" autocomplete="off" x-model="r.pack_unit" aria-label="What a pack is called"></td>
+          <td><input name="pack_size" type="number" min="1" class="input" autocomplete="off" x-model="r.pack_size" @focus="$el.select()" aria-label="How many smallest units in a pack"></td>
+          <td><input name="box_unit" list="pack-names" class="input" autocomplete="off" x-model="r.box_unit" tabindex="-1" aria-label="What the bigger pack is called"></td>
+          <td><input name="packs_per_box" type="number" min="1" class="input" autocomplete="off" placeholder="—" x-model="r.packs_per_box" aria-label="How many packs in the bigger pack"></td>
+          <td><input name="pack_cost" type="number" min="0" step="0.01" class="input" autocomplete="off" x-model="r.pack_cost" :aria-label="'Buy price of one ' + topName(r)"><p class="mt-1 text-[11px] whitespace-nowrap text-muted" x-text="'per ' + topName(r)"></p></td>
+          <td><input name="pack_price" type="number" min="0" step="0.01" class="input" autocomplete="off" x-model="r.pack_price" :aria-label="'Sell price of one ' + topName(r)"><input type="hidden" name="price_per" :value="level(r)"><p class="mt-1 text-[11px] whitespace-nowrap text-muted" x-text="perUnit(r) || 'per ' + topName(r)"></p></td>
+          {% if tax_rule != "hidden" %}<td><input name="tax_percent" type="number" min="0" step="0.01" class="input" autocomplete="off" x-model="r.tax_percent" aria-label="Tax percent"></td>{% else %}<input type="hidden" name="tax_percent" :value="r.tax_percent">{% endif %}
+          <td><input name="reorder_packs" type="number" min="0" class="input" autocomplete="off" x-model="r.reorder_packs" aria-label="Reorder when this many packs are left"></td>
+          <td><input name="barcode" class="input" autocomplete="off" x-model="r.barcode" aria-label="Barcode" placeholder="Auto"></td>
+          <td><button type="button" tabindex="-1" class="btn btn-ghost btn-icon btn-sm text-red" aria-label="Remove line" x-show="rows.length > 1 && r.brand_name" @click="rows.splice(i, 1)">{% icon "trash" "h-4 w-4" %}</button></td>
+        </tr>
+      </template>
+    </tbody>
+  </table>
+  </div>
+  <input type="hidden" name="add_to_medicines" value="1">
+  <div class="mt-4 flex flex-wrap items-center gap-3">
+    <button class="btn btn-primary">Save all (F8)</button>
+    <a href="{% url 'pharmacy:product-list' %}" class="btn btn-close">Cancel</a>
+    <p class="text-label text-muted">Each new line starts with the packing above it. Prices are for the biggest size on the line. Lines with a generic name also go on the doctors' medicine list.</p>
+  </div>
+</form>
+{% endblock %}

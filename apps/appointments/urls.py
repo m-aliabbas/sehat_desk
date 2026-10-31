@@ -5,6 +5,10 @@ from . import views
 app_name = "appointments"
 
 urlpatterns = [
+    path("visit/", views.visit_new, name="visit-new"),
+    path("<int:pk>/papers/", views.papers, name="papers"),
+    path("<int:pk>/collect/", views.collect, name="collect"),
+    path("<int:pk>/arrive/", views.arrive, name="arrive"),
     path("", views.calendar, name="calendar"),
     path("list/", views.appointment_list, name="list"),
     path("book/", views.book, name="book"),

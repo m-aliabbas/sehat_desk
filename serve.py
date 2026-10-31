@@ -29,6 +29,22 @@ def _backup_loop(hours: float):
         time.sleep(3600)
 
 
+def run(host: str, port: int, threads: int = 8):
+    """Start the background workers and serve. Blocks. The Windows launcher calls this too."""
+    from django.conf import settings
+
+    from apps.core import gdrive
+    from config.wsgi import application
+
+    if settings.SEHATDESK_BACKUP_HOURS > 0:
+        threading.Thread(
+            target=_backup_loop, args=(settings.SEHATDESK_BACKUP_HOURS,), daemon=True
+        ).start()
+    if settings.SEHATDESK_GDRIVE_TIMES:
+        threading.Thread(target=gdrive.worker_loop, daemon=True).start()
+    serve(application, host=host, port=port, threads=threads)
+
+
 def main():
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
 
@@ -40,15 +56,7 @@ def main():
     parser.add_argument("--threads", type=int, default=8)
     args = parser.parse_args()
 
-    from django.conf import settings
-
-    from config.wsgi import application
-
-    if settings.SEHATDESK_BACKUP_HOURS > 0:
-        threading.Thread(
-            target=_backup_loop, args=(settings.SEHATDESK_BACKUP_HOURS,), daemon=True
-        ).start()
-    serve(application, host=args.host, port=args.port, threads=args.threads)
+    run(args.host, args.port, args.threads)
 
 
 if __name__ == "__main__":

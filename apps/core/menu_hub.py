@@ -21,6 +21,7 @@ class HubLink:
     url_name: str
     permissions: tuple[str, ...]
     query: str = ""
+    args: tuple = ()
     feature: str | None = None
     locked_if_denied: bool = False
 
@@ -28,8 +29,31 @@ class HubLink:
 LAB_DESK = ("lab.order.create", "lab.sample.collect", "lab.result.enter", "lab.result.verify")
 MASTERDATA = ("admin.masterdata.manage",)
 INVENTORY = ("pharmacy.inventory.manage",)
+FINANCIAL = ("reports.financial.view",)
+SUPPLIER_BOOKS = (*FINANCIAL, *INVENTORY)
 
 HUB_GROUPS: list[tuple[str, str, str, list[HubLink]]] = [
+    (
+        "Reports",
+        "file",
+        "purple",
+        [
+            HubLink("Daily sale and purchase", "Both side by side, day by day", "file",
+                    "reports:report", FINANCIAL, args=("daily-sale-purchase",)),
+            HubLink("Daily sales", "Pharmacy sales and hospital bills", "file",
+                    "reports:report", FINANCIAL, args=("daily-sales",)),
+            HubLink("Daily purchases", "Supplier bills, returns and payments", "file",
+                    "reports:report", SUPPLIER_BOOKS, args=("daily-purchases",)),
+            HubLink("Supplier ledger", "Khata of each supplier", "building",
+                    "reports:report", SUPPLIER_BOOKS, args=("supplier-statement",)),
+            HubLink("Supplier balances", "What is owed to each supplier", "building",
+                    "reports:report", SUPPLIER_BOOKS, args=("supplier-balances",)),
+            HubLink("Profit and loss", "Income, costs and profit by date", "file",
+                    "reports:report", FINANCIAL, args=("profit-and-loss",)),
+            HubLink("All reports", "Every report, with Excel and PDF export", "file",
+                    "reports:hub", ("reports.view", *SUPPLIER_BOOKS)),
+        ],
+    ),
     (
         "HR & accounts",
         "users",
@@ -76,8 +100,18 @@ HUB_GROUPS: list[tuple[str, str, str, list[HubLink]]] = [
                     "pharmacy:dashboard", (*INVENTORY, "pharmacy.sale"), feature="pharmacy"),
             HubLink("Products", "Items, packs and reorder levels", "clipboard",
                     "pharmacy:product-list", INVENTORY, feature="pharmacy"),
+            HubLink("Add many products", "Scan or type a whole list at once", "plus",
+                    "pharmacy:product-bulk", INVENTORY, feature="pharmacy"),
+            HubLink("Units of measure", "Packing suggested when adding products", "clipboard",
+                    "pharmacy:uom", INVENTORY, feature="pharmacy"),
+            HubLink("Barcodes", "Generate for existing products, print labels", "clipboard",
+                    "pharmacy:barcodes", INVENTORY, feature="pharmacy"),
+            HubLink("Categories & tax", "Tax and prescription defaults", "clipboard",
+                    "pharmacy:categories", INVENTORY, feature="pharmacy"),
             HubLink("Purchases", "Purchase orders and receiving", "inbox",
                     "pharmacy:purchase-list", INVENTORY, feature="pharmacy"),
+            HubLink("Automatic reorder", "Low stock into draft orders by supplier", "inbox",
+                    "pharmacy:purchase-auto", INVENTORY, feature="pharmacy"),
             HubLink("Suppliers", "Vendors and contacts", "building", "pharmacy:vendor-list",
                     INVENTORY, feature="pharmacy"),
         ],
@@ -119,12 +153,24 @@ HUB_GROUPS: list[tuple[str, str, str, list[HubLink]]] = [
         "flask",
         "yellow",
         [
+            HubLink("Available lab tests", "Tests, packages, prices and timing", "flask",
+                    "lab:tests", ("queue.manage", "consultation.view", "lab.order.create"),
+                    feature="lab"),
             HubLink("Tests, fees & reference values", "See and edit every test", "flask",
                     "lab:catalog", ("lab.catalog.manage",), feature="lab"),
             HubLink("Add new test", "Fee, unit and reference ranges", "plus", "lab:test-create",
                     ("lab.catalog.manage",), feature="lab"),
             HubLink("Add test panel", "Group tests at one price", "plus", "lab:panel-create",
                     ("lab.catalog.manage",), feature="lab"),
+        ],
+    ),
+    (
+        "System",
+        "sliders",
+        "blue",
+        [
+            HubLink("Backup and restore", "Google Drive backup, restore from a file", "sliders",
+                    "core:backups", ("admin.organization.manage",)),
         ],
     ),
 ]  # fmt: skip
@@ -145,7 +191,7 @@ def build_hub(request) -> list[dict]:
                 continue
             url = None
             if allowed:
-                url = reverse(link.url_name)
+                url = reverse(link.url_name, args=link.args)
                 if link.query:
                     url = f"{url}?{link.query}"
             tiles.append(

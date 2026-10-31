@@ -10,7 +10,7 @@ from django.views.decorators.http import require_GET, require_POST
 
 from apps.accounts.decorators import has_perm, permission_required
 from apps.audit import services as audit
-from apps.core.scoping import get_scoped_or_404, scoped
+from apps.core.scoping import scoped
 
 from . import services
 from .forms import AllergyForm, IdentifierForm, MarkErrorForm, PatientForm
@@ -37,11 +37,11 @@ PROFILE_TABS = [
 
 
 def _patients(request):
-    return scoped(Patient, request)
+    return services.limit_to_own_patients(scoped(Patient, request), request)
 
 
 def _get_patient(request, pk):
-    return get_scoped_or_404(Patient, request, pk=pk)
+    return get_object_or_404(_patients(request), pk=pk)
 
 
 def _crumbs(*extra):
@@ -164,6 +164,8 @@ def patient_detail(request, pk):
         .select_related("doctor__user", "department", "branch")
         .order_by("-date", "-start_time")
     )
+    if own := services.own_doctor_only(request):
+        appointments = appointments.filter(doctor=own)
     ctx = {
         "patient": patient,
         "tab": tab,
@@ -194,6 +196,18 @@ def patient_detail(request, pk):
         from apps.encounters.services import diagnosis_history
 
         ctx["diagnosis_history"] = diagnosis_history(patient, request.organization)[:10]
+    if tab == "overview":
+        from apps.pharmacy.models import PharmacySaleItem
+
+        ctx["medicines_bought"] = (
+            PharmacySaleItem.objects.filter(
+                sale__organization=request.organization,
+                sale__patient=patient,
+                sale__status="completed",
+            )
+            .select_related("product", "sale__prescription", "prescription_item")
+            .order_by("-sale__completed_at")[:15]
+        )
     ctx["can_see_rx"] = has_perm(request, "consultation.view") or has_perm(request, "pharmacy.sale")
     if ctx["can_see_rx"] and tab == "prescriptions":
         from apps.prescriptions.models import Prescription

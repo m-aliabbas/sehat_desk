@@ -8,6 +8,14 @@ Settings → Hospital, Branches and Preferences. PROJECT_NOTES §9, §18.
   `preferences_for(org)` (module switches, slot length, near-expiry days, reorder default).
 - `views.py` — settings home, module switches (shown on `core:menu`), hospital form, preferences, branch list/create/edit/toggle.
 
+## Fields and tax
+`field_rules.py`: per-hospital hidden/optional/required rules (default optional) and default tax rates,
+screen `field-rules`. Add a key to `FIELDS` and enforce it in the service or form that saves the field.
+
+## Print layouts
+`PrintLayout` (one per organization + document), `print_layout_for`, screen `print-layouts`. Templates
+use `{% print_layout "invoice" as L %}{% include "print/_layout_css.html" %}`.
+
 ## Rules
 - Every business record belongs to exactly one organization.
 - Preference fields named `feature_<key>` drive `apps/core/features.py`.

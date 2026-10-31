@@ -8,6 +8,7 @@ from django.contrib import messages
 from django.db.models import Q, Sum
 from django.http import HttpResponse
 from django.shortcuts import redirect, render
+from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST
@@ -16,9 +17,10 @@ from apps.accounts.decorators import has_perm, permission_required
 from apps.accounts.services import accessible_branches, effective_permissions
 from apps.audit import services as audit
 from apps.billing.models import ZERO
+from apps.core.pdf import weasyprint_html
 from apps.core.scoping import get_scoped_or_404, paginate, scoped
 
-from . import segments, services, statements
+from . import breakdown, segments, services, statements
 from .forms import CategoryForm, ExpenseForm, SupplierPaymentForm, VoidForm
 from .models import Expense, ExpenseCategory
 
@@ -92,6 +94,22 @@ def _csv(filename, header, rows):
     return response
 
 
+def _pdf(request, p, title, filename, tables, cards=()):
+    """Download an A4 PDF of these tables; without WeasyPrint's libraries, the print page."""
+    audit.record(request, "report.export", summary=f"{title} PDF {p['first']}–{p['last']}")
+    context = {**p, "title": title, "tables": tables, "cards": cards, "now": timezone.now()}
+    HTML = weasyprint_html()
+    if HTML is None:
+        return render(request, "finance/print.html", {**context, "pdf_unavailable": True})
+    html = render_to_string("finance/print.html", context, request=request)
+    response = HttpResponse(
+        HTML(string=html, base_url=request.build_absolute_uri("/")).write_pdf(),
+        content_type="application/pdf",
+    )
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response
+
+
 # --- Dashboard and statements ------------------------------------------------------------------
 
 
@@ -146,10 +164,47 @@ def pnl(request):
         rows.append(line("Total costs", st.costs))
         rows.append(line("Net profit", st.profit))
         return _csv(f"pnl-{p['first']}-{p['last']}.csv", header, rows)
+    if request.GET.get("export") == "pdf":
+        return _pdf(
+            request,
+            p,
+            "Profit & loss",
+            f"pnl-{p['first']}-{p['last']}.pdf",
+            [breakdown.pnl_table(st)],
+            breakdown.pnl_cards(st),
+        )
     return render(
         request,
         "finance/pnl.html",
         {**p, "st": st, "segments": segments.SEGMENTS, "breadcrumbs": _crumbs({"label": "P&L"})},
+    )
+
+
+@require_GET
+@permission_required(VIEW)
+def pnl_breakdown(request):
+    """Profit & loss per vendor, product, category, doctor or staff member."""
+    p = period(request)
+    by = request.GET.get("by")
+    by = by if by in breakdown.BUILDERS else "product"
+    table = breakdown.BUILDERS[by](request.organization, p["branches"], p["first"], p["last"])
+    name = f"pnl-by-{by}-{p['first']}-{p['last']}"
+    if request.GET.get("export") == "csv":
+        audit.record(request, "report.export", summary=f"{table.title} {p['first']}–{p['last']}")
+        return _csv(f"{name}.csv", table.header(), table.csv_rows())
+    if request.GET.get("export") == "pdf":
+        return _pdf(request, p, table.title, f"{name}.pdf", [table])
+    return render(
+        request,
+        "finance/pnl_breakdown.html",
+        {
+            **p,
+            "by": by,
+            "table": table,
+            "choices": breakdown.CHOICES,
+            "keep": {"by": by},
+            "breadcrumbs": _crumbs({"label": "P&L breakdown"}),
+        },
     )
 
 
@@ -163,12 +218,28 @@ def ledger(request):
     data = statements.ledger(
         request.organization, p["branches"], p["first"], p["last"], segment=segment, method=method
     )
+    summary = breakdown.ledger_summary(
+        request.organization, p["branches"], p["first"], p["last"], data["rows"], segment=segment
+    )
+    if request.GET.get("export") == "pdf":
+        title = f"Complete ledger · {segments.LABELS.get(segment, 'All segments')}"
+        if method:
+            title += f" · {method}"
+        return _pdf(
+            request,
+            p,
+            title,
+            f"ledger-{segment or 'all'}-{p['first']}-{p['last']}.pdf",
+            [*summary["tables"], breakdown.ledger_table(data)],
+            [*breakdown.ledger_cards(data), *summary["cards"]],
+        )
     if request.GET.get("export") == "csv":
         audit.record(request, "report.export", summary=f"Ledger {p['first']}–{p['last']}")
         rows = [
             [
                 timezone.localtime(r["entry"].when).strftime("%Y-%m-%d %H:%M"),
                 r["entry"].kind,
+                r["entry"].source,
                 r["entry"].number,
                 r["entry"].description,
                 r["entry"].method,
@@ -180,8 +251,8 @@ def ledger(request):
         ]
         return _csv(
             f"ledger-{segment or 'all'}-{p['first']}-{p['last']}.csv",
-            ["When", "Type", "Number", "Detail", "Method", "Branch", "Amount", "Balance"],
-            [["", "Opening balance", "", "", "", "", "", data["opening"]], *rows],
+            ["When", "Type", "Source", "Number", "Detail", "Method", "Branch", "Amount", "Balance"],
+            [["", "Opening balance", "", "", "", "", "", "", data["opening"]], *rows],
         )
     from apps.billing.services import active_methods
 
@@ -191,6 +262,7 @@ def ledger(request):
         {
             **p,
             **data,
+            "summary": summary,
             "rows": data["rows"][::-1],
             "segment": segment,
             "keep": {k: v for k, v in {"segment": segment, "method": method}.items() if v},
@@ -219,6 +291,14 @@ def ledger_doctors(request):
         u = users[r["user_id"]]
         r["balance"] = payroll.balance(u)
         r["unsettled"] = unsettled_total(u)
+    if request.GET.get("export") == "pdf":
+        return _pdf(
+            request,
+            p,
+            "Doctors ledger",
+            f"doctors-ledger-{p['first']}-{p['last']}.pdf",
+            [breakdown.doctors_ledger_table(rows)],
+        )
     return render(
         request,
         "finance/ledger_doctors.html",
@@ -256,6 +336,14 @@ def expense_list(request):
     if q:
         qs = qs.filter(Q(number__icontains=q) | Q(payee__icontains=q) | Q(note__icontains=q))
     total = qs.filter(voided_at__isnull=True).aggregate(s=Sum("amount"))["s"] or ZERO
+    if request.GET.get("export") == "pdf" and has_perm(request, VIEW):
+        return _pdf(
+            request,
+            p,
+            "Expenses",
+            f"expenses-{p['first']}-{p['last']}.pdf",
+            [breakdown.expenses_table(qs)],
+        )
     services.ensure_categories(request.organization)
     return render(
         request,

@@ -1,0 +1,21 @@
+{% if changes %}
+<div class="table-wrap">
+  <table class="table">
+    <thead><tr><th scope="col">When</th><th scope="col" class="text-right">Sale price</th><th scope="col" class="text-right">Cost</th><th scope="col">Applied to</th><th scope="col">Why</th><th scope="col">By</th></tr></thead>
+    <tbody>
+      {% for c in changes %}
+      <tr>
+        <td class="whitespace-nowrap">{{ c.created_at|date:"d M Y, H:i" }}</td>
+        <td class="text-right whitespace-nowrap">{% if c.old_price != c.new_price %}{{ c.old_price|floatformat:"2g" }} → <span class="font-semibold">{{ c.new_price|floatformat:"2g" }}</span>{% else %}<span class="text-muted">No change</span>{% endif %}</td>
+        <td class="text-right whitespace-nowrap">{% if c.old_cost != c.new_cost %}{{ c.old_cost|floatformat:"2g" }} → <span class="font-semibold">{{ c.new_cost|floatformat:"2g" }}</span>{% else %}<span class="text-muted">No change</span>{% endif %}</td>
+        <td>{{ c.get_scope_display }}{% if c.batch %} · <span class="font-mono">{{ c.batch.label }}</span>{% endif %}{% if c.units_repriced %}<p class="text-label text-muted">{{ c.units_repriced }} in stock repriced</p>{% endif %}</td>
+        <td>{{ c.reason|default:"—" }}{% if c.reference %}<p class="font-mono text-label text-muted">{{ c.reference }}</p>{% endif %}</td>
+        <td>{{ c.created_by }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+  <p class="text-body text-muted">No price changes.</p>
+{% endif %}

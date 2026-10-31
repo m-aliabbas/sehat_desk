@@ -5,6 +5,7 @@ from apps.core.forms import StyledFormMixin
 from apps.core.scoping import scoped
 from apps.masterdata.models import DoctorProfile
 from apps.patients.models import Patient
+from apps.patients.services import limit_to_own_patients
 
 from .models import LabOrder, LabPanel, LabReferenceRange, LabTest, LabTestCategory
 
@@ -31,7 +32,12 @@ class LabOrderForm(StyledFormMixin, forms.Form):
         self.fields["panels"].queryset = scoped(LabPanel, request).filter(is_active=True)
         self.fields["doctor"].queryset = scoped(DoctorProfile, request).filter(is_active=True)
         if with_patient:
-            self.fields["patient"].queryset = scoped(Patient, request).filter(is_active=True)
+            patients = scoped(Patient, request).filter(is_active=True)
+            if not {"lab.sample.collect", "lab.result.enter", "lab.result.verify"} & set(
+                request.sd_perms
+            ):
+                patients = limit_to_own_patients(patients, request)
+            self.fields["patient"].queryset = patients
         else:
             del self.fields["patient"]
             del self.fields["doctor"]

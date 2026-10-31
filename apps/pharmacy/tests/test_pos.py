@@ -250,6 +250,11 @@ def test_checkout_rolls_back_when_stock_ran_out(req, rf, make_user, org, branch,
 
 
 def test_prescription_only_needs_prescription(req, augmentin, stocked, cash):
+    from apps.organizations.models import preferences_for
+
+    prefs = preferences_for(req.organization)
+    prefs.pharmacy_require_prescription = True
+    prefs.save()
     cart = pos.open_cart(req)
     pos.add_product(cart, request=req, product=augmentin, quantity=1)
     assert "needs a prescription" in pos.checkout_problems(cart)[0]
@@ -259,6 +264,7 @@ def test_prescription_only_needs_prescription(req, augmentin, stocked, cash):
 
 def test_discount_needs_permission_and_is_kept_at_checkout(req, boss_req, panadol, augmentin,
                                                            stocked, cash):  # fmt: skip
+    req.sd_perms = set(req.sd_perms) - {"pharmacy.discount"}
     cart = pos.open_cart(req)
     pos.add_product(cart, request=req, product=panadol, quantity=10)
     with pytest.raises(pos.PosError, match="not allowed"):

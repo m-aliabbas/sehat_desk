@@ -1,14 +1,19 @@
 """Settings → Hospital and Branches."""
 
+from decimal import Decimal
+
 from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.views.decorators.http import require_POST
 
 from apps.accounts.decorators import has_perm, permission_required
 from apps.audit import services as audit
+from apps.core.security import same_origin_frame
 
-from .forms import BranchForm, ModulesForm, OrganizationForm, PreferencesForm
-from .models import Branch, preferences_for
+from . import field_rules
+from .forms import BranchForm, ModulesForm, OrganizationForm, PreferencesForm, PrintLayoutForm
+from .models import Branch, PrintLayout, preferences_for, print_layout_for
 
 ORG_AUDIT_FIELDS = [f for f in OrganizationForm.Meta.fields if f != "logo"]
 BRANCH_AUDIT_FIELDS = ["name", "code", "city", "phone", "address", "is_main", "is_active"]
@@ -62,6 +67,106 @@ def hospital_settings(request):
 
 
 PREFERENCE_FIELDS = PreferencesForm.Meta.fields
+
+
+@permission_required("admin.organization.manage")
+def field_rules_page(request):
+    """Settings → Fields & tax: hidden, optional or required, and default tax rates."""
+    prefs = preferences_for(request.organization)
+    if request.method == "POST":
+        rules = {
+            key: request.POST[f"rule:{key}"]
+            for key, choices in field_rules.ALLOWED.items()
+            if request.POST.get(f"rule:{key}") in choices
+        }
+        try:
+            sale = Decimal(request.POST.get("default_sale_tax_percent") or 0)
+            gst = Decimal(request.POST.get("default_purchase_gst_percent") or 0)
+            if not (0 <= sale <= 100 and 0 <= gst <= 100):
+                raise ValueError
+        except (ArithmeticError, ValueError):
+            messages.error(request, "Tax rates must be between 0 and 100.")
+            return redirect("organizations:field-rules")
+        changes = {}
+        if rules != prefs.field_rules:
+            changes["field_rules"] = [prefs.field_rules, rules]
+        if sale != prefs.default_sale_tax_percent:
+            changes["default_sale_tax_percent"] = [str(prefs.default_sale_tax_percent), str(sale)]
+        if gst != prefs.default_purchase_gst_percent:
+            changes["default_purchase_gst_percent"] = [
+                str(prefs.default_purchase_gst_percent),
+                str(gst),
+            ]
+        prefs.field_rules = rules
+        prefs.default_sale_tax_percent, prefs.default_purchase_gst_percent = sale, gst
+        prefs.save()
+        if changes:
+            audit.record(request, "organization.field_rules", request.organization, changes=changes)
+        messages.success(request, "Saved.")
+        return redirect("organizations:field-rules")
+    groups = {}
+    for key, label, group, choices in field_rules.FIELDS:
+        groups.setdefault(group, []).append(
+            {
+                "key": key,
+                "label": label,
+                "value": field_rules.rule(request.organization, key),
+                "choices": [(c, field_rules.LABELS[c]) for c in choices],
+            }
+        )
+    return render(
+        request,
+        "organizations/field_rules.html",
+        {"groups": groups.items(), "prefs": prefs, "settings_tab": "fields"},
+    )
+
+
+def _document(request) -> str:
+    wanted = request.GET.get("doc", "")
+    return wanted if wanted in PrintLayout.Document.values else PrintLayout.Document.PRESCRIPTION
+
+
+@permission_required("admin.organization.manage")
+def print_layouts(request):
+    """Settings → Print layouts: paper, spacing, text size, logo, header and footer per document."""
+    document = _document(request)
+    layout = print_layout_for(request.organization, document)
+    form = PrintLayoutForm(request.POST or None, instance=layout)
+    if request.method == "POST" and form.is_valid():
+        before = audit.snapshot(layout, form.changed_data)
+        form.save()
+        audit.record(
+            request,
+            "organization.print_layout",
+            request.organization,
+            changes={k: [v, str(getattr(layout, k))] for k, v in before.items()},
+            summary=document,
+        )
+        messages.success(request, f"{layout.get_document_display()} layout saved.")
+        return redirect(f"{reverse('organizations:print-layouts')}?doc={document}")
+    return render(
+        request,
+        "organizations/print_layouts.html",
+        {
+            "form": form,
+            "layout": layout,
+            "documents": PrintLayout.Document.choices,
+            "document": document,
+            "settings_tab": "print",
+        },
+    )
+
+
+@same_origin_frame
+@permission_required("admin.organization.manage")
+def print_layout_preview(request):
+    """A sample document with the saved layout, shown in the editor."""
+    document = _document(request)
+    return render(
+        request,
+        "organizations/print_layout_preview.html",
+        {"document": document, "L": print_layout_for(request.organization, document)},
+    )
 
 
 @permission_required("admin.organization.manage")

@@ -1,0 +1,34 @@
+{% extends "layouts/app.html" %}
+{% block title %}Fields and tax · Settings{% endblock %}
+{% block page_title %}Fields and tax{% endblock %}
+{% block page_subtitle %}Choose what staff must fill in, what they may fill in, and what they never see. Everything is optional until you change it.{% endblock %}
+{% block content %}
+{% include "partials/settings_tabs.html" %}
+<form method="post" class="space-y-6">
+  {% csrf_token %}
+  <section class="card">
+    <h2 class="section-title mb-1">Default tax rates</h2>
+    <p class="mb-4 text-label text-muted">Filled in on new entries, and can be changed on each one. Existing records keep their rates. Set these with your accountant.</p>
+    <div class="grid gap-4 md:grid-cols-2 xl:max-w-2xl">
+      <div><label class="field-label" for="t-sale">Tax on new products, added at the till (%)</label><input id="t-sale" name="default_sale_tax_percent" type="number" min="0" max="100" step="0.01" class="input mt-1" value="{{ prefs.default_sale_tax_percent|stringformat:'s' }}"></div>
+      <div><label class="field-label" for="t-gst">GST on purchase rows (%)</label><input id="t-gst" name="default_purchase_gst_percent" type="number" min="0" max="100" step="0.01" class="input mt-1" value="{{ prefs.default_purchase_gst_percent|stringformat:'s' }}"></div>
+    </div>
+  </section>
+  {% for group, rows in groups %}
+  <section class="card">
+    <h2 class="section-title mb-3">{{ group }}</h2>
+    <div class="grid gap-x-8 gap-y-3 md:grid-cols-2">
+      {% for row in rows %}
+      <div class="flex items-center justify-between gap-3">
+        <label class="text-body" for="rule-{{ row.key }}">{{ row.label }}</label>
+        <select id="rule-{{ row.key }}" name="rule:{{ row.key }}" data-native class="select w-32">
+          {% for value, label in row.choices %}<option value="{{ value }}" {% if value == row.value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endfor %}
+  <button class="btn btn-primary">Save</button>
+</form>
+{% endblock %}

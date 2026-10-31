@@ -183,18 +183,10 @@ def complete(encounter, *, request) -> EncounterVersion:
     _require_writable(request, encounter)
     if "consultation.sign" not in request.sd_perms:
         raise EncounterError("You are not allowed to sign consultations.")
-    if not encounter.chief_complaint.strip():
-        raise EncounterError("Record the chief complaint before completing.")
-    if not (
-        encounter.final_diagnosis.strip()
-        or encounter.provisional_diagnosis.strip()
-        or encounter.diagnoses.exists()
-    ):
-        raise EncounterError("Record a provisional or final diagnosis before completing.")
+    # Nothing is required: a doctor may only write medicines or order a test. A wrong date is still
+    # refused, since that is a mistake and not something left out.
     if encounter.follow_up_date and encounter.follow_up_date < timezone.localdate():
         raise EncounterError("The follow-up date is in the past.")
-    if encounter.referral_to.strip() and not encounter.referral_reason.strip():
-        raise EncounterError("Give a reason for the referral.")
 
     from apps.prescriptions import services as rx_services
 

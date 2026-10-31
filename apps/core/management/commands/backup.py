@@ -34,7 +34,7 @@ class Command(BaseCommand):
                 return
             key = backup.configured_key()
             if verify:
-                manifest = backup.verify_backup(verify, key=key)
+                manifest = backup.verify_backup(verify, key=backup.shared_or_configured_key())
                 self.stdout.write(
                     self.style.SUCCESS(
                         f"OK: {len(manifest['files'])} files, created {manifest['created']}"

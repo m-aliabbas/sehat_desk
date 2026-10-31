@@ -21,11 +21,16 @@ FIN = ("reports.financial.view",)
 MAX_DAYS = 366
 
 GROUPS = [
+    ("daily", "Daily sale and purchase"),
     ("clinical", "Clinical"),
     ("financial", "Financial"),
     ("lab", "Laboratory"),
     ("pharmacy", "Pharmacy"),
     ("ipd", "Inpatient (IPD)"),
+    ("suppliers", "Suppliers and khata"),
+    ("customers", "Customers"),
+    ("staff", "Doctors, salespeople and staff"),
+    ("management", "Management"),
 ]
 
 
@@ -55,7 +60,9 @@ class ReportDef:
     group: str
     description: str
     permissions: tuple[str, ...]  # any one of these
-    filters: frozenset  # subset of {"date", "branch", "department", "doctor"}
+    # subset of {"date", "branch", "department", "doctor", "vendor", "product", "cashier",
+    # "patient"}
+    filters: frozenset
     build: Callable
     date_hint: str = ""
 
@@ -115,6 +122,11 @@ class Filters:
     branch_choice: str = ""
     department: object = None
     doctor: object = None
+    vendor: object = None
+    product: object = None
+    cashier: object = None
+    patient: object = None
+    patient_query: str = ""
     adjusted: str = ""  # message when the requested range was shortened
 
     @property
@@ -147,6 +159,12 @@ class Filters:
             parts.append(self.department.name)
         if self.doctor is not None:
             parts.append(str(self.doctor))
+        for choice in (self.vendor, self.product, self.cashier):
+            if choice is not None:
+                parts.append(str(choice))
+        # MRN only: report scopes go into exports and the audit log.
+        if self.patient is not None:
+            parts.append(self.patient.mrn)
         return " · ".join(parts)
 
 
@@ -155,6 +173,30 @@ def _parse_date(value, default):
         return date.fromisoformat(value) if value else default
     except ValueError:
         return default
+
+
+def _entity_filters(request, rdef: ReportDef) -> dict:
+    """Supplier, product, staff member and patient filters, all inside the organization."""
+    from apps.accounts.models import User
+    from apps.core.scoping import scoped
+    from apps.patients.models import Patient
+    from apps.patients.services import search_patients
+    from apps.pharmacy.models import Product, Vendor
+
+    extra = {}
+    for name, model in (("vendor", Vendor), ("product", Product)):
+        value = request.GET.get(name, "")
+        if name in rdef.filters and value.isdigit():
+            extra[name] = scoped(model, request).filter(pk=value).first()
+    value = request.GET.get("cashier", "")
+    if "cashier" in rdef.filters and value.isdigit():
+        extra["cashier"] = User.objects.filter(pk=value, organization=request.organization).first()
+    query = request.GET.get("patient", "").strip()
+    if "patient" in rdef.filters and query:
+        found, _ = search_patients(scoped(Patient, request), query)
+        extra["patient_query"] = query
+        extra["patient"] = next(iter(found), None)
+    return extra
 
 
 def parse_filters(request, rdef: ReportDef) -> Filters:
@@ -193,7 +235,9 @@ def parse_filters(request, rdef: ReportDef) -> Filters:
     doc_id = request.GET.get("doctor", "")
     if "doctor" in rdef.filters and doc_id.isdigit():
         doctor = scoped(DoctorProfile, request).select_related("user").filter(pk=doc_id).first()
+    extra = _entity_filters(request, rdef)
     return Filters(
+        **extra,
         organization=request.organization,
         start=start,
         end=end,

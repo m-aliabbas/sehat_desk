@@ -1,0 +1,97 @@
+{% load ui %}
+{% field_rule "purchase.gst" as gst_rule %}
+{# Entry grid for purchases and stock receipts, in the order of a supplier's bill. Needs a surrounding <form>. #}
+{{ initial_rows|default:"[]"|json_script:"grid-rows" }}
+{% include "pharmacy/_packing_list.html" %}
+<div x-data="{
+    q: '', results: [], rows: [], index: 0, uid: 0, searched: false, adding: false, error: '', showSale: false,
+    fresh: { brand_name: '', unit: 'tablet', pack_unit: 'strip', pack_size: '10', box_unit: 'box', packs_per_box: '', pack_cost: '', pack_price: '' },
+    freshTop() { return Number(this.fresh.packs_per_box) > 1 ? this.fresh.box_unit : Number(this.fresh.pack_size) > 1 ? this.fresh.pack_unit : this.fresh.unit; },
+    freshLevel() { return Number(this.fresh.packs_per_box) > 1 ? 'box' : Number(this.fresh.pack_size) > 1 ? 'pack' : 'unit'; },
+    init() { const start = JSON.parse(document.getElementById('grid-rows').textContent); this.rows = (typeof start === 'string' ? JSON.parse(start) : start).map(r => ({ ...r, uid: ++this.uid })); this.showSale = this.rows.some(r => r.sale); },
+    async find() {
+      if (this.q.trim().length < 2) { this.results = []; this.searched = false; return; }
+      const r = await fetch('{% url 'pharmacy:product-suggest' %}?q=' + encodeURIComponent(this.q.trim()));
+      this.results = (await r.json()).results; this.index = 0; this.searched = true;
+    },
+    focusRow(uid) { this.$nextTick(() => document.querySelector('[data-row=&quot;' + uid + '&quot;] [name=batch]')?.focus()); },
+    add(p) {
+      const row = this.rows.find(x => x.id === p.id && !x.batch);
+      this.q = ''; this.results = []; this.searched = false; this.adding = false;
+      if (row) { row.qty = Number(row.qty || 0) + 1; this.$refs.scan.focus(); return; }
+      const big = p.packSize > 1;
+      const uid = ++this.uid;
+      this.rows.push({ id: p.id, name: p.name, packSize: p.packSize, boxSize: p.boxSize, packLabel: p.packLabel, boxLabel: p.boxLabel, unitLabel: p.unitLabel, uid, qty: 1, unit: big ? 'pack' : 'unit', free: '', discount: '', cost: (p.unitCost * (big ? p.packSize : 1)).toFixed(2), tax: '{{ request.organization.preferences.default_purchase_gst_percent|floatformat:"-2" }}', batch: '', expiry: '', sale: '' });
+      this.focusRow(uid);
+    },
+    async enter() { await this.find(); if (this.results[this.index]) this.add(this.results[this.index]); else if (this.searched) this.startAdding(); },
+    startAdding() { this.fresh.brand_name = this.q.trim(); this.adding = true; this.error = ''; this.$nextTick(() => document.getElementById('np-unit').focus()); },
+    async createProduct() {
+      const body = new URLSearchParams({ ...this.fresh, price_per: this.freshLevel(), csrfmiddlewaretoken: document.querySelector('[name=csrfmiddlewaretoken]').value });
+      const r = await fetch('{% url 'pharmacy:product-quick' %}', { method: 'POST', body });
+      const data = await r.json();
+      if (!r.ok) { this.error = data.error; return; }
+      this.add(data.result);
+      this.fresh = { brand_name: '', unit: 'tablet', pack_unit: 'strip', pack_size: '10', box_unit: 'box', packs_per_box: '', pack_cost: '', pack_price: '' };
+    },
+    newBatch(r) { const uid = ++this.uid; this.rows.splice(this.rows.indexOf(r) + 1, 0, { ...r, uid, qty: 1, free: '', batch: '', expiry: '' }); this.focusRow(uid); },
+    expiryBad(r) { if (!r.expiry) return false; const m = r.expiry.trim().match(/^(\d{1,2})[\/-](\d{2}|\d{4})$/); if (!m) return !/^\d{4}-\d{2}-\d{2}$/.test(r.expiry.trim()); const month = Number(m[1]); let year = Number(m[2]); if (year < 100) year += 2000; return month < 1 || month > 12 || new Date(year, month, 0) < new Date(); },
+    sizeOf(r, unit) { return unit === 'box' ? r.boxSize : unit === 'pack' ? r.packSize : 1; },
+    typedRate(r, field) { r[field + 'Each'] = Number(r[field] || 0) / this.sizeOf(r, r.unit); },
+    setUnit(r, unit) { ['cost', 'sale'].forEach(f => { if (r[f] === '' || r[f] === undefined) return; const each = r[f + 'Each'] ?? Number(r[f]) / this.sizeOf(r, r.unit); r[f + 'Each'] = each; r[f] = (each * this.sizeOf(r, unit)).toFixed(2); }); r.unit = unit; },
+    unitName(r) { return r.unit === 'box' ? r.boxLabel : r.unit === 'pack' ? r.packLabel : r.unitLabel; },
+    line(r) { return Number(r.qty || 0) * Number(r.cost || 0) * (1 - Number(r.discount || 0) / 100) * (1 + Number(r.tax || 0) / 100); },
+    get total() { return this.rows.reduce((s, r) => s + this.line(r), 0); },
+  }" x-effect="$dispatch('grid-total', total)" @keydown.enter="if ($event.target.tagName === 'INPUT') { $event.preventDefault(); const row = $event.target.closest('tr[data-row]'); if (row) { const boxes = [...row.querySelectorAll('input:not([type=hidden])')].filter(b => b.offsetParent); (boxes[boxes.indexOf($event.target) + 1] || $refs.scan).focus(); } }">
+  <div class="relative" @click.outside="results = []; searched = false">
+    <label class="sr-only" for="grid-scan">Scan a barcode or search a medicine</label>
+    <input id="grid-scan" x-ref="scan" class="input" autocomplete="off" placeholder="Scan a barcode or type a medicine, then Enter" x-model="q" @input.debounce.200ms="find()"
+           @keydown.enter.prevent="enter()" @keydown.down.prevent="index = Math.min(index + 1, results.length - 1)" @keydown.up.prevent="index = Math.max(index - 1, 0)">
+    <ul x-show="results.length" x-cloak class="absolute z-20 mt-1 w-full divide-y divide-line overflow-hidden rounded-card border border-line bg-white shadow-lg" role="listbox">
+      <template x-for="(p, i) in results" :key="p.id">
+        <li role="option" :aria-selected="i === index"><button type="button" class="w-full px-4 py-2 text-left hover:bg-mint/50" :class="i === index && 'bg-mint/50'" @click="add(p)"><span class="font-medium" x-text="p.name"></span> <span class="text-label text-muted" x-text="p.hint"></span></button></li>
+      </template>
+    </ul>
+    <p x-show="searched && !results.length && !adding" x-cloak class="absolute z-20 mt-1 w-full rounded-card border border-line bg-white p-3 text-body shadow-lg">Not found. Press Enter to add <span class="font-medium" x-text="q"></span> as a new product.</p>
+  </div>
+  <div x-show="adding" x-cloak class="mt-2 flex flex-wrap items-end gap-2 rounded-control bg-page p-2" @keydown.enter.prevent.stop="createProduct()">
+    <div class="min-w-[12rem] flex-1"><label class="field-label" for="np-name">New product</label><input id="np-name" class="input" x-model="fresh.brand_name" autocomplete="off"></div>
+    <div class="w-24"><label class="field-label" for="np-unit">Smallest unit</label><input id="np-unit" class="input" list="unit-names" x-model="fresh.unit" autocomplete="off"></div>
+    <div class="w-24"><label class="field-label" for="np-pack">Pack</label><input id="np-pack" class="input" list="pack-names" x-model="fresh.pack_unit" autocomplete="off"></div>
+    <div class="w-20"><label class="field-label" for="np-size">Holds</label><input id="np-size" type="number" min="1" class="input" x-model="fresh.pack_size" autocomplete="off"></div>
+    <div class="w-24"><label class="field-label" for="np-box">Bigger pack</label><input id="np-box" class="input" list="pack-names" x-model="fresh.box_unit" autocomplete="off"></div>
+    <div class="w-20"><label class="field-label" for="np-boxsize">Holds</label><input id="np-boxsize" type="number" min="1" class="input" placeholder="None" x-model="fresh.packs_per_box" autocomplete="off"></div>
+    <div class="w-28"><label class="field-label" for="np-cost">Buy 1 <span x-text="freshTop()"></span></label><input id="np-cost" type="number" min="0" step="0.01" class="input" x-model="fresh.pack_cost" autocomplete="off"></div>
+    <div class="w-28"><label class="field-label" for="np-price">Sell 1 <span x-text="freshTop()"></span></label><input id="np-price" type="number" min="0" step="0.01" class="input" x-model="fresh.pack_price" autocomplete="off"></div>
+    <button type="button" class="btn btn-primary" @click="createProduct()">Add</button>
+    <button type="button" class="btn btn-ghost" @click="adding = false; $refs.scan.focus()">Close</button>
+    <p class="field-error w-full" x-show="error" x-text="error"></p>
+  </div>
+  <div x-show="rows.length" x-cloak class="mt-2 overflow-x-auto">
+    <table class="table text-label">
+      <thead><tr><th scope="col">Medicine</th><th scope="col">Batch</th><th scope="col">Expiry</th><th scope="col">Qty</th><th scope="col"><span class="sr-only">Sold in</span></th><th scope="col" title="Extra units the supplier gives at no charge, like 10 + 1. They go into stock but are not on the bill.">Bonus (free)</th><th scope="col">Rate</th><th scope="col">Disc %</th>{% if gst_rule != "hidden" %}<th scope="col">GST %{% if gst_rule == "required" %} <span class="text-red">*</span>{% endif %}</th>{% endif %}<th scope="col" x-show="showSale">New sale price</th><th scope="col" class="text-right">Amount</th><th scope="col"><span class="sr-only">Remove</span></th></tr></thead>
+      <tbody>
+        <template x-for="(r, i) in rows" :key="r.uid">
+          <tr :data-row="r.uid">
+            <td class="min-w-[10rem]"><input type="hidden" name="product" :value="r.id"><span class="font-medium" x-text="r.name"></span> <button type="button" tabindex="-1" class="whitespace-nowrap text-teal-deep underline" @click="newBatch(r)">+ batch</button></td>
+            <td class="w-28"><input name="batch" maxlength="40" autocomplete="off" class="input" x-model="r.batch" aria-label="Batch"></td>
+            <td class="min-w-[5.5rem]"><input name="expiry" class="input" autocomplete="off" placeholder="MM/YY" x-model="r.expiry" aria-label="Expiry, month and year" :class="expiryBad(r) && 'border-red'" :title="expiryBad(r) ? 'Month and year, not expired, like 12/27' : ''"></td>
+            <td class="min-w-[5rem]"><input name="qty" type="number" min="0" autocomplete="off" class="input" x-model="r.qty" @focus="$el.select()" aria-label="Quantity"></td>
+            <td class="whitespace-nowrap"><input type="hidden" name="unit" :value="r.unit">
+              <button type="button" tabindex="-1" class="btn btn-sm px-2" :class="r.unit === 'unit' ? 'btn-primary' : 'btn-ghost'" @click="setUnit(r, 'unit')" x-text="r.unitLabel"></button>
+              <button type="button" tabindex="-1" class="btn btn-sm px-2" x-show="r.packSize > 1" :class="r.unit === 'pack' ? 'btn-primary' : 'btn-ghost'" @click="setUnit(r, 'pack')" x-text="r.packLabel"></button>
+              <button type="button" tabindex="-1" class="btn btn-sm px-2" x-show="r.boxSize > r.packSize" :class="r.unit === 'box' ? 'btn-primary' : 'btn-ghost'" @click="setUnit(r, 'box')" x-text="r.boxLabel"></button></td>
+            <td class="min-w-[5rem]"><input name="free" type="number" min="0" autocomplete="off" class="input" x-model="r.free" aria-label="Bonus quantity, free from the supplier"></td>
+             <td class="min-w-[6.5rem]"><input name="cost" type="number" min="0" step="0.01" autocomplete="off" class="input" x-model="r.cost" @input="typedRate(r, 'cost')" @focus="$el.select()" :aria-label="'Rate per ' + unitName(r)"><p class="mt-0.5 text-[11px] whitespace-nowrap text-muted" x-text="'per ' + unitName(r).toLowerCase()"></p></td>
+            <td class="min-w-[5rem]"><input name="discount" type="number" min="0" max="100" step="0.01" autocomplete="off" class="input" x-model="r.discount" aria-label="Discount percent on this line"></td>
+            {% if gst_rule != "hidden" %}<td class="min-w-[5rem]"><input name="tax" type="number" min="0" max="100" step="0.01" autocomplete="off" class="input" x-model="r.tax" aria-label="GST percent"></td>{% else %}<input type="hidden" name="tax" value="">{% endif %}
+            <td class="min-w-[6.5rem]" x-show="showSale"><input name="sale_price" type="number" min="0" step="0.01" autocomplete="off" class="input" x-model="r.sale" @input="typedRate(r, 'sale')" aria-label="New sale price" placeholder="Same"></td>
+            <td class="whitespace-nowrap text-right font-medium" x-text="line(r).toFixed(2)"></td>
+            <td><button type="button" tabindex="-1" class="btn btn-ghost btn-icon btn-sm text-red" aria-label="Remove row" @click="rows.splice(i, 1)">{% icon "trash" "h-4 w-4" %}</button></td>
+          </tr>
+        </template>
+      </tbody>
+    </table>
+    <label class="mt-2 inline-flex items-center gap-2 text-label text-muted"><input type="checkbox" class="checkbox" tabindex="-1" x-model="showSale"> Sale price changed on this bill</label>
+  </div>
+</div>

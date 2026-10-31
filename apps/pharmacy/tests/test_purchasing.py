@@ -70,7 +70,7 @@ def test_purchase_totals_and_receipt_requirements(req, draft):
     draft.refresh_from_db()
     assert draft.grand_total == D("3450.00")
     problems = purchasing.receipt_problems(draft)
-    assert any("invoice number" in p for p in problems)
+    assert not any("invoice number" in p for p in problems)  # optional until an admin requires it
     assert any("batch number" in p for p in problems)
     with pytest.raises(purchasing.PurchaseError):
         purchasing.receive(draft, request=req)
@@ -93,11 +93,11 @@ def test_receive_posts_stock_and_supplier_ledger(req, draft, vendor, ors):
     batch = InventoryBatch.objects.get()
     # 100 bought + 10 free; the free units lower the shelf cost: 3500 / 110.
     assert (batch.batch_number, batch.quantity_available) == ("OR-187", 110)
-    assert batch.purchase_cost == D("31.82") and batch.sale_price == D("55")
+    assert batch.purchase_cost == D("31.818182") and batch.sale_price == D("55")
     txn = StockTransaction.objects.get()
     assert txn.kind == "purchase" and "SMS-9921" in txn.reference
     ors.refresh_from_db()
-    assert ors.purchase_price == D("31.82")
+    assert ors.purchase_price == D("31.818182")
     assert vendor.balance == D("3500.00")
     with pytest.raises(purchasing.PurchaseError, match="received"):
         purchasing.add_item(purchase, request=req, product=ors, quantity=1, unit_cost=1)
@@ -117,9 +117,9 @@ def test_purchase_return_reduces_stock_and_balance(req, draft, vendor, ors):
     ret = purchasing.return_items(
         draft, request=req, quantities={item.pk: 11}, reason="Damaged", reference="DN-4"
     )
-    assert ret.number == "PRN-00001" and ret.amount == D("350.02")  # 11 × 31.82
+    assert ret.number == "PRN-00001" and ret.amount == D("350.00")  # 11 × 3500 / 110
     assert stock.on_hand(req.branch, ors) == 99
-    assert vendor.balance == D("3149.98")
+    assert vendor.balance == D("3150.00")
     assert list(vendor.ledger.values_list("kind", flat=True)) == ["purchase", "purchase_return"]
 
 

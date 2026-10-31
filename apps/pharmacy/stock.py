@@ -6,19 +6,24 @@ takes a row lock, so two tills selling the last strip cannot both succeed.
 """
 
 from datetime import timedelta
+from decimal import Decimal
 
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.db.models import F, Q, Sum
 from django.utils import timezone
 
-from .models import InventoryBatch, Product, StockTransaction
+from .models import InventoryBatch, Product, ProductPriceChange, StockTransaction
 
 Kind = StockTransaction.Kind
 
 
 class StockError(ValidationError):
     pass
+
+
+def _per_unit(value) -> Decimal:
+    return Decimal(value).quantize(Decimal("0.000001"))
 
 
 def _need_manage(request):
@@ -56,6 +61,7 @@ def _post(batch, *, request, kind, delta: int, reason="", reference="", original
         quantity=delta,
         balance_after=new_balance,
         unit_cost=batch.purchase_cost,
+        unit_price=batch.sale_price,
         reference=reference.strip()[:80],
         reason=reason.strip()[:200],
         original=original,
@@ -76,32 +82,55 @@ def receive(
     reference="",
     opening=False,
 ) -> StockTransaction:
-    """Purchase stock-in (or opening stock). Adds to an existing batch with the same number."""
+    """Purchase stock-in (or opening stock). Stock at the cost and price of a lot already on record
+    joins it. A new cost or price under the same batch number opens a new lot, so what was bought
+    earlier keeps its own cost. A new sale price also becomes the product's price for new stock."""
     _need_manage(request)
     if product.organization_id != request.organization.id or not product.is_active:
         raise StockError("That product is not available.")
     if quantity <= 0:
         raise StockError("Enter a quantity greater than zero.")
+    product.refresh_from_db(fields=["sale_price", "purchase_price"])
     batch_number = batch_number.strip().upper()
     if not batch_number:
         raise StockError("Enter the batch number printed on the pack.")
     if expiry_date <= timezone.localdate():
         raise StockError("This stock is already expired. Do not receive it into saleable stock.")
-    sale_price = product.sale_price if sale_price in (None, "") else sale_price
-    batch, created = InventoryBatch.objects.select_for_update(of=("self",)).get_or_create(
-        branch=request.branch,
-        product=product,
-        batch_number=batch_number,
-        defaults={
-            "organization": request.organization,
-            "expiry_date": expiry_date,
-            "purchase_cost": purchase_cost,
-            "sale_price": sale_price,
-        },
+    purchase_cost = _per_unit(purchase_cost)
+    new_price = None if sale_price in (None, "") else _per_unit(sale_price)
+    sale_price = product.sale_price if new_price is None else new_price
+    lots = list(
+        InventoryBatch.objects.select_for_update(of=("self",)).filter(
+            branch=request.branch, product=product, batch_number=batch_number
+        )
     )
-    if not created and batch.expiry_date != expiry_date:
+    if lots and lots[0].expiry_date != expiry_date:
         raise StockError(
-            f"Batch {batch_number} is already recorded with expiry {batch.expiry_date:%d %b %Y}."
+            f"Batch {batch_number} is already recorded with expiry {lots[0].expiry_date:%d %b %Y}."
+        )
+    batch = next(
+        (b for b in lots if (b.purchase_cost, b.sale_price) == (purchase_cost, sale_price)), None
+    )
+    if batch is None:
+        batch = InventoryBatch.objects.create(
+            organization=request.organization,
+            branch=request.branch,
+            product=product,
+            batch_number=batch_number,
+            lot=max((b.lot for b in lots), default=0) + 1,
+            expiry_date=expiry_date,
+            purchase_cost=purchase_cost,
+            sale_price=sale_price,
+        )
+    if new_price is not None and new_price != product.sale_price:
+        from . import pricing
+
+        pricing.change_price(
+            product,
+            request=request,
+            sale_price=new_price,
+            scope=ProductPriceChange.Scope.RECEIPT,
+            reference=reference,
         )
     InventoryBatch.objects.filter(pk=batch.pk).update(
         quantity_received=F("quantity_received") + quantity
@@ -266,15 +295,26 @@ def near_expiry_days(organization) -> int:
 
 
 def near_expiry(branch, *, days=None):
+    """Batches inside their alert window: the product's own days, else the hospital default."""
     today = timezone.localdate()
     if days is None:
-        days = near_expiry_days(branch.organization)
+        window = Q(
+            product__expiry_alert_days__isnull=True,
+            expiry_date__lte=today + timedelta(days=near_expiry_days(branch.organization)),
+        )
+        overrides = (
+            Product.objects.filter(organization=branch.organization)
+            .exclude(expiry_alert_days=None)
+            .values_list("expiry_alert_days", flat=True)
+            .distinct()
+        )
+        for d in overrides:
+            window |= Q(product__expiry_alert_days=d, expiry_date__lte=today + timedelta(days=d))
+    else:
+        window = Q(expiry_date__lte=today + timedelta(days=days))
     return (
         InventoryBatch.objects.filter(
-            branch=branch,
-            quantity_available__gt=0,
-            expiry_date__gte=today,
-            expiry_date__lte=today + timedelta(days=days),
+            window, branch=branch, quantity_available__gt=0, expiry_date__gte=today
         )
         .select_related("product")
         .order_by("expiry_date")
@@ -289,6 +329,57 @@ def expired(branch):
         .select_related("product")
         .order_by("expiry_date")
     )
+
+
+def ledger_mismatches(branch) -> list[InventoryBatch]:
+    """Batches whose balance is not the sum of their ledger entries. Should always be empty."""
+    return list(
+        InventoryBatch.objects.filter(branch=branch)
+        .annotate(ledger_total=Sum("transactions__quantity", default=0))
+        .exclude(quantity_available=F("ledger_total"))
+        .select_related("product")
+    )
+
+
+def product_statement(branch, product, *, start=None, end=None, batch=None) -> dict:
+    """A product's stock account for a period, oldest first: opening balance, every movement with
+    the running balance across all its batches, closing balance. Dates are inclusive."""
+    txns = StockTransaction.objects.filter(branch=branch, product=product)
+    if batch is not None:
+        txns = txns.filter(batch=batch)
+    before = txns.filter(created_at__date__lt=start) if start else txns.none()
+    opening = before.aggregate(q=Sum("quantity", default=0))["q"]
+    opening_value = sum((t.unit_cost * t.quantity for t in before.only("unit_cost", "quantity")), 0)
+    period = txns.order_by("created_at", "pk").select_related(
+        "batch",
+        "created_by",
+        "sale_item__sale",
+        "sale_return_item__sale_return",
+        "purchase_item__purchase",
+        "purchase_return_item__purchase_return",
+    )
+    if start:
+        period = period.filter(created_at__date__gte=start)
+    if end:
+        period = period.filter(created_at__date__lte=end)
+    rows, balance = [], opening
+    total_in = total_out = 0
+    value = Decimal(opening_value)
+    for txn in period:
+        balance += txn.quantity
+        value += txn.unit_cost * txn.quantity
+        total_in += max(txn.quantity, 0)
+        total_out += max(-txn.quantity, 0)
+        rows.append({"txn": txn, "balance": balance})
+    return {
+        "rows": rows,
+        "opening": opening,
+        "opening_value": Decimal(opening_value).quantize(Decimal("0.01")),
+        "total_in": total_in,
+        "total_out": total_out,
+        "closing": balance,
+        "closing_value": value.quantize(Decimal("0.01")),
+    }
 
 
 def stock_value(branch) -> dict:

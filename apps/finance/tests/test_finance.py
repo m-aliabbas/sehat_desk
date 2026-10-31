@@ -7,7 +7,7 @@ from django.utils import timezone
 
 from apps.billing import services as billing
 from apps.billing.models import InvoiceItem
-from apps.finance import segments, services, statements
+from apps.finance import breakdown, segments, services, statements
 from apps.finance.models import Expense, ExpenseCategory
 from apps.hr.models import PayProfile
 
@@ -238,3 +238,111 @@ def test_other_branch_figures_are_separate(
     assert other.total_income == 0
     both = statements.statement(statements.pnl_rows(org, [branch, branch2], *_today()))
     assert both.total_income == D("1000.00")
+
+
+def _sold_product(req, org, branch, cash, *, price="10", cost="6", qty=5):
+    from apps.pharmacy import pos, purchasing
+    from apps.pharmacy.models import Product, ProductCategory, Vendor
+
+    cat = ProductCategory.objects.create(organization=org, name="Antibiotics")
+    product = Product.objects.create(
+        organization=org, sku="AMX", brand_name="Amoxil", category=cat, sale_price=D(price)
+    )
+    vendor = Vendor.objects.create(organization=org, name="Acme Pharma")
+    order = purchasing.create_purchase(request=req, vendor=vendor)
+    line = purchasing.add_item(order, request=req, product=product, quantity=100, unit_cost=D(cost))
+    purchasing.update_receipt(
+        line,
+        request=req,
+        batch_number="B1",
+        expiry_date=timezone.localdate() + timedelta(days=400),
+        sale_price=D(price),
+    )
+    purchasing.receive(order, request=req)
+    sale = pos.open_cart(req)
+    pos.add_product(sale, request=req, product=product, quantity=qty)
+    sale.refresh_from_db()
+    return pos.checkout(
+        sale, request=req, payments=[{"method": cash, "amount": D(price) * qty}]
+    ), vendor
+
+
+def test_ledger_entries_name_their_source(req, org, branch, patient, cash, categories, make_user):
+    _paid(req, patient, cash, [(K.LAB, "1000")])
+    _paid(req, patient, cash, [(K.LAB, "300"), (K.CONSULTATION, "700")])
+    services.record_expense(request=req, category=categories["Rent"], amount="50", method=cash)
+    data = statements.ledger(org, [branch], *_today())
+    sources = {r["entry"].source for r in data["rows"]}
+    assert {"Laboratory", "Consultation + Laboratory", "Rent"} <= sources
+
+
+def test_ledger_summary_totals(req, org, branch, patient, cash, categories):
+    inv = billing.create_invoice(request=req, patient=patient)
+    billing.add_item(inv, request=req, kind=K.LAB, description="CBC", unit_price=D("1000"))
+    billing.set_invoice_discount(inv, request=req, amount=D("100"), reason="Staff")
+    inv = billing.issue(inv, request=req)
+    billing.receive_payment(inv, request=req, method=cash, amount=D("500"))
+    services.record_expense(request=req, category=categories["Rent"], amount="200", method=cash)
+    first, last = _today()
+    data = statements.ledger(org, [branch], first, last)
+    summary = breakdown.ledger_summary(org, [branch], first, last, data["rows"])
+    cards = {c["label"]: c["value"] for c in summary["cards"]}
+    assert cards["Total billed"] == D("1000.00") and cards["Discounts given"] == D("100.00")
+    assert cards["Net income"] == D("900.00") and cards["Total costs"] == D("200.00")
+    assert cards["Net profit"] == D("700.00") and cards["Total collected"] == D("500.00")
+    assert cards["Still to collect (1 bills)"] == D("400.00")
+
+
+def test_breakdown_product_vendor_and_category(req, org, branch, cash, categories):
+    _, vendor = _sold_product(req, org, branch, cash)
+    services.record_expense(request=req, category=categories["Rent"], amount="20", method=cash)
+    first, last = _today()
+    (row,) = breakdown.by_product(org, [branch], first, last).rows
+    assert (row["sales"], row["cost"], row["profit"]) == (D("50.00"), D("30.00"), D("20.00"))
+    assert row["category"] == "Antibiotics"
+    (row,) = breakdown.by_vendor(org, [branch], first, last).rows
+    assert row["vendor"] == vendor.name and row["profit"] == D("20.00")
+    assert row["purchased"] == D("600.00") and row["owed"] == D("600.00")
+    table = breakdown.by_category(org, [branch], first, last)
+    assert table.totals["profit"] == D("0.00")  # 20 pharmacy profit less 20 rent
+    assert not [r for r in table.rows if r["category"] == "Not allocated"]
+
+
+def test_breakdown_doctor_and_staff(req, org, branch, patient, cash, doctor, admin_user):
+    PayProfile.objects.create(
+        organization=org,
+        branch=branch,
+        user=doctor.user,
+        pay_type="commission",
+        consultation_percent=D("50"),
+    )
+    _paid(req, patient, cash, [(K.CONSULTATION, "2000")], doctor_user=doctor.user)
+    first, last = _today()
+    (row,) = breakdown.by_doctor(org, [branch], first, last).rows
+    assert row["income"] == D("2000.00") and row["commission"] == D("1000.00")
+    assert row["profit"] == D("1000.00")
+    staff = breakdown.by_staff(org, [branch], first, last).rows
+    assert [r["collected"] for r in staff] == [D("2000.00")]
+
+
+@pytest.mark.parametrize(
+    "name", ["ledger", "pnl", "pnl-breakdown", "ledger-doctors", "expense-list"]
+)
+def test_pdf_download(admin_client, req, patient, cash, name):
+    _paid(req, patient, cash, [(K.LAB, "1000")])
+    response = admin_client.get(reverse(f"finance:{name}"), {"export": "pdf"})
+    assert response.status_code == 200
+    assert "application/pdf" in response["Content-Type"] or "text/html" in response["Content-Type"]
+
+
+@pytest.mark.parametrize("by", ["product", "category", "vendor", "doctor", "staff"])
+def test_breakdown_page_and_csv(admin_client, req, patient, cash, by):
+    _paid(req, patient, cash, [(K.LAB, "1000")])
+    url = reverse("finance:pnl-breakdown")
+    assert admin_client.get(url, {"by": by}).status_code == 200
+    assert admin_client.get(url, {"by": by, "export": "csv"})["Content-Type"].startswith("text/csv")
+
+
+def test_breakdown_needs_finance_view(client, make_user):
+    client.force_login(make_user("cashier"))
+    assert client.get(reverse("finance:pnl-breakdown")).status_code == 403

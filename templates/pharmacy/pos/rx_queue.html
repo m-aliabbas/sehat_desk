@@ -2,7 +2,7 @@
 {% load ui %}
 {% block title %}Prescriptions to dispense{% endblock %}
 {% block page_title %}Pharmacy · prescriptions{% endblock %}
-{% block page_subtitle %}Signed prescriptions doctors sent to the {{ current_branch.name }} pharmacy. Open one to check stock and dispense all or part of it.{% endblock %}
+{% block page_subtitle %}What doctors sent to the {{ current_branch.name }} pharmacy, and today's visits with a paper prescription or none yet.{% endblock %}
 {% block content %}
 {% include "pharmacy/pos/_tabs.html" with active="rx" %}
 <div class="mb-6 grid gap-4 md:grid-cols-3">
@@ -10,6 +10,21 @@
   <div class="stat-card bg-blue-soft"><p class="text-body text-ink">Partly dispensed</p><p class="mt-2 text-[32px] font-bold text-ink">{{ partial_count }}</p><p class="text-label text-muted">Rest still to give</p></div>
   <div class="stat-card bg-mint"><p class="text-body text-ink">Received today</p><p class="mt-2 text-[32px] font-bold text-ink">{{ today_count }}</p><p class="text-label text-muted">Sent to this pharmacy</p></div>
 </div>
+{% if visits %}
+<section class="card mb-6">
+  <h2 class="section-title mb-1">Today's visits, no prescription in the system</h2>
+  <p class="mb-4 text-label text-muted">Booked at reception. If the doctor wrote on paper, tag the visit: it opens the till with this patient and doctor, and what you sell is recorded on it.</p>
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th scope="col">Patient</th><th scope="col">Doctor</th><th scope="col">Visit</th><th scope="col"><span class="sr-only">Tag</span></th></tr></thead>
+    <tbody>{% for v in visits %}<tr>
+      <td>{{ v.patient.full_name }}<p class="font-mono text-label text-muted">{{ v.patient.mrn }}</p></td>
+      <td>{{ v.doctor|default:"Not chosen" }}</td>
+      <td>{{ v.label }} · {{ v.status }}</td>
+      <td class="text-right"><form method="post" action="{% url 'pharmacy:pos-prescription' %}">{% csrf_token %}<input type="hidden" name="action" value="visit"><input type="hidden" name="patient" value="{{ v.patient.pk }}">{% if v.doctor %}<input type="hidden" name="doctor" value="{{ v.doctor.pk }}">{% endif %}<button class="btn btn-primary btn-sm">Tag at till</button></form></td>
+    </tr>{% endfor %}</tbody>
+  </table></div>
+</section>
+{% endif %}
 <section class="card">
   <nav class="tabs mb-4" aria-label="Prescription views">
     <a class="tab" href="?view=pending" {% if view == "pending" %}aria-selected="true"{% endif %}>Waiting</a>

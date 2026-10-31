@@ -1,6 +1,7 @@
 """Vitals station (nurse / reception), the entry form, corrections and the patient trend view."""
 
 from django.contrib import messages
+from django.db.models import Q
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -12,6 +13,11 @@ from apps.audit import services as audit
 from apps.core.scoping import get_scoped_or_404, scoped
 from apps.encounters.models import Encounter
 from apps.patients.models import Patient
+from apps.patients.services import (
+    limit_records_to_own_patients,
+    own_doctor_only,
+    require_own_patient,
+)
 from apps.queue.models import QueueToken
 
 from . import services
@@ -32,11 +38,17 @@ def _safe_next(request, fallback):
 @permission_required(RECORD)
 def station(request):
     """Today's open tokens in this branch, with the vitals already taken for each patient."""
+    tokens = scoped(QueueToken, request).filter(
+        date=timezone.localdate(), status__in=QueueToken.OPEN_STATUSES
+    )
+    if own := own_doctor_only(request):
+        tokens = tokens.filter(
+            Q(doctor=own) | Q(doctor__isnull=True, department_id=own.department_id)
+        )
     tokens = list(
-        scoped(QueueToken, request)
-        .filter(date=timezone.localdate(), status__in=QueueToken.OPEN_STATUSES)
-        .select_related("patient", "doctor__user", "department")
-        .order_by("priority_rank", "queued_at")
+        tokens.select_related("patient", "doctor__user", "department").order_by(
+            "priority_rank", "queued_at"
+        )
     )
     start = timezone.localtime().replace(hour=0, minute=0, second=0, microsecond=0)
     taken = {}
@@ -76,6 +88,7 @@ def record(request):
         patient = encounter.patient
     else:
         patient = get_scoped_or_404(Patient, request, pk=source.get("patient") or 0)
+    require_own_patient(request, patient)
     fallback = reverse("vitals:station") if token else reverse("patients:detail", args=[patient.pk])
     back = _safe_next(request, fallback)
 
@@ -134,7 +147,12 @@ def record(request):
 @require_POST
 @permission_required(RECORD)
 def mark_error(request, pk):
-    vitals = get_scoped_or_404(VitalSign, request, all_branches=True, pk=pk)
+    vitals = get_scoped_or_404(
+        limit_records_to_own_patients(VitalSign.objects.all(), request),
+        request,
+        all_branches=True,
+        pk=pk,
+    )
     form = MarkErrorForm(request.POST)
     if form.is_valid():
         try:

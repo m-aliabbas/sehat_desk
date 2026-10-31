@@ -17,6 +17,7 @@ from apps.core.forms import StyledFormMixin
 from apps.core.scoping import get_scoped_or_404, scoped
 from apps.lab import services as lab_services
 from apps.patients.models import Patient
+from apps.patients.services import limit_records_to_own_patients, require_own_patient
 from apps.queue import services as queue_services
 from apps.queue.models import QueueToken
 
@@ -35,9 +36,10 @@ SECTIONS = [
 
 
 def _encounters(request):
-    return scoped(Encounter, request).select_related(
+    encounters = scoped(Encounter, request).select_related(
         "patient", "doctor__user", "department", "token", "appointment"
     )
+    return limit_records_to_own_patients(encounters, request)
 
 
 def _crumbs(*extra):
@@ -99,6 +101,7 @@ def start(request):
         patient = appointment.patient
     else:
         patient = get_scoped_or_404(Patient, request, pk=request.POST.get("patient") or 0)
+    require_own_patient(request, patient)
     try:
         encounter, created = services.start(
             request=request, patient=patient, token=token, appointment=appointment
@@ -117,7 +120,10 @@ def start(request):
             summary=f"{encounter.number} {patient.mrn}"
             + (f" token {token.label}" if token else ""),
         )
-    return redirect("encounters:detail", pk=encounter.pk)
+    url = reverse("encounters:detail", args=[encounter.pk])
+    # "Medicine" and "Test" on the queue open the consultation at that panel.
+    section = {"medicine": "#sec-prescription", "test": "#sec-lab"}
+    return redirect(url + section.get(request.POST.get("go"), ""))
 
 
 # --- Consultation workspace --------------------------------------------------------------------
@@ -271,6 +277,15 @@ def autosave(request, pk):
     return render(request, "encounters/_save_status.html", ctx)
 
 
+def _call_next(request, encounter) -> None:
+    try:
+        token = queue_services.call_next(request=request, doctor=encounter.doctor)
+    except queue_services.QueueError as err:
+        messages.info(request, err.message)
+    else:
+        audit.record(request, "queue.call", token, changes={"status": ["waiting", "called"]})
+
+
 @require_POST
 @permission_required("consultation.sign")
 def complete(request, pk):
@@ -305,6 +320,13 @@ def complete(request, pk):
     messages.success(
         request, f"{encounter.number} completed and signed (version {version.version})."
     )
+    if request.POST.get("next_patient"):
+        from apps.prescriptions import services as rx_services
+
+        if rx := rx_services.send_if_any(encounter, request=request):
+            audit.record(request, "prescription.send", rx, summary=rx.number)
+        _call_next(request, encounter)
+        return redirect("queue:doctor")
     return redirect("encounters:detail", pk=pk)
 
 

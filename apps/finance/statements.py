@@ -39,6 +39,7 @@ class Row:
     group: str  # INCOME or COST
     line: str  # P&L line label
     amount: Decimal
+    user_id: int | None = None  # salaries: whose payslip
 
 
 def _bounds(first: date, last: date):
@@ -56,21 +57,29 @@ def _local(dt) -> date:
 KIND_LABELS = dict(InvoiceItem.Kind.choices)
 
 
-def invoice_mix(invoice_ids) -> dict:
-    """{invoice_id: {segment: share}} by line totals; shares sum to 1."""
+def invoice_mix(invoice_ids, *, by_kind=False) -> dict:
+    """{invoice_id: {segment: share}} by line totals; shares sum to 1. by_kind: use line kinds."""
     totals: dict = defaultdict(lambda: defaultdict(lambda: ZERO))
     for inv, kind, amount in InvoiceItem.objects.filter(
         invoice_id__in=set(invoice_ids)
     ).values_list("invoice_id", "kind", "line_total"):
-        totals[inv][segments.for_item_kind(kind)] += amount
+        totals[inv][kind if by_kind else segments.for_item_kind(kind)] += amount
     out = {}
     for inv in invoice_ids:
         segs = totals.get(inv) or {}
         whole = sum(segs.values(), ZERO)
         out[inv] = (
-            {s: v / whole for s, v in segs.items()} if whole > ZERO else {segments.HOSPITAL: 1}
+            {s: v / whole for s, v in segs.items()}
+            if whole > ZERO
+            else {InvoiceItem.Kind.MISC if by_kind else segments.HOSPITAL: 1}
         )
     return out
+
+
+def source_label(kind_mix) -> str:
+    """Where an invoice's money comes from, largest part first: "Laboratory + Pharmacy"."""
+    ordered = sorted(kind_mix, key=lambda k: -kind_mix[k])
+    return " + ".join(str(KIND_LABELS.get(k, k)) for k in ordered)
 
 
 def split(amount, mix) -> dict:
@@ -195,7 +204,7 @@ def salary_rows(org, branches, first, last) -> list[Row]:
         day = max(first, date(slip.run.year, slip.run.month, 1))
         amount = slip.salary_pay + slip.bonus - slip.deduction
         if amount:
-            rows.append(Row(day, segments.HOSPITAL, COST, "Salaries & wages", amount))
+            rows.append(Row(day, segments.HOSPITAL, COST, "Salaries & wages", amount, slip.user_id))
     return rows
 
 
@@ -302,6 +311,9 @@ class Entry:
     method: str
     parts: dict  # segment -> signed amount (+ in, − out)
     branch: str = ""
+    source: str = ""  # where the money came from or went: Laboratory, Rent, Doctor pay...
+    group: str = ""  # summary line: Payments received, Expenses, Doctor pay...
+    by_kind: dict = field(default_factory=dict)  # invoice money: line kind -> signed amount
 
     @property
     def amount(self) -> Decimal:
@@ -342,7 +354,9 @@ def cash_entries(org, branches, start=None, end=None) -> list[Entry]:
         .select_related("method", "invoice", "branch")
     )
     refunds = list(window(Refund.objects).select_related("method", "invoice", "branch"))
-    mix = invoice_mix([p.invoice_id for p in payments] + [r.invoice_id for r in refunds])
+    invoice_ids = [p.invoice_id for p in payments] + [r.invoice_id for r in refunds]
+    mix = invoice_mix(invoice_ids)
+    kinds = invoice_mix(invoice_ids, by_kind=True)
     for p in payments:
         entries.append(
             Entry(
@@ -353,6 +367,9 @@ def cash_entries(org, branches, start=None, end=None) -> list[Entry]:
                 p.method.name,
                 split(p.amount, mix[p.invoice_id]),
                 p.branch.name,
+                source_label(kinds[p.invoice_id]),
+                "Payments received",
+                split(p.amount, kinds[p.invoice_id]),
             )
         )
     for r in refunds:
@@ -365,6 +382,9 @@ def cash_entries(org, branches, start=None, end=None) -> list[Entry]:
                 r.method.name,
                 {k: -v for k, v in split(r.amount, mix[r.invoice_id]).items()},
                 r.branch.name,
+                source_label(kinds[r.invoice_id]),
+                "Refunds",
+                {k: -v for k, v in split(r.amount, kinds[r.invoice_id]).items()},
             )
         )
     for d in window(AdmissionDeposit.objects).select_related("method", "branch"):
@@ -377,6 +397,8 @@ def cash_entries(org, branches, start=None, end=None) -> list[Entry]:
                 d.method.name,
                 {segments.HOSPITAL: d.amount},
                 d.branch.name,
+                "Inpatient (IPD)",
+                "Inpatient deposits",
             )
         )
     returned = AdmissionDeposit.objects.filter(returned_amount__gt=ZERO)
@@ -390,6 +412,8 @@ def cash_entries(org, branches, start=None, end=None) -> list[Entry]:
                 d.method.name,
                 {segments.HOSPITAL: -d.returned_amount},
                 d.branch.name,
+                "Inpatient (IPD)",
+                "Deposits returned",
             )
         )
     # Expenses are dated by the bill (they may be entered a few days late).
@@ -411,6 +435,8 @@ def cash_entries(org, branches, start=None, end=None) -> list[Entry]:
                 e.method.name,
                 {e.segment: -e.amount},
                 e.branch.name,
+                e.category.name,
+                "Expenses",
             )
         )
     payouts = list(
@@ -420,6 +446,7 @@ def cash_entries(org, branches, start=None, end=None) -> list[Entry]:
     )
     seg_of = _staff_segment({p.user_id for p in payouts})
     for s in payouts:
+        who = "Doctor pay" if seg_of[s.user_id] == segments.DOCTORS else "Staff pay"
         entries.append(
             Entry(
                 s.created_at,
@@ -429,6 +456,8 @@ def cash_entries(org, branches, start=None, end=None) -> list[Entry]:
                 s.method.name if s.method else "",
                 {seg_of[s.user_id]: s.amount},
                 s.branch.name,
+                who,
+                who,
             )
         )
     for v in window(
@@ -443,6 +472,8 @@ def cash_entries(org, branches, start=None, end=None) -> list[Entry]:
                 v.method.name if v.method else "",
                 {segments.PHARMACY: v.amount},
                 v.branch.name,
+                "Pharmacy purchases",
+                "Supplier payments",
             )
         )
     entries.sort(key=lambda e: e.when)

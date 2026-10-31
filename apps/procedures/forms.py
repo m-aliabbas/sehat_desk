@@ -4,6 +4,7 @@ from apps.core.forms import StyledFormMixin
 from apps.core.scoping import scoped
 from apps.masterdata.models import DoctorProfile, Service
 from apps.patients.models import Patient
+from apps.patients.services import limit_to_own_patients
 
 
 class ProcedureChoiceField(forms.ModelChoiceField):
@@ -48,7 +49,9 @@ class ProcedureOrderForm(StyledFormMixin, forms.Form):
         field.branch = request.branch
         self.fields["performed_by"].queryset = scoped(DoctorProfile, request).select_related("user")
         if with_patient:
-            self.fields["patient"].queryset = scoped(Patient, request).filter(is_active=True)
+            self.fields["patient"].queryset = limit_to_own_patients(
+                scoped(Patient, request), request
+            ).filter(is_active=True)
         else:
             del self.fields["patient"]
 

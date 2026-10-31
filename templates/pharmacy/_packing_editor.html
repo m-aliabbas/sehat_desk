@@ -1,0 +1,80 @@
+{% load ui pharmacy %}
+{# The packing table: smallest unit, a pack of those, a bigger pack of packs, each with its price. Needs packing_state and packing_presets as json_script. Posts the sizes plus the price exactly as typed. #}
+<div x-data="{
+    unit: '', pack: '', packSize: '', box: '', boxSize: '', hasPack: false, hasBox: false,
+    cost: { unit: '', pack: '', box: '' }, price: { unit: '', pack: '', box: '' }, costFrom: 'pack', priceFrom: 'pack',
+    presets: JSON.parse(document.getElementById('packing-presets-data').textContent),
+    init() {
+      const s = JSON.parse(document.getElementById('packing-state').textContent);
+      this.unit = s.unit; this.pack = s.pack_unit || 'strip'; this.packSize = s.pack_size; this.box = s.box_unit || 'box'; this.boxSize = s.packs_per_box;
+      this.hasPack = Number(s.pack_size) > 1; this.hasBox = this.hasPack && Number(s.packs_per_box) > 1;
+      this.costFrom = s.cost_per || 'pack'; this.priceFrom = s.price_per || 'pack';
+      this.cost[this.costFrom] = s.cost; this.price[this.priceFrom] = s.price;
+      this.fit();
+    },
+    size(level) { const p = this.hasPack ? Number(this.packSize) || 1 : 1; return level === 'box' ? p * (this.hasBox ? Number(this.boxSize) || 1 : 1) : level === 'pack' ? p : 1; },
+    get levels() { return ['unit', ...(this.hasPack ? ['pack'] : []), ...(this.hasBox ? ['box'] : [])]; },
+    get top() { return this.levels[this.levels.length - 1]; },
+    fill(values, from) { const typed = values[from]; if (typed === '' || typed === null) { this.levels.forEach(l => { if (l !== from) values[l] = ''; }); return; } this.levels.forEach(l => { if (l !== from) values[l] = (Number(typed) / this.size(from) * this.size(l)).toFixed(2); }); },
+    fit() { if (!this.levels.includes(this.costFrom)) this.costFrom = this.top; if (!this.levels.includes(this.priceFrom)) this.priceFrom = this.top; this.fill(this.cost, this.costFrom); this.fill(this.price, this.priceFrom); },
+    typed(which, level) { if (which === 'cost') { this.costFrom = level; this.fill(this.cost, level); } else { this.priceFrom = level; this.fill(this.price, level); } },
+    dropBox() { ['cost', 'price'].forEach(w => { const from = w === 'cost' ? 'costFrom' : 'priceFrom'; if (this[from] === 'box') { this[w].pack = this[w].box === '' ? '' : (Number(this[w].box) / (Number(this.boxSize) || 1)).toFixed(2); this[from] = 'pack'; } }); this.hasBox = false; this.boxSize = 1; this.fit(); },
+    dropPack() { ['cost', 'price'].forEach(w => { const from = w === 'cost' ? 'costFrom' : 'priceFrom'; if (this[from] !== 'unit') { this[w].unit = this[w].pack === '' ? '' : (Number(this[w].pack) / (Number(this.packSize) || 1)).toFixed(2); this[from] = 'unit'; } }); this.hasPack = false; this.hasBox = false; this.packSize = 1; this.boxSize = 1; this.fit(); },
+    addPack() { this.hasPack = true; if (Number(this.packSize) <= 1) this.packSize = ''; this.$nextTick(() => this.$refs.packName.focus()); },
+    addBox() { this.hasBox = true; if (Number(this.boxSize) <= 1) this.boxSize = ''; this.$nextTick(() => this.$refs.boxName.focus()); },
+    use(p) { this.unit = p.unit; this.pack = p.pack_unit; this.packSize = p.pack_size; this.box = p.box_unit; this.boxSize = p.packs_per_box; this.hasPack = p.pack_size > 1; this.hasBox = this.hasPack && p.packs_per_box > 1; this.fit(); },
+    many(word, n) { return !word ? '' : Number(n) === 1 ? word : word + (/(s|x|ch|sh)$/.test(word) ? 'es' : 's'); },
+    get summary() { if (!this.hasPack) return ''; let t = '1 ' + this.pack + ' = ' + this.size('pack') + ' ' + this.many(this.unit, this.size('pack')); if (this.hasBox) t = '1 ' + this.box + ' = ' + (Number(this.boxSize) || 1) + ' ' + this.many(this.pack, Number(this.boxSize) || 1) + ' = ' + this.size('box') + ' ' + this.many(this.unit, this.size('box')); return t; },
+    get margin() { const c = Number(this.cost.unit), p = Number(this.price.unit); if (!c || !p) return ''; return Math.round((p - c) / p * 100) + '% margin'; },
+  }">
+  <input type="hidden" name="cost_per" :value="costFrom">
+  <input type="hidden" name="price_per" :value="priceFrom">
+  <input type="hidden" name="pack_cost" :value="cost[costFrom]">
+  <input type="hidden" name="pack_price" :value="price[priceFrom]">
+  <input type="hidden" name="pack_size" :value="hasPack ? packSize : 1">
+  <input type="hidden" name="packs_per_box" :value="hasBox ? boxSize : 1">
+  <input type="hidden" name="pack_unit" :value="hasPack ? pack : unit">
+  <input type="hidden" name="box_unit" :value="box">
+  <div class="mb-3 flex flex-wrap items-center gap-2">
+    <span class="text-label text-muted">Start from</span>
+    <template x-for="p in presets" :key="p.label"><button type="button" class="btn btn-ghost btn-sm border border-line" @click="use(p)" x-text="p.label"></button></template>
+  </div>
+  <div class="table-wrap">
+    <table class="table min-w-[44rem]">
+      <thead><tr><th scope="col" class="w-40">Size</th><th scope="col">Called</th><th scope="col">How many inside</th><th scope="col" class="w-36">Buy price</th><th scope="col" class="w-36">Sell price</th><th scope="col"><span class="sr-only">Remove</span></th></tr></thead>
+      <tbody>
+        <tr>
+          <th scope="row" class="font-medium">Smallest unit sold</th>
+          <td><input name="unit" list="unit-names" class="input" autocomplete="off" x-model="unit" aria-label="Smallest unit sold" placeholder="tablet"></td>
+          <td class="text-label text-muted">Stock is counted in this</td>
+          <td><input type="number" min="0" step="0.01" class="input" autocomplete="off" x-model="cost.unit" @input="typed('cost', 'unit')" aria-label="Buy price of one smallest unit"></td>
+          <td><input type="number" min="0" step="0.01" class="input" autocomplete="off" x-model="price.unit" @input="typed('price', 'unit')" aria-label="Sell price of one smallest unit"></td>
+          <td></td>
+        </tr>
+        <tr x-show="hasPack" x-cloak>
+          <th scope="row" class="font-medium">Pack</th>
+          <td><input x-ref="packName" list="pack-names" class="input" autocomplete="off" x-model="pack" aria-label="What a pack is called" placeholder="strip"></td>
+          <td><span class="flex items-center gap-2"><input type="number" min="2" class="input w-20" autocomplete="off" x-model="packSize" @input="fit()" aria-label="How many smallest units in a pack"> <span class="text-label text-muted" x-text="many(unit, packSize)"></span></span></td>
+          <td><input type="number" min="0" step="0.01" class="input" autocomplete="off" x-model="cost.pack" @input="typed('cost', 'pack')" aria-label="Buy price of one pack"></td>
+          <td><input type="number" min="0" step="0.01" class="input" autocomplete="off" x-model="price.pack" @input="typed('price', 'pack')" aria-label="Sell price of one pack"></td>
+          <td><button type="button" tabindex="-1" class="btn btn-ghost btn-sm text-red" @click="dropPack()" x-show="!hasBox">Remove</button></td>
+        </tr>
+        <tr x-show="hasBox" x-cloak>
+          <th scope="row" class="font-medium">Bigger pack</th>
+          <td><input x-ref="boxName" list="pack-names" class="input" autocomplete="off" x-model="box" aria-label="What the bigger pack is called" placeholder="box"></td>
+          <td><span class="flex items-center gap-2"><input type="number" min="2" class="input w-20" autocomplete="off" x-model="boxSize" @input="fit()" aria-label="How many packs in the bigger pack"> <span class="text-label text-muted" x-text="many(pack, boxSize)"></span></span></td>
+          <td><input type="number" min="0" step="0.01" class="input" autocomplete="off" x-model="cost.box" @input="typed('cost', 'box')" aria-label="Buy price of one bigger pack"></td>
+          <td><input type="number" min="0" step="0.01" class="input" autocomplete="off" x-model="price.box" @input="typed('price', 'box')" aria-label="Sell price of one bigger pack"></td>
+          <td><button type="button" tabindex="-1" class="btn btn-ghost btn-sm text-red" @click="dropBox()">Remove</button></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="mt-3 flex flex-wrap items-center gap-3">
+    <button type="button" class="btn btn-secondary btn-sm" x-show="!hasPack" @click="addPack()">+ Comes in a pack</button>
+    <button type="button" class="btn btn-secondary btn-sm" x-show="hasPack && !hasBox" @click="addBox()">+ Comes in a bigger pack</button>
+    <p class="text-label font-medium text-ink" x-text="summary"></p>
+    <p class="text-label text-muted" x-text="margin"></p>
+  </div>
+  {% for name in "unit pack_size pack_unit packs_per_box box_unit pack_cost pack_price purchase_price sale_price"|split %}{% for e in form.errors|get_item:name %}<p class="field-error mt-1">{{ e }}</p>{% endfor %}{% endfor %}
+</div>

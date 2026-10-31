@@ -78,8 +78,8 @@ def test_record_validation(nurse_request, patient):
         )
 
 
-def test_reception_cannot_record(rf, make_user, org, branch, patient):
-    req = _req(rf, make_user("reception"), org, branch)
+def test_role_without_the_code_cannot_record(rf, make_user, org, branch, patient):
+    req = _req(rf, make_user("lab"), org, branch)
     with pytest.raises(services.VitalsError, match="not allowed"):
         services.record(request=req, patient=patient, data={"pulse": 80})
 

@@ -99,12 +99,12 @@ def test_archive_paths_cannot_escape(tmp_path):
         backup.verify_backup(archive)
 
 
-def test_system_page_lists_backups_and_backup_now_needs_permission(
+def test_backup_page_lists_backups_and_backup_now_needs_permission(
     client, admin_client, make_user, settings, tmp_path
 ):
     settings.SEHATDESK_BACKUP_DIR = str(tmp_path)
     (tmp_path / "sehatdesk-20260101-020000.zip.enc").write_bytes(b"x")
-    page = admin_client.get(reverse("core:system")).content.decode()
+    page = admin_client.get(reverse("core:backups")).content.decode()
     assert "sehatdesk-20260101-020000.zip.enc" in page and "Back up now" in page
     client.force_login(make_user("reception"))
     assert client.post(reverse("core:backup-now")).status_code == 403

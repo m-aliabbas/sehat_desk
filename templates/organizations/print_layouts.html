@@ -1,0 +1,62 @@
+{% extends "layouts/app.html" %}
+{% block title %}Print layouts · Settings{% endblock %}
+{% block page_title %}Print layouts{% endblock %}
+{% block page_subtitle %}Paper, spacing, text size, logo, header and footer for each document. The logo and hospital name come from Settings → Hospital.{% endblock %}
+{% block content %}
+{% include "partials/settings_tabs.html" %}
+<nav class="tabs mb-6" aria-label="Document">
+  {% for value, label in documents %}<a class="tab" href="?doc={{ value }}" {% if value == document %}aria-selected="true"{% endif %}>{{ label }}</a>{% endfor %}
+</nav>
+<div class="grid gap-6 xl:grid-cols-2">
+  <form method="post" class="space-y-6" novalidate>
+    {% csrf_token %}
+    {% for e in form.non_field_errors %}{% include "components/alert.html" with level="danger" message=e %}{% endfor %}
+    <section class="card">
+      <h2 class="section-title mb-4">Page</h2>
+      <div class="grid gap-5 md:grid-cols-2">
+        {% include "components/field.html" with field=form.paper %}
+        {% include "components/field.html" with field=form.margin_mm %}
+        {% include "components/field.html" with field=form.top_space_mm %}
+        {% include "components/field.html" with field=form.bottom_space_mm %}
+        {% include "components/field.html" with field=form.text_size %}
+      </div>
+    </section>
+    <section class="card">
+      <h2 class="section-title mb-4">Header and footer</h2>
+      <div class="grid gap-5 md:grid-cols-2">
+        {% include "components/field.html" with field=form.show_header %}
+        {% include "components/field.html" with field=form.header_align %}
+        {% include "components/field.html" with field=form.show_logo %}
+        {% include "components/field.html" with field=form.logo_mm %}
+        {% include "components/field.html" with field=form.header_text %}
+        {% include "components/field.html" with field=form.show_footer %}
+        {% include "components/field.html" with field=form.footer_text %}
+      </div>
+    </section>
+    {% if document == "prescription" %}
+    <section class="card">
+      <h2 class="section-title mb-4">Prescription</h2>
+      <div class="grid gap-5 md:grid-cols-2">
+        {% include "components/field.html" with field=form.doctor_side %}
+        {% include "components/field.html" with field=form.show_qualifications %}
+        {% include "components/field.html" with field=form.show_registration %}
+        {% include "components/field.html" with field=form.show_vitals %}
+        {% include "components/field.html" with field=form.show_allergies %}
+        {% include "components/field.html" with field=form.extra_lines %}
+      </div>
+    </section>
+    {% else %}
+      {{ form.doctor_side.as_hidden }}
+      {% if form.show_qualifications.value %}{{ form.show_qualifications.as_hidden }}{% endif %}
+      {% if form.show_registration.value %}{{ form.show_registration.as_hidden }}{% endif %}
+      {% if form.show_vitals.value %}{{ form.show_vitals.as_hidden }}{% endif %}
+      {% if form.show_allergies.value %}{{ form.show_allergies.as_hidden }}{% endif %}
+    {% endif %}
+    <button class="btn btn-primary">Save and preview</button>
+  </form>
+  <section class="card h-fit">
+    <h2 class="section-title mb-3">Preview</h2>
+    <iframe title="Layout preview" src="{% url 'organizations:print-layout-preview' %}?doc={{ document }}" class="h-[640px] w-full rounded-control border border-line"></iframe>
+  </section>
+</div>
+{% endblock %}

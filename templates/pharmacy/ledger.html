@@ -1,11 +1,21 @@
 {% extends "layouts/app.html" %}
+{% load ui %}
 {% block title %}Stock ledger{% endblock %}
 {% block page_title %}Stock ledger{% endblock %}
 {% block page_subtitle %}Every stock change in {{ current_branch.name }}. Entries are never edited; corrections are new entries.{% endblock %}
 {% block content %}
 <section class="card">
-  <form method="get" class="mb-5 grid gap-3 md:grid-cols-[1fr_auto]" x-data @change="$el.submit()">
+  {% if mismatches %}
+  <div class="mb-4">{% include "components/alert.html" with level="danger" message="Some batch balances do not match their ledger entries. Tell your administrator." %}
+    <ul class="mt-2 text-label">{% for b in mismatches %}<li><a class="underline" href="{% url 'pharmacy:product-ledger' b.product_id %}">{{ b.product }} · {{ b.label }}</a>: stock says {{ b.quantity_available }}, ledger says {{ b.ledger_total }}</li>{% endfor %}</ul>
+  </div>
+  {% else %}
+  <p class="mb-4 flex items-center gap-2 text-label text-teal-deep">{% icon "check-circle" "h-4 w-4" %} Every batch balance matches its ledger entries.</p>
+  {% endif %}
+  <form method="get" class="mb-5 grid gap-3 md:grid-cols-[1fr_auto_auto_auto]" x-data @change="$el.submit()">
     <input type="search" name="q" value="{{ q }}" class="input" placeholder="Search product, SKU or barcode" aria-label="Search">
+    <input type="date" name="from" value="{{ start|date:'Y-m-d' }}" class="input" aria-label="From date">
+    <input type="date" name="to" value="{{ end|date:'Y-m-d' }}" class="input" aria-label="To date">
     <select name="kind" class="select" aria-label="Movement type"><option value="">All movements</option>{% for v, l in kinds %}<option value="{{ v }}" {% if kind == v %}selected{% endif %}>{{ l }}</option>{% endfor %}</select>
   </form>
   {% include "pharmacy/_ledger_table.html" %}

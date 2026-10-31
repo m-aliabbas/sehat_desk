@@ -15,6 +15,7 @@ from django.utils import timezone
 from apps.billing import services as billing
 from apps.billing.models import Invoice, InvoiceItem
 from apps.core.models import next_number
+from apps.core.scoping import scoped
 
 from .models import LabOrder, LabOrderItem, LabResult, LabSample
 
@@ -449,6 +450,17 @@ def acknowledge_critical(result, *, request) -> LabResult:
             update_fields=["critical_acknowledged_by", "critical_acknowledged_at", "updated_at"]
         )
     return result
+
+
+def orders_for_doctor(request, doctor):
+    """This branch's live orders asked for by a doctor, with tests and current results loaded."""
+    return (
+        scoped(LabOrder, request)
+        .filter(doctor=doctor)
+        .exclude(status=LabOrder.Status.CANCELLED)
+        .select_related("patient")
+        .prefetch_related("items__results")
+    )
 
 
 def unacknowledged_critical(organization, *, doctor=None, branch=None):

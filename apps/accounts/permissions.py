@@ -133,7 +133,7 @@ DEFAULT_ROLES: list[RoleDef] = [
         "Registration, appointments, tokens and consultation payments.",
         _codes("patient.", "appointment.", "queue.")
         | {"billing.view", "billing.payment.collect", "document.view", "document.upload"}
-        | {"procedure.view", "procedure.order", "hr.self"},
+        | {"procedure.view", "procedure.order", "vitals.record", "hr.self"},
     ),
     RoleDef(
         "doctor",
@@ -171,9 +171,8 @@ DEFAULT_ROLES: list[RoleDef] = [
         "pharmacy",
         "Pharmacist",
         "Prescriptions, dispensing, stock, purchases and returns.",
-        # Discounts are a supervisor decision: granted per hospital, not by default.
-        (_codes("pharmacy.") - {"pharmacy.discount"})
-        | {"patient.view", "billing.payment.collect", "hr.self"},
+        # Discounts stay under the limit in Settings → Billing.
+        _codes("pharmacy.") | {"patient.view", "billing.payment.collect", "hr.self"},
     ),
     RoleDef(
         "cashier",

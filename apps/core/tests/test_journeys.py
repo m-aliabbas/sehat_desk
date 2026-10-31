@@ -23,8 +23,8 @@ NAV_URLS = {item.key: item.url_name for item in NAV_ITEMS if item.url_name}
 
 JOURNEYS = {
     # role: (main menu entry, entries it must have, entries it must not have, main screen text)
-    "reception": ("reception", {"appointments", "patients"},
-                  {"laboratory", "pharmacy", "opd", "settings"}, "walk-in"),
+    "reception": ("reception", {"patients"},
+                  {"appointments", "laboratory", "pharmacy", "opd", "settings"}, "save and print"),
     "doctor": ("opd", {"patients"}, {"settings", "staff", "pharmacy", "billing"}, "queue"),
     "lab": ("laboratory", set(), {"opd", "pharmacy", "settings"}, "worklist"),
     "pharmacy": ("pharmacy", {"inventory"}, {"opd", "laboratory", "settings"}, "pos-search"),

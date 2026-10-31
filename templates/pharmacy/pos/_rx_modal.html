@@ -2,6 +2,33 @@
 {% block modal_size %}max-w-2xl{% endblock %}
 {% block modal_title %}Attach prescription{% endblock %}
 {% block modal_body %}
+{% if cart.patient %}
+<form class="mb-4 flex flex-wrap items-end gap-2 rounded-control bg-page p-3" hx-post="{% url 'pharmacy:pos-prescription' %}" hx-target="#pos-cart" hx-swap="outerHTML" @submit="open = false">
+  <input type="hidden" name="action" value="paper">
+  <div class="min-w-[14rem] flex-1">
+    <label class="field-label" for="rx-doctor">Handwritten prescription, written by</label>
+    <select id="rx-doctor" name="doctor" class="select mt-1" data-searchable required>
+      <option value="">Search doctor</option>
+      {% for d in doctors %}<option value="{{ d.pk }}" {% if suggested_doctor and suggested_doctor.pk == d.pk %}selected{% endif %}>{{ d }}</option>{% endfor %}
+    </select>
+  </div>
+  <button class="btn btn-primary">Attach empty prescription</button>
+  <p class="w-full text-label text-muted">What you sell gets added to it when the sale is paid.</p>
+</form>
+{% else %}
+<p class="mb-3 rounded-control bg-page p-3 text-label text-muted">For a handwritten prescription, attach the patient first.</p>
+{% endif %}
+{% if visits %}
+<p class="text-label font-semibold text-ink">Today's visits with no prescription in the system</p>
+<ul class="mb-4 mt-1 divide-y divide-line">
+  {% for v in visits %}
+  <li class="flex flex-wrap items-center justify-between gap-3 py-2">
+    <div><p>{{ v.patient.full_name }} <span class="font-mono text-label text-muted">{{ v.patient.mrn }}</span></p><p class="text-label text-muted">{{ v.doctor|default:"No doctor chosen" }} · {{ v.label }} · {{ v.status }}</p></div>
+    <button type="button" class="btn btn-primary btn-sm" hx-post="{% url 'pharmacy:pos-prescription' %}" hx-vals='{"action": "visit", "patient": "{{ v.patient.pk }}"{% if v.doctor %}, "doctor": "{{ v.doctor.pk }}"{% endif %}}' hx-target="#pos-cart" hx-swap="outerHTML" @click="open = false">Tag to sale</button>
+  </li>
+  {% endfor %}
+</ul>
+{% endif %}
 <p class="text-label text-muted">Signed prescriptions waiting at this pharmacy{% if cart.patient %} for {{ cart.patient.full_name }}{% endif %}. To choose products and quantities line by line, open the prescription.</p>
 <form class="mt-3" hx-get="{% url 'pharmacy:pos-prescription' %}" hx-target="#overlay-root" hx-trigger="input changed delay:300ms from:#rx-search, submit">
   <label class="sr-only" for="rx-search">Search prescriptions</label>

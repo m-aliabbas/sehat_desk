@@ -5,6 +5,7 @@
 {% block page_subtitle %}A complete patient record, connected across departments.{% endblock %}
 {% block page_actions %}
   <a href="{% url 'patients:slip' patient.pk %}" class="btn btn-secondary" target="_blank">Print slip</a>
+  {% if "billing.view" in sd_perms %}<a href="{% url 'billing:patient-ledger' patient.pk %}" class="btn btn-secondary" target="_blank">Ledger</a>{% endif %}
   {% if can_edit %}<a href="{% url 'patients:edit' patient.pk %}" class="btn btn-secondary">Edit details</a>{% endif %}
   {% if can_consult %}<form method="post" action="{% url 'encounters:start' %}">{% csrf_token %}<input type="hidden" name="patient" value="{{ patient.pk }}"><input type="hidden" name="back" value="{{ request.get_full_path }}"><button class="btn btn-primary">{% icon "stethoscope" "h-4 w-4" %} Start consultation</button></form>{% endif %}
   {% if can_add_procedure and patient.is_active %}<a href="{% url 'procedures:procedure-create' %}?patient={{ patient.pk }}" class="btn btn-secondary">{% icon "plus" "h-4 w-4" %} Add procedure</a>{% endif %}
@@ -59,6 +60,16 @@
 </nav>
 
 {% if tab == "overview" %}
+{% if medicines_bought %}
+<section class="card mb-6">
+  <h2 class="section-title mb-3">Medicines bought</h2>
+  <ul class="divide-y divide-line text-body">
+    {% for m in medicines_bought %}
+    <li class="flex flex-wrap justify-between gap-2 py-2"><span><span class="font-medium">{{ m.product.display_name }}</span> × {{ m.quantity }}</span><span class="text-label text-muted">{{ m.sale.completed_at|date:"d M Y" }} · {{ m.sale.number }} · {% if m.prescription_item.added_at_pharmacy %}added at pharmacy to {{ m.sale.prescription.number }}{% elif m.prescription_item_id %}on {{ m.sale.prescription.number }}{% else %}no prescription{% endif %}</span></li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
 <div class="grid gap-6 xl:grid-cols-3">
   <section class="card xl:col-span-2">
     <h2 class="section-title mb-4">Demographics</h2>

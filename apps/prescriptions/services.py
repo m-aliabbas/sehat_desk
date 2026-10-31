@@ -105,8 +105,6 @@ def add_item(
         data["route"] = data.get("route") or medicine.route
     if not (data.get("medicine_name") or "").strip():
         raise PrescriptionError("Choose a medicine or type its name.")
-    if not (data.get("dose") or "").strip():
-        raise PrescriptionError("Enter the dose, e.g. 1 tablet or 5 ml.")
     conflicts = allergy_conflicts(
         encounter.patient, data.get("medicine_name", ""), data.get("generic_name", "")
     )
@@ -181,7 +179,7 @@ def save_favorite(encounter, *, request, name: str) -> FavoritePrescription:
         organization=encounter.organization,
         doctor=encounter.doctor,
         name=name.strip()[:80],
-        defaults={"items": [i.copy_fields() for i in rx.items.all()]},
+        defaults={"items": [i.copy_fields() for i in rx.items.filter(added_at_pharmacy=False)]},
     )
     return fav
 
@@ -221,3 +219,14 @@ def send_to_pharmacy(rx, *, request) -> Prescription:
     rx.sent_by = request.user
     rx.save(update_fields=["sent_to_pharmacy_at", "sent_by", "updated_at"])
     return rx
+
+
+def send_if_any(encounter, *, request):
+    """ "Checked · Next" also sends the signed prescription: the doctor has moved on."""
+    rx = prescription_for(encounter)
+    if rx is None or not rx.items.exists():
+        return None
+    rx.refresh_from_db()
+    if rx.status != Prescription.Status.SIGNED or rx.sent_to_pharmacy_at:
+        return None
+    return send_to_pharmacy(rx, request=request)

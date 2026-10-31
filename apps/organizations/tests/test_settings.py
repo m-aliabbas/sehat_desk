@@ -79,10 +79,10 @@ def test_main_branch_cannot_be_deactivated(admin_client, branch):
 def test_deactivated_branch_removes_access(client, make_user, branch, branch2):
     user = make_user("reception", branch=branch2)
     client.force_login(user)
-    assert client.get("/").status_code == 200
+    assert client.get("/?view=overview").status_code == 200
     branch2.is_active = False
     branch2.save()
-    assert client.get("/").url == "/workspace/no-access/"
+    assert client.get("/?view=overview").url == "/workspace/no-access/"
 
 
 def test_timezone_follows_organization(admin_client):

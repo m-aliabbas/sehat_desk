@@ -4,7 +4,7 @@ Settings → Departments, Doctors (schedules, leave), Services. PROJECT_NOTES §
 
 ## Files
 - `models.py` — `Department` (token prefix), `Specialty`, `DoctorProfile` (fees, slot length,
-  follow-up window), `DoctorSchedule` (per branch + weekday, optional break), `DoctorLeave`,
+  follow-up window), `DoctorSchedule` (per branch + weekday + shift, optional break; overlaps refused in the view), `DoctorLeave`,
   `ServiceCategory`, `Service` (`is_procedure`, `price_editable`, `price_for(branch)`),
   `ServiceBranchPrice`.
 - `views.py`, `forms.py` — the settings screens.

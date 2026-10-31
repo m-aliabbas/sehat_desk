@@ -14,6 +14,7 @@ from apps.core.scoping import get_scoped_or_404, paginate, scoped
 from apps.encounters import services as encounter_services
 from apps.encounters.models import Encounter
 from apps.patients.models import Patient
+from apps.patients.services import limit_records_to_own_patients, limit_to_own_patients
 
 from . import services
 from .forms import CancelForm, CompleteForm, ProcedureOrderForm
@@ -23,9 +24,10 @@ VIEW, ORDER, PERFORM = "procedure.view", "procedure.order", "procedure.perform"
 
 
 def _procedures(request):
-    return scoped(PatientProcedure, request).select_related(
+    procedures = scoped(PatientProcedure, request).select_related(
         "patient", "performed_by__user", "invoice", "service"
     )
+    return limit_records_to_own_patients(procedures, request)
 
 
 def _crumbs(*extra):
@@ -96,6 +98,8 @@ def procedure_create(request):
     initial = {}
     if request.GET.get("patient", "").isdigit():
         initial["patient"] = request.GET["patient"]
+    if request.GET.get("doctor", "").isdigit():
+        initial["performed_by"] = request.GET["doctor"]
     form = ProcedureOrderForm(request.POST or None, initial=initial, request=request)
     if request.method == "POST" and form.is_valid():
         try:
@@ -112,7 +116,7 @@ def procedure_create(request):
     patient = None
     pid = form["patient"].value()
     if pid and str(pid).isdigit():
-        patient = scoped(Patient, request).filter(pk=pid).first()
+        patient = limit_to_own_patients(scoped(Patient, request), request).filter(pk=pid).first()
     return render(
         request,
         "procedures/create.html",
@@ -129,7 +133,9 @@ def procedure_create(request):
 @permission_required(ORDER)
 def encounter_order(request, pk):
     """Doctor adds a procedure from the consultation workspace."""
-    encounter = get_scoped_or_404(Encounter, request, pk=pk)
+    encounter = get_scoped_or_404(
+        limit_records_to_own_patients(Encounter.objects.all(), request), request, pk=pk
+    )
     back = f"{reverse('encounters:detail', args=[pk])}#sec-procedures"
     if not (encounter.is_draft and encounter_services.can_write(request, encounter)):
         messages.error(request, "Only the treating doctor can add procedures to an open visit.")
@@ -169,7 +175,7 @@ def procedure_detail(request, pk):
 @require_POST
 @permission_required(PERFORM)
 def procedure_complete(request, pk):
-    proc = get_scoped_or_404(PatientProcedure, request, pk=pk)
+    proc = get_scoped_or_404(_procedures(request), request, pk=pk)
     form = CompleteForm(request.POST)
     if form.is_valid():
         try:
@@ -185,7 +191,7 @@ def procedure_complete(request, pk):
 @require_POST
 @permission_required(ORDER)
 def procedure_cancel(request, pk):
-    proc = get_scoped_or_404(PatientProcedure, request, pk=pk)
+    proc = get_scoped_or_404(_procedures(request), request, pk=pk)
     form = CancelForm(request.POST)
     if not form.is_valid():
         messages.error(request, "A reason is required to cancel a procedure.")

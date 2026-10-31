@@ -17,11 +17,12 @@ from django.views.decorators.http import require_GET, require_POST
 from apps.accounts.decorators import has_perm, permission_required
 from apps.audit import services as audit
 from apps.core.pdf import weasyprint_html
-from apps.core.scoping import get_scoped_or_404, scoped
+from apps.core.scoping import get_scoped_or_404, paginate, scoped
 from apps.documents.services import panel_context as document_panel
 from apps.encounters import services as encounter_services
 from apps.encounters.models import Encounter
 from apps.patients.models import Patient
+from apps.patients.services import limit_to_own_patients, own_doctor_only
 
 from . import services
 from .barcode import code39_svg
@@ -44,12 +45,8 @@ from .models import (
     LabTestCategory,
 )
 
-LAB_DESK = (
-    "lab.order.create",
-    "lab.sample.collect",
-    "lab.result.enter",
-    "lab.result.verify",
-)
+LAB_STAFF = ("lab.sample.collect", "lab.result.enter", "lab.result.verify")
+LAB_DESK = ("lab.order.create", *LAB_STAFF)
 # The catalogue is admin work: holding only lab.catalog.manage shows no patient or result.
 LAB_ANY = (*LAB_DESK, "lab.catalog.manage")
 ItemStatus = LabOrderItem.Status
@@ -68,10 +65,29 @@ def _crumbs(*extra):
     return [{"label": "Laboratory", "url": reverse("lab:worklist")}, *extra]
 
 
+def _own_doctor(request):
+    """The doctor profile when this user sees only their own patients' tests. Someone who also
+    works in the lab (None here) keeps the whole worklist."""
+    if any(has_perm(request, c) for c in LAB_STAFF):
+        return None
+    return own_doctor_only(request)
+
+
+def _limit_to_own(orders, request):
+    """A doctor reaches orders they asked for and the tests of patients they treat."""
+    doctor = _own_doctor(request)
+    if doctor is None:
+        return orders
+    return orders.filter(
+        Q(doctor=doctor) | Q(patient__in=limit_to_own_patients(scoped(Patient, request), request))
+    )
+
+
 def _orders(request, *, all_branches=False):
-    return scoped(LabOrder, request, all_branches=all_branches).select_related(
+    orders = scoped(LabOrder, request, all_branches=all_branches).select_related(
         "patient", "doctor__user", "invoice"
     )
+    return _limit_to_own(orders, request)
 
 
 def _get_order(request, pk, *, all_branches=False):
@@ -106,6 +122,9 @@ TABS = [
 def worklist(request):
     if not any(has_perm(request, c) for c in LAB_DESK):
         return redirect("lab:catalog")
+    doctor = _own_doctor(request)
+    if doctor is not None:
+        return _my_patients_tests(request, doctor)
     tab = request.GET.get("tab", "collect")
     if tab not in dict(TABS):
         tab = "collect"
@@ -131,6 +150,7 @@ def worklist(request):
         if q:
             qs = qs.filter(
                 Q(**{f"{prefix}number__icontains": q})
+                | Q(**{f"{prefix}samples__accession__iexact": q})  # a scanned tube label
                 | Q(**{f"{prefix}patient__mrn__icontains": q})
                 | Q(**{f"{prefix}patient__name_search__contains": q.lower()})
             )
@@ -184,7 +204,48 @@ def worklist(request):
     return render(request, "lab/worklist.html", ctx)
 
 
+def _my_patients_tests(request, doctor):
+    """A doctor's Laboratory page: the tests they ordered, reports first."""
+    tab = "waiting" if request.GET.get("tab") == "waiting" else "ready"
+    q = request.GET.get("q", "").strip()
+    orders = services.orders_for_doctor(request, doctor)
+    ready = orders.filter(status=LabOrder.Status.RELEASED)
+    waiting = orders.exclude(status=LabOrder.Status.RELEASED)
+    shown = ready.order_by("-released_at") if tab == "ready" else waiting.order_by("-created_at")
+    if q:
+        shown = shown.filter(
+            Q(number__icontains=q)
+            | Q(patient__mrn__icontains=q)
+            | Q(patient__name_search__contains=q.lower())
+        )
+    return render(
+        request,
+        "lab/my_patients.html",
+        {
+            "tab": tab,
+            "q": q,
+            "tabs": [
+                ("ready", "Reports ready", ready.count()),
+                ("waiting", "Waiting for lab", waiting.count()),
+            ],
+            "page_obj": paginate(request, shown),
+            "can_order": has_perm(request, "lab.order.create"),
+        },
+    )
+
+
 # --- Orders ------------------------------------------------------------------------------------
+
+
+@require_GET
+@permission_required(*LAB_ANY, "lab.order.create", "consultation.view", "queue.manage", any_of=True)
+def tests_available(request):
+    """Read-only list for whoever advises patients: reception, doctors and the lab."""
+    return render(
+        request,
+        "lab/tests_available.html",
+        {**_catalogue(request), "breadcrumbs": _crumbs({"label": "Available tests"})},
+    )
 
 
 def _catalogue(request):
@@ -230,7 +291,7 @@ def order_create(request):
     patient = None
     pid = form["patient"].value()
     if pid and str(pid).isdigit():
-        patient = scoped(Patient, request).filter(pk=pid).first()
+        patient = limit_to_own_patients(scoped(Patient, request), request).filter(pk=pid).first()
     return render(
         request,
         "lab/order_create.html",
@@ -380,7 +441,11 @@ def order_print(request, pk):
 @require_GET
 @permission_required(*LAB_DESK, any_of=True)
 def sample_label(request, pk):
-    sample = get_scoped_or_404(LabSample.objects.select_related("order__patient"), request, pk=pk)
+    sample = get_scoped_or_404(
+        LabSample.objects.filter(order__in=_orders(request)).select_related("order__patient"),
+        request,
+        pk=pk,
+    )
     return render(
         request,
         "lab/sample_label.html",
@@ -527,7 +592,7 @@ def attachment_download(request, pk):
         .filter(pk=pk, item__order__organization=request.organization)
         .first()
     )
-    if att is None:
+    if att is None or not _orders(request, all_branches=True).filter(pk=att.item.order_id).exists():
         raise Http404
     audit.record(request, "lab.attachment.view", att.item, summary=att.original_name)
     content_type = mimetypes.guess_type(att.original_name)[0] or "application/octet-stream"
@@ -625,7 +690,10 @@ def acknowledge(request, pk):
         .filter(pk=pk, item__order__organization=request.organization)
         .first()
     )
-    if result is None:
+    if (
+        result is None
+        or not _orders(request, all_branches=True).filter(pk=result.item.order_id).exists()
+    ):
         raise Http404
     try:
         services.acknowledge_critical(result, request=request)
@@ -648,8 +716,7 @@ def report(request, pk):
         raise PermissionDenied
     order = _get_order(request, pk, all_branches=True)
     released = order.status == LabOrder.Status.RELEASED
-    lab_staff = ("lab.sample.collect", "lab.result.enter", "lab.result.verify")
-    if not released and not any(has_perm(request, c) for c in lab_staff):
+    if not released and not any(has_perm(request, c) for c in LAB_STAFF):
         raise Http404  # clinicians see released reports only; lab staff can preview
     items = [i for i in _items_with_results(order) if i.status != ItemStatus.CANCELLED]
     collected = [s.collected_at for s in order.samples.all() if s.collected_at]

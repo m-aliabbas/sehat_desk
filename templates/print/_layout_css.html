@@ -1,0 +1,6 @@
+{# Applies Settings → Print layouts. Context: L (organizations.PrintLayout). #}
+<style>
+  {% if L.paper or L.margin_mm != 10 %}@page { {% if L.paper %}size: {{ L.paper }};{% endif %} margin: {{ L.margin_mm }}mm; }{% endif %}
+  .sheet { zoom: {{ L.text_size }}%; padding-top: {{ L.top_space_mm }}mm; padding-bottom: {{ L.bottom_space_mm }}mm; }
+  @media print { .sheet { padding-top: {{ L.top_space_mm }}mm !important; padding-bottom: {{ L.bottom_space_mm }}mm !important; } }
+</style>

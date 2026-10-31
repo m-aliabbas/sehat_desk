@@ -81,7 +81,7 @@ def test_type_filter_and_topbar(client, make_user, patient):
     client.force_login(make_user("reception"))
     response = client.get("/search/", {"q": "ayesha", "type": "patients"})
     assert _keys(response) == ["patients"]
-    page = client.get("/").content
+    page = client.get("/?view=overview").content
     assert b'action="/search/"' in page and b"Ctrl+K" in page
 
 

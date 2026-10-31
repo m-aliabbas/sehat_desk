@@ -321,3 +321,59 @@ def test_catalogue_views(client, tech, org):
     test = LabTest.objects.get(code="CRP")
     assert test.ranges.count() == 1 and test.ranges.get().high == 5
     assert LabResult.objects.count() == 0 and LabSample.objects.count() == 0
+
+
+def test_available_tests_open_to_reception_and_hide_inactive(client, make_user, org):
+    from apps.lab.models import LabTest, LabTestCategory
+
+    category = LabTestCategory.objects.create(organization=org, name="Haematology")
+    for code, active in (("CBC", True), ("OLD", False)):
+        LabTest.objects.create(
+            organization=org, category=category, code=code, name=f"Test {code}",
+            sample_type="blood", price=500, is_active=active,
+        )  # fmt: skip
+    client.force_login(make_user("reception", username="r-lab"))
+    html = client.get("/lab/tests/").content.decode()
+    assert "Test CBC" in html and "Test OLD" not in html
+    client.force_login(make_user("cashier", username="c-lab"))
+    assert client.get("/lab/tests/").status_code == 403
+
+
+def _other_doctor(org, department, make_user):
+    from apps.masterdata.models import DoctorProfile
+
+    return DoctorProfile.objects.create(
+        organization=org,
+        user=make_user("doctor", username="drother"),
+        department=department,
+        consultation_fee=1000,
+        follow_up_fee=500,
+        slot_minutes=30,
+    )
+
+
+def test_doctor_sees_only_own_patients_tests(
+    client, doctor, department, org, branch, admin_user, make_user, patient, lab_req, catalogue
+):
+    from apps.patients.services import register_patient
+
+    other = _other_doctor(org, department, make_user)
+    other_patient = register_patient(
+        organization=org, branch=branch, user=admin_user, data={"full_name": "Bilal Shah"}
+    )
+    mine = services.create_order(
+        request=lab_req, patient=patient, tests=[catalogue["hb"]], doctor=doctor
+    )
+    theirs = services.create_order(
+        request=lab_req, patient=other_patient, tests=[catalogue["glu"]], doctor=other
+    )
+    client.force_login(doctor.user)
+    page = client.get(reverse("lab:worklist") + "?tab=waiting")
+    assert [o.pk for o in page.context["page_obj"]] == [mine.pk]
+    assert client.get(reverse("lab:order-detail", args=[mine.pk])).status_code == 200
+    assert client.get(reverse("lab:order-detail", args=[theirs.pk])).status_code == 404
+    assert client.get(reverse("lab:order-print", args=[theirs.pk])).status_code == 404
+
+    client.force_login(lab_req.user)  # the lab keeps every order
+    assert client.get(reverse("lab:order-detail", args=[theirs.pk])).status_code == 200
+    assert b"Pending samples" in client.get(reverse("lab:worklist")).content

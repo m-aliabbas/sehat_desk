@@ -1,0 +1,18 @@
+{% extends "print/a4.html" %}
+{% block title %}Ledger · {{ patient.mrn }}{% endblock %}
+{% block print_label %}Print ledger{% endblock %}
+{% block document %}
+  {% include "print/_letterhead.html" with org=request.organization branch=request.branch doc_title="Patient ledger" doc_number=patient.mrn %}
+  <p class="mt-4 font-semibold">{{ patient.full_name }}{% if patient.phone_display %} <span class="text-label font-normal">· {{ patient.phone_display }}</span>{% endif %}</p>
+  <table class="mt-4 w-full text-body">
+    <thead><tr class="border-b border-ink text-left text-label uppercase"><th class="py-2">Date</th><th>Entry</th><th>Number</th><th class="text-right">Billed</th><th class="text-right">Paid</th><th class="text-right">Balance</th></tr></thead>
+    <tbody>
+      {% for e in entries %}
+      <tr class="border-b border-line"><td class="py-1.5">{{ e.at|date:"d M Y" }}</td><td>{{ e.kind }}</td><td class="font-mono text-label">{{ e.number }}</td><td class="text-right">{% if e.billed %}{{ e.billed|floatformat:"2g" }}{% endif %}</td><td class="text-right">{% if e.paid %}{{ e.paid|floatformat:"2g" }}{% endif %}</td><td class="text-right">{{ e.balance|floatformat:"2g" }}</td></tr>
+      {% empty %}<tr><td colspan="6" class="py-4 text-center">No bills at this branch.</td></tr>
+      {% endfor %}
+    </tbody>
+    <tfoot><tr class="font-bold"><td colspan="3" class="py-2">Total</td><td class="text-right">{{ billed|floatformat:"2g" }}</td><td class="text-right">{{ paid|floatformat:"2g" }}</td><td class="text-right">{{ request.organization.currency }} {{ balance|floatformat:"2g" }}</td></tr></tfoot>
+  </table>
+  <p class="mt-3 text-label">A refund returns money and reduces what was billed by the same amount, so it does not change the balance.</p>
+{% endblock %}

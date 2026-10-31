@@ -7,6 +7,8 @@ cashier's day closing. PRD §11. PROJECT_NOTES §12–13, §18.
 - `services.py` — `create_invoice`, `add_item`, `remove_item`, `set_line_discount`,
   `set_invoice_discount`, `issue`, `cancel`, `void_unpaid`, `receive_payment`, `refund`,
   `day_totals`, `net_by_day`, `ensure_payment_methods`, `settings_for`.
+- `integrity.py` — read-only `all_problems` (stored totals vs rows, supplier ledger, stock ledger),
+  `repair_invoice` (re-derive totals, moves no money), `patient_statement`.
 - `models.py` — `Invoice` (draft → unpaid → partially_paid → paid → refunded; cancelled),
   `InvoiceItem.Kind` (consultation, service, procedure, lab, pharmacy, room, misc),
   `Payment`, `Refund`, `PaymentMethod`, `BillingSettings`.
@@ -18,6 +20,8 @@ cashier's day closing. PRD §11. PROJECT_NOTES §12–13, §18.
 - Non-cash methods need a reference. `idempotency_key` makes a double submit charge once.
 - Other apps create their invoices through these services (lab orders, POS checkout, IPD stay,
   procedures). Lab and HR react to invoice saves via signals.
+- `InvoiceItem.unit_price` keeps six decimals: pharmacy lines bill per tablet and must add back up to the
+  box price. `gross` and totals round to two.
 - `InvoiceItem.performed_by` names the doctor for commission (hr/commission.py).
 
 ## Permissions

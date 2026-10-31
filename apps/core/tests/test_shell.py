@@ -42,7 +42,7 @@ def test_login_then_dashboard(client, user):
         reverse("accounts:login"), {"username": "reception1", "password": PASSWORD}, follow=True
     )
     assert response.status_code == 200
-    assert b"Welcome back" in response.content
+    assert b"Reception &amp; token desk" in response.content  # reception starts at the desk
 
 
 def test_logout_requires_post(client, user):
@@ -56,7 +56,7 @@ def test_logout_requires_post(client, user):
 
 def test_dashboard_shows_shell(client, user):
     client.force_login(user)
-    response = client.get("/")
+    response = client.get("/?view=overview")
     assert response.status_code == 200
     body = response.content.decode()
     assert 'aria-label="Main navigation"' in body
@@ -66,8 +66,8 @@ def test_dashboard_shows_shell(client, user):
 
 def test_nav_hides_admin_items_from_reception(client, user):
     client.force_login(user)
-    keys = [item["key"] for item in client.get("/").context["nav_items"]]
-    assert {"dashboard", "reception", "patients", "appointments", "billing"} <= set(keys)
+    keys = [item["key"] for item in client.get("/?view=overview").context["nav_items"]]
+    assert {"dashboard", "reception", "patients", "billing"} <= set(keys)
     assert not {"settings", "design-system", "staff", "pharmacy", "laboratory"} & set(keys)
 
 

@@ -3,6 +3,8 @@
   {% if "admin.organization.manage" in sd_perms %}<a class="tab" href="{% url 'organizations:hospital' %}" {% if settings_tab == "hospital" %}aria-selected="true"{% endif %}>Hospital</a>{% endif %}
   {% if "admin.organization.manage" in sd_perms %}<a class="tab" href="{% url 'billing:settings' %}" {% if settings_tab == "billing" %}aria-selected="true"{% endif %}>Billing</a>{% endif %}
   {% if "admin.organization.manage" in sd_perms %}<a class="tab" href="{% url 'organizations:preferences' %}" {% if settings_tab == "preferences" %}aria-selected="true"{% endif %}>Preferences</a>{% endif %}
+  {% if "admin.organization.manage" in sd_perms %}<a class="tab" href="{% url 'organizations:print-layouts' %}" {% if settings_tab == "print" %}aria-selected="true"{% endif %}>Print layouts</a>{% endif %}
+  {% if "admin.organization.manage" in sd_perms %}<a class="tab" href="{% url 'organizations:field-rules' %}" {% if settings_tab == "fields" %}aria-selected="true"{% endif %}>Fields &amp; tax</a>{% endif %}
   {% if "admin.organization.manage" in sd_perms %}<a class="tab" href="{% url 'notifications:messages' %}" {% if settings_tab == "messages" %}aria-selected="true"{% endif %}>Patient messages</a>{% endif %}
   {% if "admin.branches.manage" in sd_perms %}<a class="tab" href="{% url 'organizations:branch-list' %}" {% if settings_tab == "branches" %}aria-selected="true"{% endif %}>Branches</a>{% endif %}
   {% if "admin.masterdata.manage" in sd_perms %}
@@ -18,5 +20,6 @@
   {% endif %}
   {% if "admin.audit.view" in sd_perms %}<a class="tab" href="{% url 'audit:log' %}" {% if settings_tab == "audit" %}aria-selected="true"{% endif %}>Audit trail</a>{% endif %}
   {% if "admin.organization.manage" in sd_perms %}<a class="tab" href="{% url 'core:design-system' %}">Design system</a>{% endif %}
+  {% if "admin.organization.manage" in sd_perms %}<a class="tab" href="{% url 'core:backups' %}" {% if settings_tab == "backups" %}aria-selected="true"{% endif %}>Backup</a>{% endif %}
   {% if "admin.system.view" in sd_perms %}<a class="tab" href="{% url 'core:system' %}" {% if settings_tab == "system" %}aria-selected="true"{% endif %}>System</a>{% endif %}
 </nav>

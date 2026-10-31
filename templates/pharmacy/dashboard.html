@@ -4,6 +4,7 @@
 {% block page_title %}Pharmacy inventory{% endblock %}
 {% block page_subtitle %}{{ current_branch.name }} · stock, batches, expiry and reorder alerts.{% endblock %}
 {% block page_actions %}
+  {% if "pharmacy.sale" in sd_perms %}<a href="{% url 'pharmacy:pos' %}" class="btn btn-primary">Open till</a>{% endif %}
   <a href="{% url 'pharmacy:product-list' %}" class="btn btn-secondary">Products</a>
   <a href="{% url 'pharmacy:ledger' %}" class="btn btn-secondary">Stock ledger</a>
   {% if can_manage %}

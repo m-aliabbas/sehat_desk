@@ -23,6 +23,7 @@ urlpatterns = [
     path("lab/attachments/<int:pk>/", views.attachment_download, name="attachment"),
     path("lab/results/<int:pk>/acknowledge/", views.acknowledge, name="acknowledge"),
     path("encounters/<int:pk>/lab-orders/", views.encounter_order, name="encounter-order"),
+    path("lab/tests/", views.tests_available, name="tests"),
     path("lab/catalog/", views.catalog, name="catalog"),
     path("lab/catalog/tests/new/", views.test_form, name="test-create"),
     path("lab/catalog/tests/<int:pk>/", views.test_form, name="test-edit"),

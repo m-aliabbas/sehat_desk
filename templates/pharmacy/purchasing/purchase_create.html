@@ -1,21 +1,46 @@
 {% extends "layouts/app.html" %}
+{% load ui %}
 {% block title %}New purchase{% endblock %}
-{% block page_title %}Purchase order · Supplier{% endblock %}
-{% block page_subtitle %}Step 1 of 3 · choose the supplier. You add items next; it stays a draft until you post the goods.{% endblock %}
+{% block page_title %}New purchase{% endblock %}
+{% block page_subtitle %}Enter it as it reads on the supplier's bill.{% endblock %}
 {% block content %}
-{% if not has_vendors %}
-  {% include "components/alert.html" with level="info" title="Add a supplier first" message="There are no active suppliers yet." %}
-  <a href="{% url 'pharmacy:vendor-create' %}" class="btn btn-primary mt-4">New supplier</a>
-{% else %}
-<form method="post" novalidate class="card max-w-2xl">
+{% field_rule "purchase.further_tax" as further_rule %}{% field_rule "purchase.advance_tax" as advance_rule %}
+<form method="post" novalidate class="card space-y-3" x-ref="form"
+      x-data="{ lines: 0, discount: '{{ form.discount.value|default:'' }}', gst: '{{ form.tax_amount.value|default:'' }}', further: '{{ form.further_tax.value|default:'' }}', advance: '{{ form.advance_tax.value|default:'' }}',
+        get bill() { return this.lines - Number(this.discount || 0) + Number(this.gst || 0) + Number(this.further || 0) + Number(this.advance || 0); } }"
+      @grid-total="lines = $event.detail"
+      @keydown.f8.window.prevent="$refs.post.click()"
+      @keydown.enter="if ($event.target.id === 'id_supplier_invoice_number') { $event.preventDefault(); document.getElementById('id_supplier_invoice_date').focus(); } else if ($event.target.id === 'id_supplier_invoice_date') { $event.preventDefault(); document.getElementById('grid-scan').focus(); } else if ($event.target.closest('[data-bill]')) { $event.preventDefault(); }">
   {% csrf_token %}
   {% for e in form.non_field_errors %}{% include "components/alert.html" with level="danger" message=e %}{% endfor %}
-  <div class="grid gap-5">
-    {% include "components/field.html" with field=form.vendor %}
+  <div class="grid gap-3 md:grid-cols-4">
+    <div class="md:col-span-2">
+      <label class="field-label" for="id_vendor">Supplier <span class="text-red">*</span></label>
+      <select id="id_vendor" name="vendor" class="select mt-1" data-searchable data-autofocus data-next="#id_supplier_invoice_number" data-create-url="{% url 'pharmacy:vendor-quick' %}">
+        <option value="">Type a name. New names can be added here.</option>
+        {% for v in form.fields.vendor.queryset %}<option value="{{ v.pk }}" {% if form.vendor.value|stringformat:"s" == v.pk|stringformat:"s" %}selected{% endif %}>{{ v.name }}</option>{% endfor %}
+      </select>
+      {% for e in form.vendor.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+    </div>
     {% include "components/field.html" with field=form.supplier_invoice_number %}
-    {% include "components/field.html" with field=form.notes %}
+    {% include "components/field.html" with field=form.supplier_invoice_date %}
   </div>
-  <div class="mt-6 flex gap-3"><button class="btn btn-primary">Continue to items</button><a href="{% url 'pharmacy:purchase-list' %}" class="btn btn-close">Cancel</a></div>
+  {% include "pharmacy/purchasing/_item_grid.html" %}
+  <div class="flex flex-wrap items-start justify-between gap-6 border-t border-line pt-3">
+    <div class="min-w-[14rem] flex-1">{% include "components/field.html" with field=form.notes %}</div>
+    <div class="w-full space-y-1 text-body md:w-80" data-bill>
+      <div class="flex justify-between"><span class="text-muted">Items</span><span x-text="lines.toFixed(2)"></span></div>
+      <div class="flex items-center justify-between gap-3"><label class="text-muted" for="id_discount">Discount on bill</label><input id="id_discount" name="discount" type="number" min="0" step="0.01" autocomplete="off" class="input h-9 w-28 text-right" x-model="discount"></div>
+      <div class="flex items-center justify-between gap-3"><label class="text-muted" for="id_tax_amount">GST on bill</label><input id="id_tax_amount" name="tax_amount" type="number" min="0" step="0.01" autocomplete="off" class="input h-9 w-28 text-right" x-model="gst"></div>
+      {% if further_rule != "hidden" %}<div class="flex items-center justify-between gap-3"><label class="text-muted" for="id_further_tax">Further tax</label><input id="id_further_tax" name="further_tax" type="number" min="0" step="0.01" autocomplete="off" class="input h-9 w-28 text-right" x-model="further"></div>{% endif %}
+      {% if advance_rule != "hidden" %}<div class="flex items-center justify-between gap-3"><label class="text-muted" for="id_advance_tax">Advance tax</label><input id="id_advance_tax" name="advance_tax" type="number" min="0" step="0.01" autocomplete="off" class="input h-9 w-28 text-right" x-model="advance"></div>{% endif %}
+      <div class="flex items-baseline justify-between border-t border-line pt-1"><span class="font-semibold">Bill total</span><span class="text-[24px] font-bold">{{ organization.currency }} <span x-text="bill.toFixed(2)"></span></span></div>
+    </div>
+  </div>
+  <div class="flex flex-wrap items-center justify-end gap-3">
+    <a href="{% url 'pharmacy:purchase-list' %}" class="btn btn-close">Cancel</a>
+    <button class="btn btn-secondary" title="Goods have not arrived yet. Batch and expiry can wait.">Save as order (not arrived)</button>
+    <button class="btn btn-primary" name="post" value="1" x-ref="post" title="Goods are here: adds them to stock and to what you owe this supplier.">Goods received · F8</button>
+  </div>
 </form>
-{% endif %}
 {% endblock %}

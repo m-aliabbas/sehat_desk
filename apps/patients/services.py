@@ -5,6 +5,7 @@ from difflib import SequenceMatcher
 
 from django.db import transaction
 from django.db.models import Q
+from django.http import Http404
 
 from apps.core.models import next_number
 
@@ -142,3 +143,55 @@ def add_identifier(patient, kind, value):
     if kind == PatientIdentifier.Kind.GUARDIAN_CNIC:
         value = normalize_cnic(value)
     return PatientIdentifier.objects.get_or_create(patient=patient, kind=kind, value=value)[0]
+
+
+def own_doctor_only(request):
+    """The doctor profile of someone who is only a doctor: they see their own patients and
+    appointments. Reception, managers and admins (None here) keep the hospital-wide view."""
+    perms = getattr(request, "sd_perms", frozenset())
+    if {"queue.manage", "appointment.manage", "admin.organization.manage"} & set(perms):
+        return None
+    if "consultation.create" not in perms:
+        return None
+    doctor = getattr(request.user, "doctor_profile", None)
+    if doctor is None or doctor.organization_id != request.organization.id:
+        return None
+    return doctor
+
+
+def limit_to_own_patients(qs, request):
+    """Patients this doctor has seen, is booked to see, or has in their queue or ward."""
+    doctor = own_doctor_only(request)
+    if doctor is None:
+        return qs
+    from apps.appointments.models import Appointment
+    from apps.encounters.models import Encounter
+    from apps.ipd.models import Admission
+    from apps.queue.models import QueueToken
+
+    linked = (
+        Appointment.objects.filter(doctor=doctor).values("patient_id"),
+        Encounter.objects.filter(doctor=doctor).values("patient_id"),
+        Admission.objects.filter(admitting_doctor=doctor).values("patient_id"),
+        QueueToken.objects.filter(
+            Q(doctor=doctor) | Q(doctor__isnull=True, department_id=doctor.department_id)
+        ).values("patient_id"),
+    )
+    keep = Q()
+    for patients in linked:
+        keep |= Q(pk__in=patients)
+    return qs.filter(keep)
+
+
+def limit_records_to_own_patients(qs, request, field="patient"):
+    """Any patient's records (visits, procedures, admissions...) narrowed the same way."""
+    if own_doctor_only(request) is None:
+        return qs
+    own = limit_to_own_patients(Patient.objects.filter(organization=request.organization), request)
+    return qs.filter(**{f"{field}__in": own})
+
+
+def require_own_patient(request, patient):
+    """404 for a doctor reaching a patient who is not theirs, like another organization's record."""
+    if not limit_to_own_patients(Patient.objects.filter(pk=patient.pk), request).exists():
+        raise Http404

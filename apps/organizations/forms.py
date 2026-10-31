@@ -2,7 +2,7 @@ from django import forms
 
 from apps.core.forms import StyledFormMixin
 
-from .models import Branch, Organization, OrganizationPreferences
+from .models import Branch, Organization, OrganizationPreferences, PrintLayout
 
 
 class OrganizationForm(StyledFormMixin, forms.ModelForm):
@@ -82,8 +82,38 @@ class PreferencesForm(StyledFormMixin, forms.ModelForm):
         fields = [
             "default_slot_minutes",
             "default_follow_up_days",
+            "use_doctor_shifts",
+            "opd_collect_fee_upfront",
+            "opd_print_blank_prescription",
+            "opd_print_office_copy",
+            "opd_auto_print",
             "display_refresh_seconds",
             "display_show_doctor",
+            "pharmacy_require_prescription",
+            "pharmacy_auto_print_receipt",
             "near_expiry_days",
             "default_reorder_level",
         ]
+
+
+class PrintLayoutForm(StyledFormMixin, forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["paper"].choices = [
+            ("", "Standard for this document"),
+            *PrintLayout.Paper.choices,
+        ]
+
+    class Meta:
+        model = PrintLayout
+        fields = [
+            "paper", "margin_mm", "top_space_mm", "bottom_space_mm", "text_size", "show_header",
+            "header_align", "show_logo", "logo_mm", "header_text", "show_footer", "footer_text",
+            "doctor_side", "show_qualifications", "show_registration", "show_vitals",
+            "show_allergies", "extra_lines",
+        ]  # fmt: skip
+        widgets = {
+            "header_text": forms.Textarea(attrs={"rows": 2}),
+            "footer_text": forms.Textarea(attrs={"rows": 2}),
+            "extra_lines": forms.Textarea(attrs={"rows": 3}),
+        }

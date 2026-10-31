@@ -121,6 +121,7 @@ PLACEHOLDER_KEYS = {item.key for item in NAV_ITEMS if item.url_name is None}
 # (apps/core/menu_hub.py). Other roles keep the full list, filtered by permission.
 ADMIN_SIDEBAR = (
     "dashboard",
+    "pharmacy",
     "inventory",
     "reports",
     "finance",
@@ -191,6 +192,9 @@ def build_nav(request) -> list[dict]:
 
     items = [item for item in NAV_ITEMS if item_is_visible(item, request)]
     labels = {}
+    # Reception books from its own desk; the calendar is one link away from there.
+    if "queue.manage" in getattr(request, "sd_perms", frozenset()):
+        items = [i for i in items if i.key != "appointments"]
     if "admin.organization.manage" in getattr(request, "sd_perms", frozenset()):
         items = [i for key in ADMIN_SIDEBAR for i in items if i.key == key]
         labels = ADMIN_LABELS
@@ -223,6 +227,8 @@ _NAV_KEY_BY_SECTION = {
     "organizations:settings": "settings",
     "organizations:preferences": "settings",
     "queue:walk": "reception",
+    "appointments:visit": "reception",
+    "billing:ledger": "finance",
     "queue:counters": "reception",
     "queue:counter": "reception",
     "queue:slip": "reception",

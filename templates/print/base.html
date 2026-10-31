@@ -21,6 +21,10 @@
       body { background: white; }
       .sheet { box-shadow: none !important; {% block print_sheet_css %}padding: 0 !important; max-width: none !important;{% endblock %} }
       tr, li { break-inside: avoid; }
+      /* Hospital printers are black and white: colour must never decide what is readable. */
+      .sheet, .sheet * { color: #000 !important; border-color: #000 !important; background: transparent !important; box-shadow: none !important; }
+      .sheet [aria-hidden="true"] { color: #bbb !important; }
+      .sheet img { filter: grayscale(1); }
     }
   </style>
 </head>

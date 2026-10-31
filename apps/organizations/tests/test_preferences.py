@@ -107,7 +107,7 @@ def test_new_doctor_starts_from_defaults(admin_client, org):
 def test_new_product_starts_from_default_reorder_level(admin_client, org):
     _save(admin_client, default_reorder_level=30)
     html = admin_client.get(reverse("pharmacy:product-create")).content.decode()
-    assert 'name="reorder_level" value="30"' in html
+    assert 'name="reorder_packs" value="3"' in html
 
 
 def test_expiry_alert_window_follows_setting(org, branch, req, product):
@@ -149,3 +149,31 @@ def test_discount_cap(rf, admin_user, org, branch, patient, cap, amount, ok):
     else:
         with pytest.raises(BillingError, match="above 10%"):
             billing.set_line_discount(item, request=req, amount=amount, reason="staff")
+
+
+def test_print_layout_saves_and_reaches_the_print(admin_client, org):
+    from apps.organizations.models import print_layout_for
+
+    response = admin_client.post(
+        "/settings/print-layouts/?doc=prescription",
+        {
+            "paper": "A5", "margin_mm": 8, "top_space_mm": 40, "bottom_space_mm": 0,
+            "text_size": 110, "show_header": "on", "header_align": "center", "logo_mm": 20,
+            "show_footer": "on", "doctor_side": "right", "extra_lines": "Tests advised",
+            "footer_text": "Open 9 to 5",
+        },
+    )  # fmt: skip
+    assert response.status_code == 302
+    layout = print_layout_for(org, "prescription")
+    assert layout.top_space_mm == 40 and layout.lines == ["Tests advised"]
+    html = admin_client.get("/settings/print-layouts/preview/?doc=prescription").content.decode()
+    assert "padding-top: 40mm" in html and "Tests advised" in html and "Open 9 to 5" in html
+
+
+def test_print_layout_rejects_silly_sizes(admin_client, org):
+    page = admin_client.post(
+        "/settings/print-layouts/?doc=invoice",
+        {"margin_mm": 500, "text_size": 10, "top_space_mm": 0, "bottom_space_mm": 0, "logo_mm": 14,
+         "header_align": "left", "doctor_side": "left"},
+    )  # fmt: skip
+    assert page.status_code == 200
