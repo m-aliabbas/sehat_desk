@@ -20,6 +20,13 @@ if (-not $SkipInstall) {
     Run python -m pip install --quiet -r requirements.txt -r requirements-build.txt
 }
 
+Write-Host "== Print helper"
+if (-not $SkipInstall) { Run python -m pip install --quiet -r requirements-print-helper.txt }
+if (Test-Path "dist\sehat_print") { Remove-Item -Recurse -Force "dist\sehat_print" }
+Run python -m PyInstaller --noconfirm --clean --distpath dist --workpath build\print "packaging\sehat_print.spec"
+$helper = Start-Process "dist\sehat_print\sehat_print.exe" -ArgumentList "--self-test" -Wait -PassThru
+if ($helper.ExitCode -ne 0) { throw "Print helper self-test failed" }
+
 Write-Host "== Static files"
 Run python manage.py collectstatic --noinput --clear --verbosity 0
 
@@ -80,6 +87,7 @@ $iscc = @("$env:ProgramFiles (x86)\Inno Setup 6\ISCC.exe", "$env:ProgramFiles\In
     Where-Object { Test-Path $_ } | Select-Object -First 1
 if (-not $iscc) { throw "Inno Setup 6 is not installed (https://jrsoftware.org/isdl.php)" }
 Run $iscc "/DAppVersion=$version" "packaging\installer.iss"
+Run $iscc "/DAppVersion=$version" "packaging\print_helper.iss"
 
 $installer = "dist\SehatDesk-Setup-$version.exe"
 (Get-FileHash $installer -Algorithm SHA256).Hash | Set-Content "$installer.sha256"

@@ -35,6 +35,10 @@ def desk(client, make_user):
     return client
 
 
+AUTO_PRINT = 'addEventListener("load", () => window.print())'
+AUTO_PRINT_SLIPS = 'addEventListener("load", printSlips)'
+
+
 def _post(desk, patient, doctor, on_date=None, **extra):
     data = {
         "mode": "find",
@@ -70,15 +74,18 @@ def test_unpaid_visit_leaves_balance_on_the_papers(desk, clinic, patient):
     page = desk.get(f"/appointments/{appt.pk}/papers/?print=1")
     html = page.content.decode()
     assert "Collect the fee" in html
-    assert "addEventListener" not in html  # hold printing until the fee is in
+    assert AUTO_PRINT_SLIPS not in html  # hold printing until the fee is in
 
 
 def test_papers_show_blank_rx_and_both_copies(desk, clinic, patient, cash):
     _post(desk, patient, clinic, collect="on", method=cash.pk, key="k2")
     appt = Appointment.objects.get(patient=patient)
     html = desk.get(f"/appointments/{appt.pk}/papers/?print=1").content.decode()
-    assert "℞" in html and "Patient copy" in html and "Office copy" in html
-    assert "addEventListener" in html
+    assert "Patient copy" in html and "Office copy" in html and "thermal-sheet" in html
+    assert html.count("data-slip-copy>") == 2 and "cut here" not in html
+    assert AUTO_PRINT_SLIPS in html and "℞" not in html and "size: A5" not in html
+    rx = desk.get(f"/appointments/{appt.pk}/papers/?part=rx&print=1").content.decode()
+    assert "℞" in rx and "size: A5" in rx and AUTO_PRINT in rx
 
 
 def test_admin_can_turn_off_prescription_office_copy_and_fee(desk, clinic, patient, org):

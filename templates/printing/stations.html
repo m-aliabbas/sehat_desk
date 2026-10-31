@@ -1,0 +1,66 @@
+{% extends "layouts/app.html" %}
+{% block title %}Printers · Settings{% endblock %}
+{% block page_title %}Printers{% endblock %}
+{% block page_subtitle %}Print goes straight to the right printer for its paper size, with no print window. A paper with no printer still opens the print window.{% endblock %}
+{% block content %}
+{% include "partials/settings_tabs.html" %}
+<section class="card mb-6">
+  <h2 class="section-title mb-1">Add PCs</h2>
+  {% if open_until %}
+  <p class="text-body"><span class="chip chip-success">Open</span> Until {{ open_until|date:"d M Y, H:i" }}. Install SehatDesk Print on each PC. It connects by itself and appears below.</p>
+  <form method="post" class="mt-3">{% csrf_token %}<button class="btn btn-secondary" name="enrollment" value="close">Stop adding PCs</button></form>
+  {% else %}
+  <p class="text-body">Turn this on, then install SehatDesk Print on each PC that prints. There is nothing to type on the PC.</p>
+  <form method="post" class="mt-3">{% csrf_token %}<button class="btn btn-primary" name="enrollment" value="open">Allow new PCs for 24 hours</button></form>
+  {% endif %}
+</section>
+{% for s in stations %}
+<section class="card mb-6">
+  <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+    <h2 class="section-title">{{ s.name }}</h2>
+    <p class="text-label">{% if s.online %}<span class="chip chip-success">Online</span> {{ s.last_ip }}{% else %}<span class="chip chip-warning">Offline</span>{% if s.last_seen_at %} Last seen {{ s.last_seen_at|date:"d M Y, H:i" }}{% endif %}{% endif %}</p>
+  </div>
+  <form method="post" action="{% url 'printing:station-routes' s.pk %}">
+    {% csrf_token %}
+    <div class="table-wrap">
+      <table class="table">
+        <tbody>
+          {% for r in s.routes %}
+          <tr>
+            <td>{{ r.label }}</td>
+            <td>{% if r.value %}{{ r.value }}{% elif r.choose %}<span class="chip chip-warning">Choose a printer</span>{% else %}Print window{% endif %}</td>
+            <td class="text-label text-muted">{% if r.manual %}Set by hand{% elif r.value %}Automatic{% endif %}</td>
+            <td class="text-right">{% if r.value %}<button class="btn btn-secondary btn-sm" name="test" value="{{ r.key }}">Test</button>{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if not s.printers %}<p class="mt-3 text-label text-muted">The printers on this PC appear here once its helper reports them.</p>{% endif %}
+    <details class="mt-4"{% if s.needs_choice %} open{% endif %}>
+      <summary class="btn btn-secondary btn-sm">Change</summary>
+      <div class="mt-4 grid gap-4 md:grid-cols-2">
+        <div class="field">
+          <label class="field-label" for="n-{{ s.pk }}">PC name</label>
+          <input id="n-{{ s.pk }}" name="name" maxlength="80" class="input" value="{{ s.name }}">
+        </div>
+        {% for r in s.routes %}
+        <div class="field">
+          <label class="field-label" for="r-{{ s.pk }}-{{ r.key }}">{{ r.label }}</label>
+          <select id="r-{{ s.pk }}-{{ r.key }}" name="route_{{ r.key }}" class="select" data-native>
+            <option value="__auto__"{% if not r.manual %} selected{% endif %}>Detect automatically</option>
+            <option value=""{% if r.manual and not r.saved %} selected{% endif %}>Use the print window</option>
+            {% for p in s.printers %}<option value="{{ p }}"{% if r.manual and p == r.saved %} selected{% endif %}>{{ p }}</option>{% endfor %}
+          </select>
+        </div>
+        {% endfor %}
+      </div>
+      <button class="btn btn-primary mt-4">Save</button>
+    </details>
+  </form>
+  <form method="post" action="{% url 'printing:station-delete' s.pk %}" class="mt-3">{% csrf_token %}<button class="btn btn-danger btn-sm" data-confirm="This PC goes back to the print window." data-confirm-title="Remove {{ s.name }}?">Remove</button></form>
+</section>
+{% empty %}
+<p class="text-body text-muted">No PCs yet. Without one, Print opens the print window as usual.</p>
+{% endfor %}
+{% endblock %}

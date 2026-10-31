@@ -47,7 +47,7 @@
     <div class="text-center">{% if barcode_svg %}<div class="h-14">{{ barcode_svg }}</div>{% endif %}<p class="mt-1 font-mono text-label">{{ product.barcode }}</p></div>
     <form method="get" action="{% url 'pharmacy:product-labels' product.pk %}" target="_blank" class="flex flex-wrap items-end gap-2">
       <div><label class="field-label" for="lb-count">Labels</label><input id="lb-count" name="count" type="number" min="1" max="500" value="1" class="input w-24"></div>
-      <div><label class="field-label" for="lb-layout">Paper</label><select id="lb-layout" name="layout" class="select" data-native><option value="sheet">A4 sheet</option><option value="roll">Label roll 50 × 25 mm</option></select></div>
+      <div><label class="field-label" for="lb-layout">Paper</label><select id="lb-layout" name="layout" class="select" data-native>{% for p in label_papers %}<option value="{{ p.key }}">Label roll {{ p.name }}</option>{% endfor %}<option value="sheet">A4 sheet</option></select></div>
       <button class="btn btn-secondary">Print labels</button>
     </form>
     {% if not barcode_svg %}<p class="text-label text-red">This code has characters a label cannot print. Edit the product to correct it.</p>{% endif %}

@@ -197,6 +197,38 @@ def test_barcode_page_generates_for_existing_and_prints_counts(admin_client, org
     assert len(sheet.context["labels"]) == 3
 
 
+def _decode_128(widths):
+    symbols = [widths[i : i + 6] for i in range(0, len(widths) - 7, 6)]
+    return [barcodes._PATTERNS.index(s) for s in symbols]
+
+
+def test_code128_digits_use_subset_c_with_a_valid_check():
+    even = _decode_128(barcodes.code128_widths("123456"))
+    assert even[:4] == [105, 12, 34, 56]
+    assert even[4] == (105 + 12 + 2 * 34 + 3 * 56) % 103
+    odd = _decode_128(barcodes.code128_widths("2000000000017"))
+    assert odd[:3] == [104, ord("2") - 32, 99] and odd[3:5] == [0, 0]
+    # Narrow enough for a 1.5 inch sticker: bars must stay at least 0.25 mm wide.
+    assert sum(int(w) for w in barcodes.code128_widths("2000000000017")) + 20 <= 143
+    assert _decode_128(barcodes.code128_widths("AB-1"))[0] == 104
+
+
+def test_labels_print_on_the_sticker_size(admin_client, org, request_):
+    p = _product(org, barcode="2000000000017")
+    url = f"/inventory/products/{p.pk}/labels/"
+    assert "size: 38.1mm 25.4mm" in admin_client.get(url).content.decode()
+    assert "size: 50mm 25mm" in admin_client.get(url + "?layout=50x25").content.decode()
+    assert "size: A4" in admin_client.get(url + "?layout=sheet").content.decode()
+    bulk = admin_client.get(f"/inventory/barcodes/print/?count_{p.pk}=2")
+    assert "size: 38.1mm 25.4mm" in bulk.content.decode()
+    assert (
+        "size: A4"
+        in admin_client.get(
+            f"/inventory/barcodes/print/?count_{p.pk}=2&layout=sheet"
+        ).content.decode()
+    )
+
+
 def test_new_batch_same_product_in_one_post(admin_client, org, request_):
     p = _product(org)
     vendor = Vendor.objects.create(organization=org, name="V")

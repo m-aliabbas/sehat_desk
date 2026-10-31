@@ -19,6 +19,8 @@ must work offline on the hospital LAN (no CDNs, fonts or icons from other hosts;
   confirm_dialog, settings_tabs, env_banner, license_contact).
 - Print pages are forced to black and white in `print/base.html`. Layout settings come from
   `{% print_layout %}` + `print/_layout_css.html`. Paper may be 80 mm thermal per document. `print/_credit.html` is the vibeexe line, in both footers and the prescription.
+- `print/thermal.html` (tokens, receipts): all text bold in Arial for thermal heads, 72 mm wide, no `@page` size or margin (the driver's roll, no browser header/footer); The fee slip prints each copy as its own job (`printSlips` in `papers.html`), so the printer cuts between them. Visit papers: `appointments/papers.html` (roll), `papers_rx.html` (A5, `?part=rx`).
+- Print routing: `print/_router.html` + `static/js/print_router.js` replace `window.print` (loaded by `print/base.html`, reports and the product ledger; a new page that prints outside `print/base.html` must include it). Paper comes from `@page` or `<meta name="sd-paper">`. `apps/printing`.
 - Printing: `print/a4.html`, `print/a5.html`, `print/thermal.html` with `_letterhead`/`_footer`;
   staging prints are stamped "not a valid document".
 

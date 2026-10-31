@@ -15,3 +15,6 @@ pre-commit>=4.0,<5.0
 
 # Tailwind standalone CLI wrapper (builds static/css/app.css, no Node.js)
 pytailwindcss>=0.4,<1.0
+
+# Print helper tests
+-r requirements-print-helper.txt

@@ -17,6 +17,7 @@ dist/
 build/
 *.spec
 !packaging/sehat_desk.spec
+!packaging/sehat_print.spec
 
 # macOS
 .DS_Store

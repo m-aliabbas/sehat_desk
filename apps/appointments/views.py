@@ -462,7 +462,7 @@ def visit_context(request, *, form=None, patient_form=None, vitals_form=None, ne
 @require_GET
 @permission_required(VIEW)
 def papers(request, pk):
-    """Everything printed for a visit: empty prescription, token and fee invoice copies."""
+    """What a visit prints: token and fee copies on the roll; ?part=rx is the A5 prescription."""
     appt = get_scoped_or_404(_appointments(request), request, pk=pk)
     prefs = preferences_for(request.organization)
     can_view_bills = has_perm(request, "billing.view")
@@ -478,9 +478,12 @@ def papers(request, pk):
             .exclude(pk=invoice.pk if invoice else None)
         )
     due = bool(invoice and invoice.balance_due)
+    wants_print = request.GET.get("print") == "1"
+    rx_only = request.GET.get("part") == "rx"
+    has_slip = bool(invoice or getattr(appt, "token", None))
     return render(
         request,
-        "appointments/papers.html",
+        "appointments/papers_rx.html" if rx_only else "appointments/papers.html",
         {
             "appt": appt,
             "patient": appt.patient,
@@ -495,7 +498,8 @@ def papers(request, pk):
             "can_collect": has_perm(request, visits.COLLECT),
             "methods": billing_services.active_methods(request.organization),
             "key": uuid.uuid4().hex,
-            "auto_print": prefs.opd_auto_print and request.GET.get("print") == "1" and not due,
+            "auto_print": wants_print
+            and (rx_only or (prefs.opd_auto_print and has_slip and not due)),
             "billing_settings": billing_services.settings_for(request.organization),
         },
     )

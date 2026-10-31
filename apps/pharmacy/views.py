@@ -15,6 +15,7 @@ from django.views.decorators.http import require_GET, require_POST
 
 from apps.accounts.decorators import has_perm, permission_required
 from apps.audit import services as audit
+from apps.core.labels import LABEL_PAPERS, label_paper
 from apps.core.scoping import get_scoped_or_404, paginate, scoped
 from apps.organizations.models import preferences_for
 
@@ -313,6 +314,15 @@ def product_barcode(request, pk):
     return redirect("pharmacy:product-detail", pk=pk)
 
 
+def _label_layout(request):
+    """Which paper the labels print on: an A4 sheet, or one sticker per page (the default)."""
+    layout = request.GET.get("layout", "")
+    if layout == "sheet":
+        return {"layout": layout, "paper": None, "papers": LABEL_PAPERS.values()}
+    paper = label_paper(layout)
+    return {"layout": paper["key"], "paper": paper, "papers": LABEL_PAPERS.values()}
+
+
 @require_GET
 @permission_required(*VIEW, any_of=True)
 def product_labels(request, pk):
@@ -338,7 +348,7 @@ def product_labels(request, pk):
             "product": product,
             "labels": [(product, svg)] * count,
             "count": count,
-            "roll": request.GET.get("layout") == "roll",
+            **_label_layout(request),
             "per_pack": max(on_hand // product.pack_size, 1),
             "per_unit": max(on_hand, 1),
         },
@@ -376,6 +386,7 @@ def barcodes_page(request):
             "page_obj": page,
             "q": q,
             "missing_count": missing.count(),
+            "papers": LABEL_PAPERS.values(),
             "breadcrumbs": _crumbs(
                 {"label": "Products", "url": reverse("pharmacy:product-list")},
                 {"label": "Barcodes"},
@@ -403,7 +414,9 @@ def barcodes_print(request):
         messages.error(request, "Enter how many labels to print for at least one product.")
         return redirect("pharmacy:barcodes")
     return render(
-        request, "pharmacy/product_labels.html", {"labels": labels[:MAX_LABELS], "sheet": True}
+        request,
+        "pharmacy/product_labels.html",
+        {"labels": labels[:MAX_LABELS], "sheet": True, **_label_layout(request)},
     )
 
 
@@ -570,6 +583,7 @@ def product_detail(request, pk):
             "next_batch": next_batch,
             "on_hand": stock.on_hand(request.branch, product),
             "barcode_svg": _barcode_svg(product),
+            "label_papers": LABEL_PAPERS.values(),
             "ledger": StockTransaction.objects.filter(
                 branch=request.branch, product=product
             ).select_related(*LEDGER_RELATED)[:10],

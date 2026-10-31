@@ -91,11 +91,11 @@ def test_invoice_prints_terms_and_letterhead(
 
 
 def test_thermal_layout_uses_roll_paper():
-    # The layout itself: thermal sheets keep their padding and use roll paper.
+    # The layout itself: thermal sheets use the driver's roll, with no margin for browser headers.
     from django.template.loader import render_to_string
 
     html = render_to_string("print/thermal.html", {})
-    assert "size: 80mm auto" in html
+    assert "size: auto; margin: 0;" in html
 
 
 def test_staging_prints_are_marked(admin_client, settings, appt):

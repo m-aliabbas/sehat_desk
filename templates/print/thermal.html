@@ -1,6 +1,24 @@
 {% extends "print/base.html" %}
-{# 80 mm thermal receipt printers; the page grows with the content. #}
-{% block page_size %}80mm auto{% endblock %}
-{% block page_margin %}4mm{% endblock %}
+{# 80 mm thermal receipt printers, 72 mm printable. The page is the printer's own roll: a set length
+   gets centred on the driver's paper, leaving blank space. No margin leaves Chrome no room for its
+   date and address lines. #}
+{% block page_size %}auto{% endblock %}
+{% block page_margin %}0{% endblock %}
 {% block print_sheet_css %}{% endblock %}
-{% block sheet_class %}w-[80mm] p-5{% endblock %}
+{% block sheet_class %}thermal-sheet{% endblock %}
+{% block head_extra %}
+  <meta name="sd-paper" content="thermal">
+  <style>
+    .thermal-sheet { width: 80mm; padding: 4mm; }
+    /* Thermal heads only print black dots: thin or small text breaks up, so all of it is bold and
+       in a font drawn for low resolutions. */
+    .thermal-sheet, .thermal-sheet * { font-family: Arial, "Liberation Sans", "DejaVu Sans", sans-serif; font-weight: 700; }
+    .thermal-sheet .text-label { font-size: 13px; }
+    .thermal-sheet .text-\[10px\], .thermal-sheet .text-\[9px\] { font-size: 12px; }
+    .thermal-next-slip { margin-top: 6mm; border-top: 1px dashed; padding-top: 4mm; }
+    @media print {
+      .thermal-sheet { width: 72mm !important; padding: 2mm 0 6mm !important; }
+      .thermal-next-slip { margin-top: 0; border-top: 0; padding-top: 0; }
+    }
+  </style>
+{% endblock %}

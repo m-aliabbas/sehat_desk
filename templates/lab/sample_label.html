@@ -1,11 +1,13 @@
 {% extends "print/base.html" %}
-{# Sized for a 50 × 25 mm tube label printer. #}
+{# Sized to the sticker on the tube label printer (apps/core/labels.py). #}
 {% block title %}Label {{ sample.accession }}{% endblock %}
-{% block page_size %}50mm 25mm{% endblock %}
-{% block page_margin %}1mm{% endblock %}
+{% block page_size %}{{ paper.width }} {{ paper.height }}{% endblock %}
+{% block page_margin %}0{% endblock %}
 {% block print_label %}Print label{% endblock %}
+{% block toolbar_extra %}{% for p in papers %}<a class="btn btn-secondary btn-sm" href="?paper={{ p.key }}"{% if p.key == paper.key %} aria-current="true"{% endif %}>{{ p.name }}</a>{% endfor %}{% endblock %}
 {% block print_sheet_css %}border: 0 !important; margin: 0 !important;{% endblock %}
-{% block sheet_class %}w-[50mm] border border-line p-[1.5mm]{% endblock %}
+{% block sheet_class %}label-sheet border border-line p-[1.5mm]{% endblock %}
+{% block before_sheet %}<style nonce="{{ request.csp_nonce }}">.label-sheet { width: {{ paper.width }}; height: calc({{ paper.height }} - 0.3mm); overflow: hidden; }</style>{% endblock %}
 {% block document %}
     <p class="truncate text-[9px] leading-tight font-bold">{{ sample.order.patient.full_name }}</p>
     <p class="text-[8px] leading-tight">{{ sample.order.patient.mrn }} · {{ sample.order.patient.age_label }} · {{ sample.order.patient.get_gender_display|slice:":1" }}</p>

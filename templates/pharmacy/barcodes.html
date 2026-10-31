@@ -16,7 +16,10 @@
         <td>{% if p.barcode %}<input name="count_{{ p.pk }}" type="number" min="0" max="500" value="{{ p.label_count }}" class="input w-20" aria-label="Labels for {{ p.display_name }}"> <span class="text-label text-muted">{{ p.pack_unit }}s</span>{% else %}—{% endif %}</td>
       </tr>{% endfor %}</tbody>
     </table></div>
-    <button class="btn btn-primary mt-4">Print labels</button>
+    <div class="mt-4 flex flex-wrap items-end gap-2">
+      <div><label class="field-label" for="b-layout">Paper</label><select id="b-layout" name="layout" class="select" data-native>{% for p in papers %}<option value="{{ p.key }}">Label roll {{ p.name }}</option>{% endfor %}<option value="sheet">A4 sheet</option></select></div>
+      <button class="btn btn-primary">Print labels</button>
+    </div>
   </form>
   {% include "components/pagination.html" %}
 </section>

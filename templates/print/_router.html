@@ -1,0 +1,4 @@
+{% load static %}{# Sends Print to this PC's print helper when it has one. static/js/print_router.js #}
+<meta name="sd-print-csrf" content="{{ csrf_token }}">
+<meta name="sd-print-jobs" content="{% url 'printing:job-create' %}">
+<script src="{% static 'js/print_router.js' %}"></script>

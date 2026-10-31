@@ -20,7 +20,7 @@ _PATTERNS = (
     "412121 111143 111341 131141 114113 114311 411113 411311 113141 114131 311141 411131 211412 "
     "211214 211232 2331112"
 ).split()
-_START_B, _STOP = 104, 106
+_CODE_C, _START_B, _START_C, _STOP = 99, 104, 105, 106
 
 
 def ean13_check_digit(first_twelve: str) -> str:
@@ -42,9 +42,16 @@ def code128_widths(value: str) -> str:
     """Bar and space widths for a value, alternating and starting with a bar."""
     if not value or any(not 32 <= ord(c) <= 126 for c in value):
         raise ValueError("Code 128 labels hold plain letters, digits and symbols.")
-    codes = [ord(c) - 32 for c in value]
-    check = (_START_B + sum(i * c for i, c in enumerate(codes, 1))) % 103
-    return "".join(_PATTERNS[c] for c in [_START_B, *codes, check, _STOP])
+    if value.isdigit() and len(value) >= 4:
+        # Two digits per symbol: bars about 40% wider, which a 1.5 inch label needs to scan.
+        lead = value[: len(value) % 2]
+        codes = [_START_B, ord(lead) - 32, _CODE_C] if lead else [_START_C]
+        rest = value[len(lead) :]
+        codes += [int(rest[i : i + 2]) for i in range(0, len(rest), 2)]
+    else:
+        codes = [_START_B, *(ord(c) - 32 for c in value)]
+    check = (codes[0] + sum(i * c for i, c in enumerate(codes[1:], 1))) % 103
+    return "".join(_PATTERNS[c] for c in [*codes, check, _STOP])
 
 
 def code128_svg(value: str, *, height: int = 40) -> SafeString:
@@ -61,7 +68,8 @@ def code128_svg(value: str, *, height: int = 40) -> SafeString:
     )
     return format_html(
         '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {} {}" class="h-full w-full" '
-        'preserveAspectRatio="none" role="img" aria-label="Barcode {}" fill="#000">{}</svg>',
+        'preserveAspectRatio="none" shape-rendering="crispEdges" role="img" '
+        'aria-label="Barcode {}" fill="#000">{}</svg>',
         total + 20,
         height,
         value,

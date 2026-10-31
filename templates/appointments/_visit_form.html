@@ -204,7 +204,7 @@
         <input id="id_reason" name="reason" class="input" maxlength="200" value="{{ form.reason.value|default:'' }}">
       </div>
       <ul class="mt-4 space-y-1 text-label text-muted" x-show="isToday">
-        <li>Prints: {% if prefs.opd_print_blank_prescription %}empty prescription, {% endif %}token{% if prefs.opd_collect_fee_upfront %}, fee invoice{% if prefs.opd_print_office_copy %} (patient and office copy){% endif %}{% endif %}.</li>
+        <li>Prints: token{% if prefs.opd_collect_fee_upfront %}, fee invoice{% if prefs.opd_print_office_copy %} (patient and office copy){% endif %}{% endif %}.{% if prefs.opd_print_blank_prescription %} The empty prescription has its own button.{% endif %}</li>
       </ul>
       <p class="mt-4 text-label text-muted" x-show="!isToday" x-cloak>Pre-booking. The token and prescription print when the patient arrives.</p>
       <button type="submit" x-ref="save" class="btn btn-primary mt-5 w-full" :disabled="(mode === 'find' && !patientId) || !doctorId || (pickTime && !time)" x-text="isToday ? 'Save and print (F8)' : 'Save booking (F8)'"></button>

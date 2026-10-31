@@ -1,0 +1,5 @@
+# The print helper on each PC (print_helper/, packaging/sehat_print.spec). Not used by the server.
+pypdfium2>=4.30,<6
+Pillow>=10.4
+pywin32>=306; sys_platform == "win32"
+pystray>=0.19,<1; sys_platform == "win32"

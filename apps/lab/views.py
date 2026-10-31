@@ -16,6 +16,7 @@ from django.views.decorators.http import require_GET, require_POST
 
 from apps.accounts.decorators import has_perm, permission_required
 from apps.audit import services as audit
+from apps.core.labels import LABEL_PAPERS, label_paper
 from apps.core.pdf import weasyprint_html
 from apps.core.scoping import get_scoped_or_404, paginate, scoped
 from apps.documents.services import panel_context as document_panel
@@ -452,6 +453,8 @@ def sample_label(request, pk):
         {
             "sample": sample,
             "barcode": code39_svg(sample.accession),
+            "paper": label_paper(request.GET.get("paper", "")),
+            "papers": LABEL_PAPERS.values(),
             "tests": sample.items.exclude(status=ItemStatus.CANCELLED),
         },
     )

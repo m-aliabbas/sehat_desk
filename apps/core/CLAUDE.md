@@ -28,6 +28,7 @@ management commands.
 - `gdrive.py` — Google Drive sign-in, upload at `SEHATDESK_GDRIVE_TIMES`, retention; `worker_loop` runs in
   `serve.py`. All of it lives on Settings → Backup (`core:backups`, `templates/core/backups.html`) and
   needs `admin.organization.manage`. The upload worker runs under `serve.py`, not `runserver`.
+- `labels.py` — sticker sizes for label printers (`LABEL_PAPERS`, default 1.5 × 1 inch); pharmacy and lab labels use it.
 - `demo_data.py` — catalogue for `seed_demo`.
 - `management/commands/` — `backup`, `restore`, `gdrive_backup`, `tailwind`, `loadtest`, `seed_demo`.
 

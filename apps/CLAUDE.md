@@ -49,7 +49,7 @@ Each app has its own `CLAUDE.md` with its flow and rules. Open the one for the a
 ## App index
 accounts · appointments · audit · billing · core · documents · encounters · finance · hr · ipd ·
 lab · masterdata · notifications · nursing · organizations · patients · pharmacy · prescriptions ·
-procedures · queue · reports · search · vitals — each has `apps/<app>/CLAUDE.md`.
+printing · procedures · queue · reports · search · vitals — each has `apps/<app>/CLAUDE.md`.
 
 When you add an app: create its `CLAUDE.md` (same shape as the others), add it to this index, and
 add it to `INSTALLED_APPS`, `config/urls.py` and `apps/core/navigation.py` as needed.

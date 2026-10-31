@@ -3,7 +3,7 @@
 {% block title %}Stock ledger: {{ product.display_name }}{% endblock %}
 {% block page_title %}{{ product.display_name }}: stock ledger{% endblock %}
 {% block page_subtitle %}{{ current_branch.name }}. Counted in {{ product|unit_label:2 }}. Entries are never edited; a correction is a new entry.{% endblock %}
-{% block page_actions %}<button type="button" class="btn btn-secondary" onclick="window.print()">Print</button>{% endblock %}
+{% block page_actions %}{% include "print/_router.html" %}<button type="button" class="btn btn-secondary" onclick="window.print()">Print</button>{% endblock %}
 {% block content %}
 <form method="get" class="card mb-6 grid items-end gap-3 md:grid-cols-[auto_auto_1fr_auto]">
   <div><label class="field-label" for="l-from">From</label><input id="l-from" type="date" name="from" value="{{ start|date:'Y-m-d' }}" class="input"></div>

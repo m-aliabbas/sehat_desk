@@ -16,6 +16,7 @@
   .banner { background: #fff7e6; border: 1px solid #f5c26b; padding: 8px 12px; margin-bottom: 10px; border-radius: 6px; }
   @media print { .banner { display: none; } }
 </style>
+{% include "print/_router.html" %}
 </head>
 <body>
 {% if pdf_unavailable %}<div class="banner">PDF export could not start on this computer. Use your browser's <strong>Print → Save as PDF</strong> (landscape) instead. <button onclick="window.print()">Print</button></div>{% endif %}

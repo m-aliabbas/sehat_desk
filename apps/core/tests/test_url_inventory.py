@@ -27,6 +27,10 @@ PUBLIC = {
     "core:client-error",  # same-origin POST only
     "queue:display",  # secret per-branch key, token numbers only
     "?media",  # organization logos only
+    "printing:agent-join",  # only while an admin allows new PCs, only from the LAN
+    "printing:agent-hello",  # print helper's own token
+    "printing:agent-next",
+    "printing:agent-finish",
 }
 
 # Open to any signed-in staff member: their own account, inbox and shell.
@@ -45,6 +49,8 @@ PERSONAL = {
     "search:suggest",
     "search:recent-clear",
     "core:module-placeholder",
+    "printing:job-create",  # the page the user already has open; their own organization
+    "printing:job-status",  # their own jobs
 }
 
 _CONVERTERS = re.compile(r"<(?:(\w+):)?(\w+)>")

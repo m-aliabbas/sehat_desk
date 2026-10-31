@@ -108,6 +108,8 @@ Goal: a customer installs one package, gets a desktop shortcut, double-clicks it
 
 ## 6. Decision log
 
+- 2026-10-31 Print helper: no pair codes or per-PC dropdowns. An admin allows new PCs for 24 hours and each helper
+  connects itself from the LAN; printers are detected by paper size and name, and Settings asks only when unclear. §4b.
 - 2026-10-31 v1.0.4: licensing works as in vibe_pos: manual approval, then a 30-day local token, then Firebase again.
   This replaces v1.0.3's automatic 30 days. Two differences remain: its own collection, so a POS approval does not
   license SehatDesk, and a device ID from the machine GUID, so Windows updates do not reset it.
@@ -532,7 +534,7 @@ Tooling:
 ## 17. Printing (Phase 24)
 - One print engine: documents extend `print/a4.html` (invoice, lab report, admission form, discharge summary),
   `print/a5.html` (prescription, registration slip, appointment slip, lab order) or `print/thermal.html`
-  (80 mm: token slip, payment receipt, pharmacy receipt); the sample label sets its own 50 × 25 mm page.
+  (80 mm: token slip, visit fee slip, payment receipt, pharmacy receipt; the empty prescription prints apart on A5); sample and product labels set their page to the sticker size (`apps/core/labels.py`, default 1.5 × 1 inch).
   `print/base.html` holds the toolbar (hidden on paper) and marks staging prints "not a valid document".
 - Branding comes from `print/_letterhead.html` / `_thermal_header.html` and the footers: logo, hospital name,
   branch, branch address/phone (falling back to the hospital's), registration number, header text, footer
@@ -631,3 +633,19 @@ Tooling:
 - Doctors see only linked patients and their own appointments; a linked patient's clinical history stays
   whole, including other doctors' visits. Each manager or reception role keeps the hospital-wide view.
 - The pharmacy can tag a sale to a reception visit with an empty paper prescription.
+
+## 4b. Print routing (print helper)
+- Decided 2026-10-31. A web page cannot choose a printer, so each PC that prints runs SehatDesk Print
+  (`SehatDesk-Print-Setup-<v>.exe`), built with the main installer. Details: `apps/printing/CLAUDE.md`.
+- Jobs travel browser → server → helper. The helper polls outward, so the browser never calls localhost
+  (browsers restrict that from plain http pages) and no firewall rule is needed on the PC.
+- The helper installs apart from the server, once per PC, and starts at sign-in from the tray.
+- Nothing is typed on the PC: while an admin has "Allow new PCs" on (24 hours, LAN addresses only), a helper
+  at http://sehatdesk.local connects itself. The address can be changed in the helper's window.
+- A browser is matched to its helper by IP address. Printers are assigned from the paper sizes the driver
+  reports and the printer's name. Settings → Printers asks only when two match, and can override any paper.
+  A5 follows the A4 printer unless set apart.
+- 80 mm jobs go as raw ESC/POS raster with a cut. Other papers go as a PDF at true size.
+- Needs Edge or Chrome on the PC to prepare the page (Windows always has Edge). No helper or no printer
+  chosen for a paper: the browser's print window opens, as before.
+- macOS: the helper runs from source; there is no macOS helper package yet.

@@ -27,11 +27,13 @@
       .sheet img { filter: grayscale(1); }
     }
   </style>
+  {% include "print/_router.html" %}
+  {% block head_extra %}{% endblock %}
 </head>
 <body class="bg-page">
   {% block toolbar %}
   <div class="no-print flex flex-wrap items-center justify-center gap-3 p-4">
-    <button class="btn btn-primary" onclick="window.print()">{% block print_label %}Print{% endblock %}</button>
+    {% block print_button %}<button class="btn btn-primary" onclick="window.print()">{% block print_label %}Print{% endblock %}</button>{% endblock %}
     {% block toolbar_extra %}{% endblock %}
     {% block close_button %}<button class="btn btn-close" onclick="window.close()">Close</button>{% endblock %}
   </div>

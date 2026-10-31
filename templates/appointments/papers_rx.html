@@ -1,0 +1,39 @@
+{% extends "print/a5.html" %}
+{% load ui %}
+{# The empty prescription, on A5 paper. The token and fee slip print apart: appointments/papers.html. #}
+{% block title %}Prescription · {{ appt.number }}{% endblock %}
+{% block print_label %}Print prescription{% endblock %}
+{% block document %}
+  {% print_layout "prescription" as L %}{% include "print/_layout_css.html" %}
+  <section class="flex min-h-[185mm] flex-col">
+    <header class="flex items-start justify-between gap-4 border-b border-ink pb-3 {% if L.doctor_side == 'right' %}flex-row-reverse{% endif %}">
+      <div class="{% if L.doctor_side == 'center' %}flex-1 text-center{% elif L.doctor_side == 'right' %}text-right{% endif %}">
+        <p class="text-[18px] font-bold">{{ appt.doctor }}</p>
+        {% if L.show_qualifications %}<p class="text-label">{{ appt.doctor.qualifications }}{% if appt.doctor.specialty %} · {{ appt.doctor.specialty }}{% endif %}</p>{% endif %}
+        <p class="text-label">{{ appt.department }}{% if appt.doctor.registration_number and L.show_registration %} · PMDC {{ appt.doctor.registration_number }}{% endif %}</p>
+      </div>
+      <div class="{% if L.doctor_side == 'right' %}text-left{% else %}text-right{% endif %}">
+        {% if L.show_header %}
+        {% if request.organization.logo and L.show_logo %}<img src="{{ request.organization.logo.url }}" alt="" class="{% if L.doctor_side != 'right' %}ml-auto{% endif %} object-contain" style="height:{{ L.logo_mm }}mm;width:{{ L.logo_mm }}mm">{% endif %}
+        <p class="font-semibold">{{ request.organization.name }}</p>
+        <p class="text-label">{{ appt.branch.name }}{% if appt.branch.phone %} · {{ appt.branch.phone }}{% endif %}</p>
+        {% if L.header_text %}<p class="text-label whitespace-pre-line">{{ L.header_text }}</p>{% endif %}
+        {% endif %}
+        {% if token %}<p class="mt-1 font-mono text-[22px] leading-none font-bold">{{ token.label }}</p>{% endif %}
+      </div>
+    </header>
+    <section class="mt-3 grid grid-cols-2 gap-1 text-label">
+      <p><span class="font-semibold">{{ patient.full_name }}</span></p>
+      <p class="text-right">{{ appt.date|date:"d M Y" }}, {{ appt.start_time|time:"H:i" }}</p>
+      <p>MRN {{ patient.mrn }} · {{ patient.age_label }} · {{ patient.get_gender_display }}</p>
+      <p class="text-right font-mono">{{ appt.number }}</p>
+      <p class="col-span-2 {% if not L.show_vitals %}hidden{% endif %}">Vitals: {% for v in vitals %}{{ v.label }} {{ v.value }}{% if not forloop.last %} · {% endif %}{% empty %}BP ______ Pulse ______ Temp ______ SpO₂ ______ Wt ______{% endfor %}</p>
+      <p class="col-span-2 {% if not L.show_allergies %}hidden{% endif %}">Allergies: {% for a in allergies %}{{ a.substance }}{% if not forloop.last %}, {% endif %}{% empty %}{% if patient.allergy_status == "none" %}No known allergies{% else %}Not recorded{% endif %}{% endfor %}</p>
+    </section>
+    {% for line in L.lines %}<p class="mt-3 border-b border-line pb-5 text-label font-semibold">{{ line }}:</p>{% endfor %}
+    <p class="mt-4 flex-1 text-[26px] font-bold italic">℞</p>
+    {% if L.show_footer and L.footer_text %}<p class="mt-2 text-center text-label whitespace-pre-line">{{ L.footer_text }}</p>{% endif %}
+    <footer class="mt-6 flex items-end justify-between text-label"><span>Follow-up: ____________</span><span class="border-t border-ink px-6 pt-1">Doctor's signature</span></footer>
+  </section>
+  {% if auto_print %}<script>window.addEventListener("load", () => window.print());</script>{% endif %}
+{% endblock %}

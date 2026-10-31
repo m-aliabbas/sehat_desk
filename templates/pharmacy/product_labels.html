@@ -1,25 +1,34 @@
 {% extends "print/a4.html" %}
 {% block title %}Barcode labels{% endblock %}
+{% block page_size %}{% if paper %}{{ paper.width }} {{ paper.height }}{% else %}A4{% endif %}{% endblock %}
+{% block page_margin %}{% if paper %}0{% else %}12mm{% endif %}{% endblock %}
 {% block print_label %}Print labels{% endblock %}
 {% block toolbar_extra %}
   {% if not sheet %}
   <form method="get" class="flex flex-wrap items-center gap-2">
     <label class="text-label" for="count">How many</label>
-    <input type="hidden" name="layout" value="{{ roll|yesno:'roll,sheet' }}"><input id="count" name="count" type="number" min="1" max="500" value="{{ count }}" class="input w-20" onchange="this.form.submit()">
-    <a class="btn btn-secondary btn-sm" href="?count={{ per_pack }}&amp;layout={{ roll|yesno:'roll,sheet' }}">One per {{ product.pack_unit }} ({{ per_pack }})</a>
-    {% if product.has_packs %}<a class="btn btn-secondary btn-sm" href="?count={{ per_unit }}&amp;layout={{ roll|yesno:'roll,sheet' }}">One per {{ product.unit }} ({{ per_unit }})</a>{% endif %}
+    <input type="hidden" name="layout" value="{{ layout }}"><input id="count" name="count" type="number" min="1" max="500" value="{{ count }}" class="input w-20" onchange="this.form.submit()">
+    <a class="btn btn-secondary btn-sm" href="?count={{ per_pack }}&amp;layout={{ layout }}">One per {{ product.pack_unit }} ({{ per_pack }})</a>
+    {% if product.has_packs %}<a class="btn btn-secondary btn-sm" href="?count={{ per_unit }}&amp;layout={{ layout }}">One per {{ product.unit }} ({{ per_unit }})</a>{% endif %}
   </form>
   {% endif %}
+  {% if paper %}<p class="w-full text-center text-label text-muted">Sticker {{ paper.name }}. In the print window: Margins None, Scale 100%. Set the same size in the printer's own settings.</p>{% endif %}
 {% endblock %}
-{% block sheet_class %}{% if roll %}p-0{% else %}max-w-[210mm] p-6{% endif %}{% endblock %}
+{% block sheet_class %}{% if paper %}label-sheet p-0{% else %}max-w-[210mm] p-6{% endif %}{% endblock %}
 {% block document %}
-{% if roll %}
-<style nonce="{{ request.csp_nonce }}">@page { size: 50mm 25mm; margin: 0; } .label-roll { width: 50mm; height: 25mm; break-after: page; overflow: hidden; }</style>
+{% if paper %}
+<style nonce="{{ request.csp_nonce }}">
+  .label-sheet { width: {{ paper.width }}; }
+  /* A hair under the sticker's height, so rounding never spills onto a blank sticker. */
+  .label-roll { width: {{ paper.width }}; height: calc({{ paper.height }} - 0.3mm); overflow: hidden; display: flex; flex-direction: column; padding: 0.8mm 0.5mm; }
+  .label-roll:not(:last-child) { break-after: page; }
+  .label-code { flex: 1; min-height: 0; margin: 0.3mm 0; }
+</style>
 {% for product, svg in labels %}
-<div class="label-roll px-2 py-1 text-center">
-  <p class="truncate text-[10px] font-semibold">{{ product.display_name }}</p>
-  <div class="mx-auto h-[13mm]">{{ svg }}</div>
-  <p class="font-mono text-[10px]">{{ product.barcode }}</p>
+<div class="label-roll text-center">
+  <p class="truncate text-[9px] leading-tight font-semibold">{{ product.display_name }}</p>
+  <div class="label-code">{{ svg }}</div>
+  <p class="font-mono text-[9px] leading-tight">{{ product.barcode }}</p>
 </div>
 {% endfor %}
 {% else %}

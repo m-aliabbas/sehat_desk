@@ -8,7 +8,7 @@ Test catalogue, orders, samples, results, verification and reports. PRD §8. PRO
   `amend` (new version), `acknowledge_critical`, `unacknowledged_critical`, `compute_flag`.
 - `models.py` — `LabTestCategory`, `LabTest` (result types, `range_for(patient)`),
   `LabReferenceRange`, `LabPanel`, `LabOrder`, `LabOrderItem`, `LabSample`, `LabResult`.
-- `signals.py` — invoice saves refresh order status. `barcode.py` — Code 39 SVG for tube labels.
+- `signals.py` — invoice saves refresh order status. `barcode.py` — Code 39 SVG for tube labels (sticker size from `core/labels.py`, `?paper=`).
 
 - `lab:tests` — read-only list of tests and packages with prices, for reception, doctors and the lab.
 

@@ -15,7 +15,7 @@ PRD §9. Phases 12–14. PROJECT_NOTES §12–13.
 - `pricing.py` — `change_price` (new stock, or new stock and shelf), `reprice_batch`, `record_edit`
   (logs what the product form or a purchase changed), `unit_value`. Writes `ProductPriceChange`.
 - `catalog.py` — `save_product` (auto SKU and barcode), `add_many` (grid, all or nothing),
-  `ensure_standard_categories`. `barcodes.py` — `new_barcode` (EAN-13 starting 20), `code128_svg`.
+  `ensure_standard_categories`. `barcodes.py` — `new_barcode` (EAN-13 starting 20), `code128_svg` (digits use subset C, for wider bars).
 - `models.py` — `Product` (base unit, pack size + pack unit, `allow_loose_sale`, reorder level,
   link to `prescriptions.Medicine`; `describe_quantity`/`pack_breakdown`/`loose_sale_error`),
   `InventoryBatch`, `StockTransaction` (ledger), `PharmacySale`, `Vendor`, `Purchase`,
@@ -79,7 +79,7 @@ PRD §9. Phases 12–14. PROJECT_NOTES §12–13.
 
 - Reception visits at the pharmacy: `pos.visits_without_rx` lists today's tokens and appointments with
   nothing sent; `pos.tag_visit` puts the patient and an empty paper Rx on the sale (Prescriptions page
-  and the till's Attach Rx). Product page has the barcode and labels (A4 or 50 x 25 mm roll).
+  and the till's Attach Rx). Product page has the barcode and labels (roll 1.5 x 1 inch by default, 50 x 25 mm, or A4; `core/labels.py`). The Barcodes page has the same choice. Each sticker is its own page, because a browser shrinks an A4 page onto a sticker.
 - Entry grid: switching Tablet/Strip/Box converts the rate (`setUnit`). `Disc %` is per line.
 - Supplier ledger: the supplier page shows the account across branches; the full dated version with
   exports is report `supplier-statement` (tab on the purchasing screens, `apps/reports`).

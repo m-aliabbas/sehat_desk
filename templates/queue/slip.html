@@ -1,7 +1,7 @@
 {% extends "print/thermal.html" %}
 {% block title %}Token {{ token.label }}{% endblock %}
 {% block print_label %}Print token{% endblock %}
-{% block sheet_class %}w-[80mm] p-5 text-center{% endblock %}
+{% block sheet_class %}thermal-sheet text-center{% endblock %}
 {% block document %}
     {% include "print/_thermal_header.html" with org=request.organization branch=request.branch %}
     <p class="text-label text-muted uppercase">Your token</p>

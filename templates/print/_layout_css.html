@@ -1,4 +1,5 @@
 {# Applies Settings → Print layouts. Context: L (organizations.PrintLayout). #}
+{% if L.paper == "thermal" %}<meta name="sd-paper" content="thermal">{% endif %}
 <style>
   {% if L.paper == "thermal" %}@page { size: 80mm auto; margin: 4mm; }
   .sheet { width: 80mm; max-width: 80mm; padding-left: 4mm; padding-right: 4mm; font-size: 11px; }

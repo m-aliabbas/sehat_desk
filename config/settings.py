@@ -96,6 +96,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # --- Applications ------------------------------------------------------------
 INSTALLED_APPS = [
+    "apps.printing",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
