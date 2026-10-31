@@ -261,8 +261,10 @@ def test_encounter_in_other_branch_is_404(admin_client, org, branch2, patient, d
     assert admin_client.get(f"/encounters/{enc.pk}/").status_code == 404
 
 
-def test_patient_profile_start_button(client, doctor, patient):
+def test_patient_profile_start_button(client, org, branch, doctor, patient, admin_user):
     client.force_login(doctor.user)
+    assert client.post("/encounters/start/", {"patient": patient.pk}).status_code == 404
+    _appt(org, branch, patient, doctor, admin_user)  # a doctor starts only for their own patient
     r = client.post("/encounters/start/", {"patient": patient.pk})
     assert r.status_code == 302 and Encounter.objects.filter(patient=patient).exists()
     page = client.get(f"/patients/{patient.pk}/").content.decode()

@@ -144,7 +144,10 @@ def test_complete_once(doctor_req, patient, ecg):
         services.complete(proc, request=doctor_req)
 
 
-def test_views_order_and_detail(client, doctor, patient, ecg):
+def test_views_order_and_detail(client, doctor, patient, ecg, make_request):
+    from apps.encounters import services as encounters
+
+    encounters.start(request=make_request(doctor.user), patient=patient)  # now their own patient
     client.force_login(doctor.user)
     page = client.get(reverse("procedures:procedure-create") + f"?patient={patient.pk}")
     assert page.status_code == 200 and b"ECG" in page.content

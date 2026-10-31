@@ -48,9 +48,10 @@ Goal: a customer installs one package, gets a desktop shortcut, double-clicks it
   the installer on the server computer) or saving the file. Needs internet on the server computer.
 - Licence (`apps/core/licensing.py`, same scheme as vibe_pos): Firebase project `vibepos-4d412`, collection
   `lisence_sehatdesk`, one document per device (`approved`, `disabled`, `expire_date`). A new device registers itself
-  approved for 30 days. Extend or stop a device by editing its document; the server re-checks every 6 hours or on
-  "Check again". An encrypted cache in the data folder allows 30 days offline. Without a licence every page leads to
-  `/license/`, which shows the device ID; backups keep running. The first start needs internet. Credential:
+  as not approved and waits; set `approved` to true in the Firebase console (it gets in within 5 minutes or on "Check
+  again"). An approved device keeps a local token in the data folder, good for 30 days and holding `expire_date`.
+  Firebase is asked only when the token runs out, so changes reach a device then. Without a licence every page leads
+  to `/license/`, which shows the device ID; backups keep running. Credential:
   `k1.json.enc`, shipped in the bundle and in git. Enforced only in installed copies (`launcher/common.py`).
 - Build check: `build_windows.ps1` runs `--self-test` and a real server start on an empty folder before
   packaging, so a broken bundle fails the build.
@@ -107,10 +108,10 @@ Goal: a customer installs one package, gets a desktop shortcut, double-clicks it
 
 ## 6. Decision log
 
-- 2026-10-31 v1.0.3: the installer removes the installed version first, after asking; patient data stays. Licensing
-  follows vibe_pos with these differences: a new device works at once for 30 days (vibe_pos waits for approval), its
-  own collection so a POS approval does not license SehatDesk, a device ID from the machine GUID so Windows updates
-  do not reset it, and Firebase is asked first so an extension applies without waiting for the cache to run out.
+- 2026-10-31 v1.0.4: licensing works as in vibe_pos: manual approval, then a 30-day local token, then Firebase again.
+  This replaces v1.0.3's automatic 30 days. Two differences remain: its own collection, so a POS approval does not
+  license SehatDesk, and a device ID from the machine GUID, so Windows updates do not reset it.
+- 2026-10-31 v1.0.3: the installer removes the installed version first, after asking; patient data stays.
 - 2026-10-31 `k1.json.enc` and its key are in the public repository at the owner's request, for now. Anyone can decrypt
   this service account. Replace it with a limited credential or a small licence API before wider rollout.
 - 2026-10-31 Migrations stay automatic on start. Each runs with an automatic undo, an older version refuses newer

@@ -1,5 +1,6 @@
-"""Device licence (apps/core/licensing.py): first-start term, offline month, blocking."""
+"""Device licence (apps/core/licensing.py): manual approval, 30-day local token, blocking."""
 
+import json
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
@@ -47,12 +48,13 @@ def in_days(days):
     return datetime.now(UTC) + timedelta(days=days)
 
 
-def test_new_device_gets_one_month_approved(enforced, monkeypatch):
+def test_new_device_waits_for_manual_approval(enforced, monkeypatch):
     document = FakeDocument()
     use_document(monkeypatch, document)
     result = licensing.refresh()
-    assert result["active"] and result["days_remaining"] == 30
-    assert document.written["approved"] is True
+    assert result["active"] is False and result["message"] == licensing.WAITING
+    assert document.written["approved"] is False
+    assert document.written["expire_date"] > in_days(29)
     assert not any("patient" in key for key in document.written)
 
 
@@ -70,12 +72,12 @@ def test_device_is_blocked_by_its_document(enforced, monkeypatch, data):
     assert licensing.refresh()["active"] is False
 
 
-def test_extension_in_firebase_applies(enforced, monkeypatch):
+def test_approved_device_gets_its_time_from_firebase(enforced, monkeypatch):
     use_document(monkeypatch, FakeDocument({"approved": True, "expire_date": in_days(100)}))
     assert licensing.refresh()["days_remaining"] == 100
 
 
-def test_offline_uses_the_cache_until_the_licence_ends(enforced, monkeypatch):
+def test_good_token_needs_no_server(enforced, monkeypatch):
     use_document(monkeypatch, FakeDocument({"approved": True, "expire_date": in_days(10)}))
     licensing.refresh()
     fail_firebase(monkeypatch)
@@ -83,21 +85,42 @@ def test_offline_uses_the_cache_until_the_licence_ends(enforced, monkeypatch):
     assert licensing.status()["active"] is True  # the answer right after a restart
     assert licensing.refresh()["days_remaining"] == 10
 
-    licensing._save_cache("device-1", in_days(-1))
+
+def _after_token_ends(monkeypatch):
+    fernet = licensing._cache_fernet()
+    token = json.loads(fernet.decrypt(licensing._cache_path().read_bytes()))
+    token["verified_at"] = (datetime.now(UTC) - timedelta(days=31)).isoformat()
+    licensing._cache_path().write_bytes(fernet.encrypt(json.dumps(token).encode()))
+
+
+def test_server_changes_apply_when_the_token_ends(enforced, monkeypatch):
+    use_document(monkeypatch, FakeDocument({"approved": True, "expire_date": in_days(100)}))
+    licensing.refresh()
+    use_document(monkeypatch, FakeDocument({"approved": True, "disabled": True}))
+    assert licensing.refresh()["active"] is True  # the token still holds
+    _after_token_ends(monkeypatch)
     assert licensing.refresh()["active"] is False
 
 
-def test_offline_month_runs_out(enforced, monkeypatch):
+def test_ended_token_gets_a_new_one_from_the_server(enforced, monkeypatch):
+    use_document(monkeypatch, FakeDocument({"approved": True, "expire_date": in_days(100)}))
+    licensing.refresh()
+    _after_token_ends(monkeypatch)
+    assert licensing.refresh()["active"] is True
+    assert licensing._load_cache("device-1") is not None
+
+
+def test_ended_token_without_internet_blocks(enforced, monkeypatch):
     use_document(monkeypatch, FakeDocument({"approved": True, "expire_date": in_days(100)}))
     licensing.refresh()
     fail_firebase(monkeypatch)
+    _after_token_ends(monkeypatch)
+    assert licensing.refresh()["message"] == licensing.NO_INTERNET
 
-    class Later(datetime):
-        @classmethod
-        def now(cls, tz=None):
-            return datetime.now(tz) + timedelta(days=31)
 
-    monkeypatch.setattr(licensing, "datetime", Later)
+def test_licence_end_date_in_the_token_is_enforced(enforced, monkeypatch):
+    licensing._save_cache("device-1", in_days(-1))
+    fail_firebase(monkeypatch)
     assert licensing.refresh()["active"] is False
 
 
@@ -106,15 +129,6 @@ def test_first_start_offline_blocks_and_asks_for_internet(enforced, monkeypatch)
     result = licensing.refresh()
     assert result["active"] is False
     assert result["message"] == licensing.NO_INTERNET
-
-
-def test_revoked_device_loses_its_cache(enforced, monkeypatch):
-    use_document(monkeypatch, FakeDocument({"approved": True, "expire_date": in_days(10)}))
-    licensing.refresh()
-    use_document(monkeypatch, FakeDocument({"approved": True, "disabled": True}))
-    licensing.refresh()
-    fail_firebase(monkeypatch)
-    assert licensing.refresh()["active"] is False
 
 
 def test_cache_from_another_computer_is_ignored(enforced):
@@ -153,6 +167,7 @@ def test_banner_warns_in_the_last_days(enforced, monkeypatch, admin_client):
     use_document(monkeypatch, FakeDocument({"approved": True, "expire_date": in_days(3)}))
     licensing.refresh()
     assert "until the licence ends" in admin_client.get(reverse("core:updates")).content.decode()
+    licensing._cache_path().unlink()  # the token ran out, so the server answers again
     use_document(monkeypatch, FakeDocument({"approved": True, "expire_date": in_days(20)}))
     licensing.refresh()
     assert (
