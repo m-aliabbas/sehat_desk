@@ -17,7 +17,7 @@
       </tr>{% endfor %}</tbody>
     </table></div>
     <div class="mt-4 flex flex-wrap items-end gap-2">
-      <div><label class="field-label" for="b-layout">Paper</label><select id="b-layout" name="layout" class="select" data-native>{% for p in papers %}<option value="{{ p.key }}">Label roll {{ p.name }}</option>{% endfor %}<option value="sheet">A4 sheet</option></select></div>
+      <div><label class="field-label" for="b-layout">Paper</label><select id="b-layout" name="layout" class="select">{% for p in papers %}<option value="{{ p.key }}">Label roll {{ p.name }}</option>{% endfor %}<option value="sheet">A4 sheet</option></select></div>
       <button class="btn btn-primary">Print labels</button>
     </div>
   </form>

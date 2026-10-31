@@ -21,7 +21,7 @@
       {% for row in rows %}
       <div class="flex items-center justify-between gap-3">
         <label class="text-body" for="rule-{{ row.key }}">{{ row.label }}</label>
-        <select id="rule-{{ row.key }}" name="rule:{{ row.key }}" data-native class="select w-32">
+        <select id="rule-{{ row.key }}" name="rule:{{ row.key }}" class="select w-32">
           {% for value, label in row.choices %}<option value="{{ value }}" {% if value == row.value %}selected{% endif %}>{{ label }}</option>{% endfor %}
         </select>
       </div>

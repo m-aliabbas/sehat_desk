@@ -80,6 +80,9 @@ Goal: a customer installs one package, gets a desktop shortcut, double-clicks it
 ## 4. Network: the app runs at sehatdesk.local
 - Staff on the hospital LAN open **http://sehatdesk.local** in any browser.
 - The launcher advertises the hostname over mDNS (the `zeroconf` package, `launcher/mdns.py`), so the server works on Windows without Bonjour installed. It rechecks the LAN address every minute. The window also shows the IP address as a fallback, and the installer adds firewall rules for the exe (TCP and UDP, all network profiles).
+- Clients may keep the address for 15 minutes (`HOST_TTL_SECONDS`), not the library's 2: multicast is often lost on Wi-Fi, and each lost lookup is a page that does not open. A new DHCP address on the server is allowed without a restart.
+- Only one computer may answer for the name. A copy that finds another server does not advertise, its window says so, and it takes over the name only once the other has gone. Client PCs need a browser only, not the installer: every installed copy has its own separate database.
+- Wi-Fi clients: if `sehatdesk.local` keeps failing, open the server by IP address. Give the server a fixed address (router reservation) and connect it by cable where possible.
 - `.local` resolution depends on the client:
   - macOS, iOS, Linux with Avahi: works natively.
   - Windows 10/11: usually works. If not, install Bonjour or use the fallback below.
@@ -159,6 +162,7 @@ Goal: a customer installs one package, gets a desktop shortcut, double-clicks it
 - Local server per clinic (on-premise) rather than cloud-only, because internet can be unreliable in Pakistan.
 - Installer for both Windows and macOS, built on their own runners.
 - App address: http://sehatdesk.local on the LAN.
+- Wi-Fi clients (2026-11-01): longer mDNS address lifetime, one advertising server per network, gzip for pages and static files (§4, §20).
 - Procedures (Phase 33) reuse Settings → Services (`is_procedure`, `price_editable`). A per-patient price needs `procedure.price.override` and a reason; the list price is kept.
 - Doctor commission (Phase 35) is earned only when a bill is fully paid, and reversed in proportion to refunds. Rows are append-only and keep the rate they were earned at. `InvoiceItem.performed_by` names the doctor (consultation, procedure, or referring doctor for lab).
 - Payroll deducts only days explicitly marked absent (half for a half day); unmarked days are paid, so clinics that do not mark attendance still pay full salaries. Finalizing locks that month's attendance.
@@ -594,6 +598,8 @@ Tooling:
 - Dashboard trend used 16 × `day_totals` (≈280 queries per load); `billing.net_by_day()` gives the same numbers
   in 4 queries (tested equal to the cashier's day closing). Dashboard now < 80 queries.
 - `test_query_scaling.py` fails if a main list page runs more queries for 12 rows than for 3 (N+1 guard).
+- Network size: HTML and htmx fragments are gzipped (`GZipMiddleware`); `collectstatic` writes `.gz` copies that WhiteNoise serves, and browsers cache CSS and JS for an hour (a new version can look stale for that long).
+- Measured 2026-11-01 on the dev Mac: 10 clients at once gave about 95 requests/s with a median of 100 ms. Persistent SQLite connections made no real difference, so `CONN_MAX_AGE` stays 0.
 - `python manage.py loadtest` (empty data folder only) seeds 20,000 patients and times the hot paths. On the
   dev Mac (SQLite): patient search 12–18 ms median, global search 12 ms, dashboard 70 ms, POS checkout 10 ms.
 

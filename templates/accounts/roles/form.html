@@ -29,7 +29,7 @@
                 <input type="checkbox" class="checkbox mt-0.5" name="permissions" value="{{ p.pk }}" {% if pid in selected %}checked{% endif %}
                        {% if p.code not in held %}disabled{% endif %}>
                 {% if p.code not in held and pid in selected %}<input type="hidden" name="permissions" value="{{ p.pk }}">{% endif %}
-                <span>{{ p.label }}<span class="block font-mono text-[11px] text-muted">{{ p.code }}</span></span>
+                <span>{{ p.label }}<span class="block font-mono text-label text-muted">{{ p.code }}</span></span>
               </label>
               {% endwith %}
             {% endfor %}

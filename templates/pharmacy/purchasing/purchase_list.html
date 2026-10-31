@@ -17,7 +17,7 @@
       <thead><tr><th scope="col">Purchase</th><th scope="col">Supplier</th><th scope="col">Supplier invoice</th><th scope="col" class="text-right">Lines</th><th scope="col" class="text-right">Total</th><th scope="col">Status</th></tr></thead>
       <tbody>
         {% for p in purchases %}
-        <tr>
+        <tr {% if p.is_editable %}data-remove="{% url 'pharmacy:purchase-cancel' p.pk %}" data-remove-label="Cancel purchase" data-remove-reason{% endif %}>
           <td><a href="{% url 'pharmacy:purchase-detail' p.pk %}" class="font-mono font-medium hover:underline">{{ p.number }}</a><p class="text-label text-muted">{{ p.created_at|date:"d M Y" }} · {{ p.created_by }}</p></td>
           <td>{{ p.vendor }}</td>
           <td>{{ p.supplier_invoice_number|default:"—" }}{% if p.supplier_invoice_date %}<p class="text-label text-muted">{{ p.supplier_invoice_date|date:"d M Y" }}</p>{% endif %}</td>

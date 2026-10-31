@@ -17,7 +17,7 @@
         <thead><tr><th scope="col">Test</th><th scope="col">Category · sample</th><th scope="col">Result · range</th><th scope="col" class="text-right">Price</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
         <tbody>
           {% for t in tests %}
-          <tr>
+          <tr data-edit="{% url 'lab:test-edit' t.pk %}" data-remove="{% url 'lab:test-toggle' t.pk %}" data-remove-label="{% if t.is_active %}Deactivate{% else %}Activate{% endif %}">
             <td><p class="font-medium">{{ t.name }}</p><p class="font-mono text-label text-muted">{{ t.code }} · {{ t.turnaround_hours }} h</p></td>
             <td>{{ t.category }}<p class="text-label text-muted">{{ t.get_sample_type_display }}</p></td>
             <td>{{ t.get_result_type_display }}{% if t.unit %} · {{ t.unit }}{% endif %}<p class="text-label text-muted">{% for r in t.ranges.all %}{{ r.label }}{% if not forloop.last %}; {% endif %}{% empty %}{{ t.normal_value|default:"No range" }}{% endfor %}</p></td>

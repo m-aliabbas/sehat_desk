@@ -30,12 +30,12 @@
   </section>
   <section class="card">
     <h2 class="section-title mb-1">Reference ranges (numeric tests)</h2>
-    <p class="mb-4 text-label text-muted">The most specific matching row (sex, then age band) is used. Leave the age to-field empty for "and older". Critical limits trigger the critical-result alert.</p>
+    <p class="mb-4 text-label text-muted">The most specific matching row (sex, then age band) is used. For a test read in bands, such as HbA1c, add one row per band, name it, and tick the normal one: Normal up to 5.6, Prediabetes 5.7 to 6.4, Diabetes 6.5 and above. Leave the age to-field empty for "and older". Critical limits trigger the critical-result alert.</p>
     {{ ranges.management_form }}
     {% for e in ranges.non_form_errors %}<p class="field-error">{{ e }}</p>{% endfor %}
     <div class="table-wrap">
       <table class="table">
-        <thead><tr><th scope="col">Sex</th><th scope="col">Age from</th><th scope="col">Age to</th><th scope="col">Low</th><th scope="col">High</th><th scope="col">Critical low</th><th scope="col">Critical high</th><th scope="col">Remove</th></tr></thead>
+        <thead><tr><th scope="col">Sex</th><th scope="col">Age from</th><th scope="col">Age to</th><th scope="col">Low</th><th scope="col">High</th><th scope="col" title="Below this the result is critical and a clinician must acknowledge it">Critical low</th><th scope="col">Critical high</th><th scope="col" title="Name a band for tests read in bands, such as Prediabetes. Leave empty for a plain range.">Band name</th><th scope="col" title="Tick the band that counts as normal. Bands below it flag Low and above it High.">Normal?</th><th scope="col">Remove</th></tr></thead>
         <tbody>
           {% for f in ranges %}
           <tr>{% for hidden in f.hidden_fields %}{{ hidden }}{% endfor %}
@@ -46,9 +46,11 @@
             <td><input name="{{ f.high.html_name }}" value="{{ f.high.value|default_if_none:'' }}" class="input w-24" inputmode="decimal" aria-label="High"></td>
             <td><input name="{{ f.critical_low.html_name }}" value="{{ f.critical_low.value|default_if_none:'' }}" class="input w-24" inputmode="decimal" aria-label="Critical low"></td>
             <td><input name="{{ f.critical_high.html_name }}" value="{{ f.critical_high.value|default_if_none:'' }}" class="input w-24" inputmode="decimal" aria-label="Critical high"></td>
+            <td><input name="{{ f.band.html_name }}" value="{{ f.band.value|default_if_none:'' }}" class="input w-32" maxlength="40" aria-label="Band name"></td>
+            <td class="text-center"><input type="checkbox" name="{{ f.band_normal.html_name }}" class="checkbox" {% if f.band_normal.value %}checked{% endif %} aria-label="This band is normal"></td>
             <td>{% if f.instance.pk %}<input type="checkbox" name="{{ f.DELETE.html_name }}" class="checkbox" aria-label="Remove range">{% endif %}</td>
           </tr>
-          {% if f.errors %}<tr><td colspan="8" class="field-error">{% for field, errs in f.errors.items %}{{ field }}: {{ errs|join:" " }} {% endfor %}</td></tr>{% endif %}
+          {% if f.errors %}<tr><td colspan="10" class="field-error">{% for field, errs in f.errors.items %}{{ field }}: {{ errs|join:" " }} {% endfor %}</td></tr>{% endif %}
           {% endfor %}
         </tbody>
       </table>

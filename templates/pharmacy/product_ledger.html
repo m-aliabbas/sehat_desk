@@ -8,7 +8,7 @@
 <form method="get" class="card mb-6 grid items-end gap-3 md:grid-cols-[auto_auto_1fr_auto]">
   <div><label class="field-label" for="l-from">From</label><input id="l-from" type="date" name="from" value="{{ start|date:'Y-m-d' }}" class="input"></div>
   <div><label class="field-label" for="l-to">To</label><input id="l-to" type="date" name="to" value="{{ end|date:'Y-m-d' }}" class="input"></div>
-  <div><label class="field-label" for="l-batch">Batch</label><select id="l-batch" name="batch" class="select" data-native><option value="">All batches</option>{% for b in batches %}<option value="{{ b.pk }}" {% if batch and b.pk == batch.pk %}selected{% endif %}>{{ b.label }} · exp {{ b.expiry_date|date:"m/y" }}</option>{% endfor %}</select></div>
+  <div><label class="field-label" for="l-batch">Batch</label><select id="l-batch" name="batch" class="select"><option value="">All batches</option>{% for b in batches %}<option value="{{ b.pk }}" {% if batch and b.pk == batch.pk %}selected{% endif %}>{{ b.label }} · exp {{ b.expiry_date|date:"m/y" }}</option>{% endfor %}</select></div>
   <button class="btn btn-primary">Show</button>
 </form>
 <div class="mb-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">

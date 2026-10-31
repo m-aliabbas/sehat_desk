@@ -78,6 +78,24 @@ class LabTestForm(StyledFormMixin, forms.ModelForm):
         return data
 
 
+class LabOrderEditForm(StyledFormMixin, forms.Form):
+    priority = forms.ChoiceField(choices=LabOrder.Priority.choices)
+    doctor = forms.ModelChoiceField(
+        queryset=DoctorProfile.objects.none(), required=False, label="Ordering doctor"
+    )
+    clinical_notes = forms.CharField(
+        max_length=300, required=False, label="Clinical notes for the lab"
+    )
+    add_tests = forms.ModelMultipleChoiceField(
+        queryset=LabTest.objects.none(), required=False, widget=forms.CheckboxSelectMultiple
+    )
+
+    def __init__(self, *args, request, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["doctor"].queryset = scoped(DoctorProfile, request).filter(is_active=True)
+        self.fields["add_tests"].queryset = scoped(LabTest, request).filter(is_active=True)
+
+
 RangeFormSet = inlineformset_factory(
     LabTest,
     LabReferenceRange,
@@ -89,6 +107,8 @@ RangeFormSet = inlineformset_factory(
         "high",
         "critical_low",
         "critical_high",
+        "band",
+        "band_normal",
     ],  # fmt: skip
     extra=2,
     can_delete=True,

@@ -47,7 +47,7 @@
       <thead><tr><th scope="col">Invoice</th><th scope="col">Patient</th><th scope="col" class="text-right">Amount</th><th scope="col" class="text-right">Paid</th><th scope="col" class="text-right">Balance</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
       <tbody>
         {% for inv in invoices %}
-          <tr>
+          <tr {% if inv.status != "cancelled" and not inv.net_paid %}{% if "billing.payment.collect" in sd_perms or "billing.refund" in sd_perms %}data-remove="{% url 'billing:invoice-cancel' inv.pk %}" data-remove-label="Cancel invoice" data-remove-reason{% endif %}{% endif %}>
             <td><a href="{% url 'billing:invoice-detail' inv.pk %}" class="font-mono font-medium hover:underline">{{ inv.number }}</a><p class="text-label text-muted">{{ inv.created_at|date:"d M Y, H:i" }}</p></td>
             <td>{{ inv.bill_to }}<p class="font-mono text-label text-muted">{{ inv.patient.mrn|default:"Walk-in" }}</p></td>
             <td class="text-right">{{ inv.grand_total|floatformat:"2g" }}</td>

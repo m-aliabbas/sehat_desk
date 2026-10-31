@@ -1,4 +1,10 @@
 {% load ui %}
+{% if screens %}
+  <div class="py-1">
+    <p class="flex items-center gap-2 px-3 pt-2 pb-1 text-label font-semibold text-muted uppercase">{% icon "menu" "h-3.5 w-3.5" %} Go to screen</p>
+    {% for s in screens %}<a href="{{ s.url }}" class="search-hit flex items-center gap-2 px-3 py-2 hover:bg-page">{% icon s.icon "h-4 w-4 text-muted" %}<span class="font-medium text-ink">{{ s.label }}</span> <span class="truncate text-label text-muted">{{ s.description }}</span></a>{% endfor %}
+  </div>
+{% endif %}
 {% if groups %}
   {% for g in groups %}
   <div class="py-1">
@@ -11,8 +17,8 @@
 {% elif recent %}
   <p class="px-3 pt-2 pb-1 text-label font-semibold text-muted uppercase">Recent searches</p>
   <ul role="list">{% for r in recent %}<li><a class="search-hit flex items-center gap-2 px-3 py-2 hover:bg-page" href="{% url 'search:page' %}?q={{ r|urlencode }}">{% icon "search" "h-3.5 w-3.5 text-muted" %} {{ r }}</a></li>{% endfor %}</ul>
-{% elif too_short %}
+{% elif too_short and not screens %}
   <p class="px-3 py-3 text-label text-muted">Type at least 2 characters: name, MRN, phone, CNIC, invoice, appointment or lab number.</p>
-{% else %}
+{% elif not screens %}
   <p class="px-3 py-3 text-label text-muted">No matches for “{{ q }}”.</p>
 {% endif %}

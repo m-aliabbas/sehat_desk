@@ -47,7 +47,7 @@
         {% for r in s.routes %}
         <div class="field">
           <label class="field-label" for="r-{{ s.pk }}-{{ r.key }}">{{ r.label }}</label>
-          <select id="r-{{ s.pk }}-{{ r.key }}" name="route_{{ r.key }}" class="select" data-native>
+          <select id="r-{{ s.pk }}-{{ r.key }}" name="route_{{ r.key }}" class="select">
             <option value="__auto__"{% if not r.manual %} selected{% endif %}>Detect automatically</option>
             <option value=""{% if r.manual and not r.saved %} selected{% endif %}>Use the print window</option>
             {% for p in s.printers %}<option value="{{ p }}"{% if r.manual and p == r.saved %} selected{% endif %}>{{ p }}</option>{% endfor %}

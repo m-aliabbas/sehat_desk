@@ -20,7 +20,7 @@
       <thead><tr><th scope="col">Product</th><th scope="col">Category</th><th scope="col" class="text-right">Price / unit</th><th scope="col" class="text-right">In stock</th><th scope="col">Status</th></tr></thead>
       <tbody>
         {% for p in products %}
-        <tr>
+        <tr {% if "pharmacy.inventory.manage" in sd_perms %}data-edit="{% url 'pharmacy:product-edit' p.pk %}"{% endif %}>
           <td><a href="{% url 'pharmacy:product-detail' p.pk %}" class="font-medium hover:underline">{{ p.display_name }}</a><p class="text-label text-muted">{{ p.generic_name|default:"—" }} · <span class="font-mono">{{ p.sku }}</span>{% if p.requires_prescription %} · Rx only{% endif %}</p></td>
           <td>{{ p.category|default:"—" }}</td>
           <td class="text-right">{{ p.sale_price|floatformat:"2g" }}<p class="text-label text-muted">{{ p|unit_label }}{% if p.has_packs %}, {{ p|pack_label }} of {{ p.pack_size }}{% endif %}</p></td>

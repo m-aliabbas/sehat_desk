@@ -162,15 +162,13 @@ document.addEventListener("submit", (event) => {
 })();
 
 // ---- Searchable dropdowns -------------------------------------------------------
-// Any <select class="select"> with several options becomes a type-to-search box. The real select
-// stays in the form, hidden, so posting, htmx, Alpine and onchange all work unchanged.
-// Add data-native to keep a plain dropdown.
+// Every <select class="select"> becomes one kind of dropdown: a box you type in to search, with a
+// list that floats above tables and cards. The real select stays in the form, hidden, so posting,
+// htmx, Alpine and onchange all work unchanged. In a table the list opens on click, typing or
+// Alt+Down, so arrow keys can walk the cells; elsewhere it also opens on focus.
 (() => {
-  const MIN_OPTIONS = 6;
-
   function enhance(select) {
     if (select.dataset.sdSearch || select.hasAttribute("data-native") || select.multiple) return;
-    if (select.options.length < MIN_OPTIONS && !select.hasAttribute("data-searchable")) return;
     select.dataset.sdSearch = "1";
 
     const box = document.createElement("div");
@@ -179,6 +177,10 @@ document.addEventListener("submit", (event) => {
     input.type = "text";
     input.className = select.className.replace(/\bselect\b/, "input");
     input.autocomplete = "off";
+    input.dataset.sdCombo = "1";
+    input.tabIndex = select.tabIndex;
+    input.disabled = select.disabled;
+    const inTable = () => Boolean(input.closest("table"));
     input.setAttribute("role", "combobox");
     input.setAttribute("aria-expanded", "false");
     const label = select.id && document.querySelector(`label[for="${CSS.escape(select.id)}"]`);
@@ -193,7 +195,7 @@ document.addEventListener("submit", (event) => {
     const list = document.createElement("ul");
     list.setAttribute("role", "listbox");
     list.className =
-      "absolute z-30 mt-1 max-h-64 w-full min-w-[14rem] overflow-y-auto rounded-card border border-line bg-white shadow-lg";
+      "combo-list";
     list.hidden = true;
 
     select.after(box);
@@ -212,6 +214,10 @@ document.addEventListener("submit", (event) => {
       input.value = opt && opt.value ? opt.textContent.trim() : "";
       input.placeholder = opt && !opt.value ? opt.textContent.trim() : "Type to search…";
     };
+    select.sdShowCurrent = () => {
+      if (document.activeElement !== input) showCurrent();
+      input.disabled = select.disabled;
+    };
     const close = () => {
       list.hidden = true;
       input.setAttribute("aria-expanded", "false");
@@ -220,11 +226,19 @@ document.addEventListener("submit", (event) => {
     const mark = () => {
       [...list.children].forEach((li, i) => {
         li.setAttribute("aria-selected", i === active ? "true" : "false");
-        li.classList.toggle("bg-mint", i === active);
       });
       if (list.children[active]) list.children[active].scrollIntoView({ block: "nearest" });
     };
+    const place = () => {
+      const rect = input.getBoundingClientRect();
+      list.style.left = `${rect.left}px`;
+      list.style.minWidth = `${Math.max(rect.width, 160)}px`;
+      const below = window.innerHeight - rect.bottom > list.offsetHeight + 8;
+      list.style.top = `${below ? rect.bottom + 2 : Math.max(rect.top - list.offsetHeight - 2, 8)}px`;
+    };
+    let openedAt = 0;
     const render = (query) => {
+      openedAt = Date.now();
       const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
       shown = [...select.options].filter((o) => {
         const text = o.textContent.toLowerCase();
@@ -234,7 +248,6 @@ document.addEventListener("submit", (event) => {
         ...shown.slice(0, 100).map((o, i) => {
           const li = document.createElement("li");
           li.setAttribute("role", "option");
-          li.className = "cursor-pointer px-3 py-2 text-body hover:bg-mint";
           li.textContent = o.textContent.trim();
           li.addEventListener("mousedown", (e) => {
             e.preventDefault();
@@ -245,7 +258,7 @@ document.addEventListener("submit", (event) => {
       );
       if (!shown.length) {
         const li = document.createElement("li");
-        li.className = "px-3 py-2 text-label text-muted";
+        li.className = "text-muted";
         li.textContent = "No match";
         list.append(li);
       }
@@ -256,7 +269,7 @@ document.addEventListener("submit", (event) => {
         creating = typed;
         const li = document.createElement("li");
         li.setAttribute("role", "option");
-        li.className = "cursor-pointer border-t border-line px-3 py-2 text-body font-medium text-teal-deep hover:bg-mint";
+        li.className = "border-t border-line font-medium text-teal-deep";
         li.textContent = `+ Add "${typed}"`;
         li.addEventListener("mousedown", (e) => {
           e.preventDefault();
@@ -265,13 +278,17 @@ document.addEventListener("submit", (event) => {
         list.querySelector("li:not([role])")?.remove();
         list.append(li);
       }
-      active = shown.length ? 0 : -1;
+      // Nothing typed: start on the current value, so Enter keeps it and moves on.
+      const at = words.length ? 0 : shown.indexOf(current());
+      active = shown.length ? Math.max(at, 0) : -1;
       list.hidden = false;
       input.setAttribute("aria-expanded", "true");
+      place();
       mark();
     };
     const moveOn = () => {
       if (select.dataset.next) document.querySelector(select.dataset.next)?.focus();
+      else if (input.closest("form:is([method=post], [hx-post]) .field")) sdNextBox(input)?.focus();
     };
     const choose = (i) => {
       const opt = shown[i];
@@ -301,14 +318,26 @@ document.addEventListener("submit", (event) => {
 
     input.addEventListener("focus", () => {
       input.select();
-      render("");
+      if (!inTable() && !window.sdQuietFocus) render("");
     });
+    input.addEventListener("click", () => {
+      if (list.hidden) render("");
+    });
+    window.addEventListener("scroll", (e) => {
+      if (list.hidden || e.target === list) return;
+      if (Date.now() - openedAt < 300) place(); // focus itself scrolled the box into view
+      else close();
+    }, true);
     input.addEventListener("input", () => render(input.value));
     input.addEventListener("blur", close);
     input.addEventListener("keydown", (e) => {
       if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        if (list.hidden && inTable() && !e.altKey) return; // the sheet moves to the next cell
         e.preventDefault();
-        if (list.hidden) render("");
+        if (list.hidden) {
+          render("");
+          return;
+        }
         const last = Math.min(shown.length, 100) - 1;
         active = e.key === "ArrowDown" ? Math.min(active + 1, last) : Math.max(active - 1, 0);
         mark();
@@ -323,7 +352,8 @@ document.addEventListener("submit", (event) => {
     });
     // Options or value changed by htmx or Alpine: keep the visible text right.
     select.addEventListener("change", showCurrent);
-    new MutationObserver(showCurrent).observe(select, { childList: true });
+    new MutationObserver(showCurrent).observe(select, { childList: true, subtree: true, characterData: true });
+    new MutationObserver(() => select.sdShowCurrent()).observe(select, { attributes: true, attributeFilter: ["disabled"] });
     showCurrent();
     if (select.hasAttribute("data-autofocus")) input.focus();
   }
@@ -332,6 +362,15 @@ document.addEventListener("submit", (event) => {
     if (root.matches && root.matches("select.select")) enhance(root);
     if (root.querySelectorAll) root.querySelectorAll("select.select").forEach(enhance);
   }
+
+  // Alpine sets x-model selects without any event: refresh the visible text after anything that could.
+  let refresh = 0;
+  ["click", "keyup", "change"].forEach((name) =>
+    document.addEventListener(name, () => {
+      clearTimeout(refresh);
+      refresh = setTimeout(() => document.querySelectorAll("select[data-sd-search]").forEach((el) => el.sdShowCurrent()), 30);
+    })
+  );
 
   document.addEventListener("DOMContentLoaded", () => {
     // Alpine fills x-model selects after load, so give it a tick before the first scan.
@@ -342,4 +381,908 @@ document.addEventListener("submit", (event) => {
       }).observe(document.body, { childList: true, subtree: true });
     }, 0);
   });
+})();
+
+// The next box after this one in its entry form; the save button after the last.
+function sdNextBox(el, step = 1) {
+  const form = el.closest("form");
+  if (!form) return null;
+  const boxes = [...form.querySelectorAll('input:not([type=hidden]):not([data-grid-filter]), select, textarea, button.btn-primary')].filter(
+    (b) => b.offsetParent !== null && b.tabIndex >= 0 && !b.disabled && !b.closest("details:not([open])")
+  );
+  return boxes[boxes.indexOf(el) + step] || null;
+}
+
+// ---- Dropdown on a free-text box ---------------------------------------------------
+// <input data-list="unit-names"> offers the options of that <datalist> and still takes any typed
+// word. The list floats on the page, so a scrolling table cannot clip it. Opens on click, typing
+// or Alt+Down, never on plain focus, so Enter and the arrow keys stay quick.
+const sdCombo = (() => {
+  let input = null;
+  let items = [];
+  let active = -1;
+  const list = document.createElement("ul");
+  list.setAttribute("role", "listbox");
+  list.className = "combo-list";
+  list.hidden = true;
+
+  const isOpen = () => !list.hidden;
+  const close = () => {
+    list.hidden = true;
+    if (input) input.setAttribute("aria-expanded", "false");
+    input = null;
+    active = -1;
+  };
+  const mark = () => {
+    [...list.children].forEach((li, i) => {
+      li.setAttribute("aria-selected", i === active ? "true" : "false");
+      if (i === active) li.scrollIntoView({ block: "nearest" });
+    });
+  };
+  const pick = (value) => {
+    const target = input;
+    target.value = value;
+    target.dispatchEvent(new Event("input", { bubbles: true })); // Alpine x-model
+    close();
+  };
+  const open = (box, filter) => {
+    const source = document.getElementById(box.dataset.list);
+    if (!source) return;
+    const typed = filter ? box.value.trim().toLowerCase() : "";
+    items = [...source.options].map((o) => o.value).filter((v) => v.toLowerCase().includes(typed));
+    if (!items.length) return close();
+    input = box;
+    active = -1;
+    list.replaceChildren(
+      ...items.map((value) => {
+        const li = document.createElement("li");
+        li.setAttribute("role", "option");
+        li.textContent = value;
+        li.addEventListener("mousedown", (e) => {
+          e.preventDefault();
+          pick(value);
+        });
+        return li;
+      })
+    );
+    if (!list.isConnected) document.body.append(list);
+    list.hidden = false;
+    box.setAttribute("aria-expanded", "true");
+    const rect = box.getBoundingClientRect();
+    list.style.left = `${rect.left}px`;
+    list.style.minWidth = `${rect.width}px`;
+    const below = window.innerHeight - rect.bottom > list.offsetHeight + 8;
+    list.style.top = `${below ? rect.bottom + 2 : Math.max(rect.top - list.offsetHeight - 2, 8)}px`;
+  };
+
+  document.addEventListener("click", (e) => {
+    if (e.target.matches?.("input[data-list]")) open(e.target, false);
+  });
+  document.addEventListener("input", (e) => {
+    if (e.target.matches?.("input[data-list]") && e.isTrusted) open(e.target, true);
+  });
+  document.addEventListener("focusout", (e) => {
+    if (e.target === input) close();
+  });
+  window.addEventListener("resize", close);
+  document.addEventListener("scroll", (e) => {
+    if (isOpen() && e.target !== list) close();
+  }, true);
+
+  // Returns true when the key belonged to the list, so nothing else should act on it.
+  function handleKey(e) {
+    if (e.key === "ArrowDown" && e.altKey && e.target.matches("input[data-list]")) {
+      e.preventDefault();
+      open(e.target, false);
+      return true;
+    }
+    if (e.target !== input || !isOpen()) return false;
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      const step = e.key === "ArrowDown" ? 1 : -1;
+      active = Math.min(Math.max(active + step, 0), items.length - 1);
+      mark();
+      return true;
+    }
+    if (e.key === "Enter" && active >= 0) pick(items[active]); // Enter still moves to the next box
+    else if (e.key === "Enter" || e.key === "Tab") close();
+    else if (e.key === "Escape") {
+      e.stopPropagation();
+      close();
+      return true;
+    }
+    return false;
+  }
+  return { handleKey };
+})();
+
+// ---- Tables: Excel-style keys, the row popup and shortcuts -----------------------------
+// Every table.table and table.sheet inside #main gets this with no change to its template:
+// - a last column with an expand button; Ctrl+E or the button opens the row in a popup.
+//   Rows with boxes: the real boxes move into the popup and go back on close, so the form posts
+//   and Alpine keeps working. Rows with a link: the linked page's content. Others: the row's values.
+// - columns that do not fit are hidden and shown in the popup. Mark a column by hand with
+//   class="cell-detail" on its th and td. data-plain on a table opts out of all of this.
+// - arrow keys walk cells or rows; Ctrl+Delete removes a line. Actual rights stay on the server.
+const sdTables = (() => {
+  const TABLES = "#main table.table:not([data-plain]), #main table.sheet:not([data-plain])";
+  const BOXES = "input:not([type=hidden]), select, textarea";
+  const EXPAND_ICON =
+    '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>';
+  const icon = (paths) => `<svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
+  const EDIT_ICON = icon('<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 1 1 3 3L7 19l-4 1 1-4Z"/>');
+  const TRASH_ICON = icon('<path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>');
+  const SHORTCUTS = [
+    ["Ctrl + E", "Open the current row with all its details"],
+    ["Ctrl + Delete", "Remove the current line"],
+    ["↑ ↓ ← →", "Move between rows and cells"],
+    ["Enter", "Next box, or open the selected row"],
+    ["E", "Edit the selected row"],
+    ["Delete", "Remove or deactivate the selected row (asks first)"],
+    ["F8 or Ctrl + S", "Save the form you are in"],
+    ["Alt + N", "New or add, on the current page"],
+    ["Alt + F", "Filter or search this list"],
+    ["Alt + V", "First vitals box"],
+    ["Alt + J / Alt + K", "Next or previous section of a form"],
+    ["[  ]", "Previous or next page of a list"],
+    ["Alt + 1 to 9", "Open a menu item, top to bottom"],
+    ["/ or Ctrl + K", "Search patients and records, or type a screen's name to go there"],
+    ["Ctrl + B", "Show or hide menu names"],
+    ["Esc", "Close the popup"],
+    ["? or Ctrl + /", "This list"],
+  ];
+  const rows = (table) => [...table.tBodies].flatMap((b) => [...b.rows]).filter((r) => !isBlank(r));
+  const isBlank = (tr) => tr.cells.length === 1 && tr.cells[0].colSpan > 1;
+  const clean = (text) => (text || "").replace(/\s+/g, " ").trim();
+  const editable = (tr) => tr.querySelector(BOXES);
+  const shown = (el) => el.offsetParent !== null;
+
+  // ---- Setup ----
+  function addRowCell(tr) {
+    if (tr.dataset.sdRow || !tr.cells.length) return;
+    tr.dataset.sdRow = "1";
+    if (isBlank(tr)) {
+      tr.cells[0].colSpan += 1;
+      return;
+    }
+    const td = document.createElement("td");
+    td.className = "row-expand";
+    if (tr.parentElement.tagName === "TBODY") {
+      // data-edit and data-remove are written by the template only for people allowed to use them.
+      const edit = tr.dataset.edit ? `<a href="${tr.dataset.edit}" tabindex="-1" class="row-btn" title="Edit (E)" aria-label="Edit this row">${EDIT_ICON}</a>` : "";
+      const remove = tr.dataset.remove ? `<button type="button" tabindex="-1" class="row-btn row-btn-danger" data-row-remove title="${tr.dataset.removeLabel || "Remove"} (Delete)" aria-label="${tr.dataset.removeLabel || "Remove"}">${TRASH_ICON}</button>` : "";
+      td.innerHTML = `<div class="row-actions">${edit}${remove}<button type="button" tabindex="-1" class="row-btn" data-row-open title="Details (Ctrl+E)" aria-label="Show details of this row">${EXPAND_ICON}</button></div>`;
+      if (!editable(tr)) tr.tabIndex = -1;
+    }
+    tr.append(td);
+  }
+  function prepare(table) {
+    if (table.dataset.sdTable) return;
+    table.dataset.sdTable = "1";
+    // A table with no scrolling parent would push the whole page sideways on a small screen.
+    if (!table.closest(".table-wrap, .sheet-wrap, .overflow-x-auto")) {
+      const box = document.createElement("div");
+      box.className = "table-wrap";
+      table.before(box);
+      box.append(table);
+    }
+    addFilter(table);
+    table.tHead?.querySelectorAll("tr").forEach((tr) => {
+      const th = document.createElement("th");
+      th.className = "row-expand";
+      th.innerHTML = '<span class="sr-only">Details</span>';
+      tr.append(th);
+    });
+    table.querySelector("colgroup")?.append(Object.assign(document.createElement("col"), { style: "width: 2.25rem" }));
+    table.querySelectorAll("tbody tr, tfoot tr").forEach(addRowCell);
+    const first = rows(table).find((r) => r.tabIndex === -1);
+    if (first) first.tabIndex = 0;
+    oneTabStop(table);
+    fit(table);
+    const wrap = holder(table);
+    let width = wrap.clientWidth;
+    new ResizeObserver(() => {
+      if (wrap.clientWidth !== width) {
+        width = wrap.clientWidth;
+        requestAnimationFrame(() => fit(table)); // not inside the callback: that logs a browser error
+      }
+    }).observe(wrap);
+  }
+  const holder = (table) => table.closest(".table-wrap, .sheet-wrap") || table.parentElement;
+
+  // A long list with no search or pages gets a filter box. It only hides rows, so hidden boxes still post.
+  function addFilter(table) {
+    if (rows(table).length < 12 || document.querySelector('#main input[type=search], #main input[name=q], #main nav[aria-label="Pagination"]')) return;
+    const box = Object.assign(document.createElement("input"), { type: "search", className: "input mb-3 max-w-xs", placeholder: "Filter this list" });
+    box.dataset.gridFilter = "";
+    box.setAttribute("aria-label", "Filter this list");
+    box.addEventListener("input", () => {
+      const words = clean(box.value).toLowerCase();
+      let group = null;
+      [...table.tBodies].flatMap((b) => [...b.rows]).forEach((tr) => {
+        if (isBlank(tr)) {
+          group = tr;
+          tr.hidden = Boolean(words);
+          return;
+        }
+        tr.hidden = !clean(tr.textContent).toLowerCase().includes(words);
+        if (!tr.hidden && group) group.hidden = false;
+      });
+    });
+    box.addEventListener("change", (e) => e.stopPropagation()); // not an edit to the form around it
+    box.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter") return;
+      e.preventDefault();
+      const tr = rows(table).find(shown);
+      (tr?.querySelector(BOXES) || tr)?.focus();
+    });
+    holder(table).before(box);
+  }
+  // A grid of tick boxes is one Tab stop; arrow keys walk it, and the next Tab leaves it.
+  function oneTabStop(table) {
+    const ticks = [...table.querySelectorAll('tbody input[type=checkbox]:not(:disabled)')];
+    if (ticks.length < 50) return;
+    ticks.forEach((t, i) => (t.tabIndex = i ? -1 : 0));
+    table.addEventListener("focusin", (e) => {
+      if (!ticks.includes(e.target)) return;
+      ticks.forEach((t) => (t.tabIndex = t === e.target ? 0 : -1));
+    });
+  }
+
+  // Hide columns that do not fit: first and last data columns and actions go last or never.
+  function fit(table) {
+    const head = table.tHead?.rows[0];
+    // Entry tables scroll instead: a box must never vanish because the window is narrow.
+    if (table.classList.contains("sheet") || table.querySelector('tbody input:not([type=hidden]):not([type=checkbox]), tbody select, tbody textarea')) {
+      table.querySelectorAll(".cell-fit-hidden").forEach((c) => c.classList.remove("cell-fit-hidden"));
+      return;
+    }
+    if (!head || !shown(table) || [...head.cells].some((c) => c.colSpan > 1)) return;
+    const all = [...table.querySelectorAll("tr")].filter((r) => !isBlank(r) && r.cells.length === head.cells.length);
+    const setHidden = (col, on) => all.forEach((r) => r.cells[col].classList.toggle("cell-fit-hidden", on));
+    [...head.cells].forEach((_, col) => setHidden(col, false));
+    const data = [...head.cells]
+      .map((c, col) => ({ c, col }))
+      .filter(({ c }) => clean(c.textContent) && !c.classList.contains("row-expand") && !c.querySelector(".sr-only") && !c.classList.contains("cell-detail") && !c.classList.contains("sheet-freeze"))
+      .map(({ col }) => col);
+    const queue = [...data.slice(2, -1).reverse(), ...data.slice(-1).filter((c) => data.indexOf(c) > 1)];
+    const wrap = holder(table);
+    for (const col of queue) {
+      if (table.offsetWidth <= wrap.clientWidth) break;
+      setHidden(col, true);
+    }
+  }
+
+  function scan(node) {
+    if (node.nodeType !== 1) return;
+    if (node.matches("tbody tr, tfoot tr") && node.closest("table[data-sd-table]")) {
+      addRowCell(node);
+      fit(node.closest("table"));
+    }
+    if (node.matches(TABLES)) prepare(node);
+    node.querySelectorAll?.(TABLES).forEach(prepare);
+    node.querySelectorAll?.("table[data-sd-table] tbody tr, table[data-sd-table] tfoot tr").forEach(addRowCell);
+  }
+
+  // ---- Popup ----
+  let modal = null;
+  function openPanel(title, wide) {
+    closeModal();
+    const box = document.createElement("div");
+    box.className = "fixed inset-0 z-50 flex items-center justify-center p-4";
+    box.innerHTML = `<div class="overlay" data-close></div>
+      <div class="modal-panel z-50 flex max-h-[90vh] flex-col ${wide ? "max-w-5xl" : "max-w-2xl"}" role="dialog" aria-modal="true" aria-label="Details">
+        <div class="mb-4 flex items-start justify-between gap-4"><h2 class="section-title"></h2>
+          <div class="flex shrink-0 items-center gap-2" data-tools><button type="button" class="btn btn-ghost btn-icon btn-sm" data-close aria-label="Close">✕</button></div></div>
+        <div class="row-modal-body min-h-0 flex-1 overflow-y-auto" tabindex="-1"></div></div>`;
+    box.querySelector("h2").textContent = title;
+    box.addEventListener("click", (e) => {
+      if (e.target.closest("[data-close]")) closeModal();
+    });
+    // Before #overlay-root so popups opened from inside it still land on top.
+    const root = document.getElementById("overlay-root");
+    root ? root.before(box) : document.body.append(box);
+    modal = { box, body: box.querySelector(".row-modal-body"), moved: [], from: document.activeElement };
+    return modal;
+  }
+  function closeModal() {
+    if (!modal) return;
+    const { box, moved, from } = modal;
+    moved.forEach(({ td, nodes }) => td.append(...nodes));
+    modal = null;
+    box.remove();
+    if (from?.isConnected && shown(from)) from.focus();
+  }
+  // A cell's words without its buttons, such as "+ batch".
+  function cellText(el) {
+    const copy = el.cloneNode(true);
+    copy.querySelectorAll("button").forEach((b) => b.remove());
+    return clean(copy.textContent);
+  }
+  function rowTitle(tr) {
+    const first = tr.cells[0];
+    const box = first.querySelector("input:not([type=hidden])");
+    const shownText = first.querySelector(":scope > :not(input, label.sr-only)") || first;
+    return (box && box.value) || cellText(shownText.querySelector(":scope > :not(button)") || shownText).slice(0, 80) || "Details";
+  }
+  function headerFor(tr) {
+    const out = [];
+    [...(tr.closest("table").tHead?.rows[0]?.cells || [])].forEach((c) => {
+      for (let i = 0; i < c.colSpan; i += 1) out.push(c);
+    });
+    return out;
+  }
+  function field(label, nodes) {
+    const wrap = document.createElement("div");
+    wrap.className = "field";
+    const name = document.createElement("span");
+    name.className = "field-label";
+    name.textContent = label;
+    wrap.append(name, ...nodes);
+    return wrap;
+  }
+  function openFields(tr) {
+    const m = openPanel(rowTitle(tr));
+    const grid = document.createElement("div");
+    grid.className = "grid gap-4 sm:grid-cols-2";
+    const heads = headerFor(tr);
+    let col = 0;
+    [...tr.cells].forEach((td) => {
+      const head = heads[col];
+      col += td.colSpan;
+      if (td.classList.contains("row-expand")) return;
+      const label = head ? clean(head.textContent) : "";
+      if (td.querySelector(BOXES)) {
+        const nodes = [...td.childNodes];
+        m.moved.push({ td, nodes });
+        grid.append(field(label || "Value", nodes));
+      } else if (label && !head.querySelector(".sr-only")) {
+        const value = document.createElement("span");
+        value.className = "text-body";
+        value.textContent = cellText(td) || "—";
+        grid.append(field(label, [value]));
+      }
+    });
+    m.body.append(grid);
+    const boxes = [...m.body.querySelectorAll(BOXES)].filter(shown);
+    (boxes[0] || m.body).focus();
+  }
+  function mainLink(tr) {
+    return [...tr.querySelectorAll("a[href]")].find((a) => {
+      const href = a.getAttribute("href");
+      return href.startsWith("/") && !a.hasAttribute("download") && a.target !== "_blank" && !/print|pdf|csv|export/i.test(href);
+    });
+  }
+  async function openLink(tr, link) {
+    const m = openPanel(rowTitle(tr), true);
+    m.body.innerHTML = '<div class="skeleton h-40"></div>';
+    m.body.focus();
+    const go = () => window.location.assign(link.href);
+    try {
+      const response = await fetch(link.href, { credentials: "same-origin" });
+      const page = new DOMParser().parseFromString(await response.text(), "text/html");
+      const main = page.querySelector("#main");
+      if (!response.ok || !main) return go();
+      if (modal !== m) return undefined; // closed while loading
+      main.querySelector('nav[aria-label*="readcrumb"]')?.remove();
+      m.body.replaceChildren(...main.childNodes);
+      const open = document.createElement("a");
+      open.href = link.href;
+      open.className = "btn btn-secondary btn-sm";
+      open.textContent = "Open full page";
+      m.box.querySelector("[data-tools]").prepend(open);
+      window.htmx?.process(m.body);
+      setTimeout(() => sdFocusFirst(m.body), 60);
+      m.body.querySelectorAll("table.table, table.sheet").forEach(prepareInPopup);
+    } catch (e) {
+      go();
+    }
+    return undefined;
+  }
+  // Tables inside a popup get the look but not a second expand column.
+  const prepareInPopup = (t) => t.setAttribute("data-plain", "");
+  function openRow(tr) {
+    if (!tr) return;
+    const link = !editable(tr) && mainLink(tr);
+    if (link) openLink(tr, link);
+    else openFields(tr);
+  }
+
+  // ---- Removing a line ----
+  function removeButton(tr) {
+    return [...tr.querySelectorAll("button, input[type=submit]")].find(
+      (b) => shown(b) && (/^(remove|delete)\b/i.test(b.getAttribute("aria-label") || "") || /^(remove|delete)$/i.test(clean(b.textContent || b.value)))
+    );
+  }
+  // The server decides what removal means: deactivate, or cancel with a reason. Nothing is erased here.
+  function postTo(url, extra = {}) {
+    const token = document.querySelector("[name=csrfmiddlewaretoken]")?.value || JSON.parse(document.body.getAttribute("hx-headers") || "{}")["X-CSRFToken"];
+    const form = document.createElement("form");
+    form.method = "post";
+    form.action = url;
+    Object.entries({ csrfmiddlewaretoken: token, ...extra }).forEach(([name, value]) => {
+      form.append(Object.assign(document.createElement("input"), { type: "hidden", name, value }));
+    });
+    document.body.append(form);
+    form.submit();
+  }
+  async function removeRow(tr) {
+    const label = tr.dataset.removeLabel || "Remove";
+    if (tr.hasAttribute("data-remove-reason")) {
+      const m = openPanel(`${label}: ${rowTitle(tr)}`);
+      m.body.innerHTML = '<div class="field"><label class="field-label" for="row-reason">Reason (required)</label><input id="row-reason" class="input" maxlength="200" autocomplete="off"></div><div class="mt-3 flex gap-2"><button type="button" class="btn btn-danger" data-go></button><button type="button" class="btn btn-close" data-close>Close</button></div>';
+      const box = m.body.querySelector("input");
+      const go = m.body.querySelector("[data-go]");
+      go.textContent = label;
+      const send = () => {
+        if (box.value.trim()) postTo(tr.dataset.remove, { reason: box.value.trim() });
+        else box.focus();
+      };
+      go.addEventListener("click", send);
+      box.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          e.stopPropagation();
+          send();
+        }
+      });
+      box.focus();
+      return;
+    }
+    const ok = await Alpine.store("confirm").ask({ title: `${label}?`, message: tr.dataset.removeNote || rowTitle(tr), actionLabel: label, danger: true });
+    if (ok) postTo(tr.dataset.remove);
+  }
+  async function removeLine(tr, ask) {
+    if (tr.dataset.remove) {
+      removeRow(tr);
+      return;
+    }
+    const button = removeButton(tr);
+    if (!button) {
+      window.dispatchEvent(new CustomEvent("toast", { detail: { level: "info", message: "This line cannot be removed here." } }));
+      return;
+    }
+    const confirmed = button.hasAttribute("hx-confirm") || button.dataset.confirm || button.form?.dataset.confirm;
+    if (ask && !confirmed) {
+      const ok = await Alpine.store("confirm").ask({ title: "Remove this line?", message: rowTitle(tr), actionLabel: "Remove", danger: true });
+      if (!ok) return;
+    }
+    const col = document.activeElement?.closest?.("td")?.cellIndex;
+    const next = tr.nextElementSibling || tr.previousElementSibling;
+    button.click();
+    if (next) setTimeout(() => (next.cells?.[col]?.querySelector(BOXES) || (next.tabIndex === -1 || next.tabIndex === 0 ? next : null))?.focus(), 30);
+  }
+
+  // ---- Keys ----
+  const typing = (el) => el.matches?.("input, select, textarea, [contenteditable]");
+  function moveInCells(e, box, cell) {
+    if (e.defaultPrevented || box.getAttribute("aria-expanded") === "true" || box.tagName === "TEXTAREA") return;
+    if (/^(date|time|datetime-local|month)$/.test(box.type)) return;
+    const row = cell.parentElement;
+    if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+      if (box.tagName === "SELECT") return; // up and down choose its option
+      e.preventDefault(); // a number box would otherwise count up or down
+      // Step over filtered rows, group headings and locked boxes.
+      const step = e.key === "ArrowUp" ? "previousElementSibling" : "nextElementSibling";
+      for (let other = row[step]; other; other = other[step]) {
+        const next = !other.hidden && other.cells[cell.cellIndex]?.querySelector(BOXES);
+        if (next && !next.disabled) {
+          next.focus();
+          return;
+        }
+      }
+      return;
+    }
+    if (box.tagName === "INPUT" && box.type !== "number" && box.type !== "checkbox") {
+      if (box.selectionStart === null) return;
+      const atEdge = box.selectionStart === box.selectionEnd && box.selectionStart === (e.key === "ArrowLeft" ? 0 : box.value.length);
+      const allSelected = box.value && box.selectionStart === 0 && box.selectionEnd === box.value.length;
+      if (!atEdge && !allSelected) return;
+    }
+    const boxes = [...row.querySelectorAll(BOXES)].filter((b) => shown(b) && !b.disabled);
+    e.preventDefault();
+    boxes[boxes.indexOf(box) + (e.key === "ArrowLeft" ? -1 : 1)]?.focus();
+  }
+  function focusRow(tr) {
+    if (!tr) return;
+    const table = tr.closest("table");
+    table.querySelectorAll('tr[tabindex="0"]').forEach((r) => (r.tabIndex = -1));
+    tr.tabIndex = 0;
+    tr.focus();
+  }
+  function onRowKey(e, tr) {
+    const list = rows(tr.closest("table")).filter(shown);
+    const at = list.indexOf(tr);
+    const moves = { ArrowDown: list[at + 1], ArrowUp: list[at - 1], Home: list[0], End: list[list.length - 1] };
+    if (e.key in moves) {
+      e.preventDefault();
+      focusRow(moves[e.key]);
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      const link = mainLink(tr);
+      if (link) link.click();
+      else openRow(tr);
+    } else if (e.key.toLowerCase() === "e" && tr.dataset.edit) { // Caps Lock too
+      e.preventDefault();
+      window.location.assign(tr.dataset.edit);
+    } else if (e.key === " ") {
+      e.preventDefault();
+      openRow(tr);
+    } else if (e.key === "Delete" || e.key === "Backspace") {
+      e.preventDefault();
+      removeLine(tr, true);
+    }
+  }
+  const onScreen = (el) => el.getClientRects().length > 0;
+  // The open popup on top, if any: a confirm question first, then the newest.
+  function topDialog() {
+    const open = [...document.querySelectorAll('[role=alertdialog], [role=dialog]')].filter(onScreen);
+    return open.find((d) => d.getAttribute("role") === "alertdialog") || open[open.length - 1] || null;
+  }
+  // getAttribute, not form.method: a box named "method" hides that property.
+  const savable = (form) => form?.getAttribute("method")?.toLowerCase() === "post" || form?.hasAttribute("hx-post");
+  const hasBoxes = (form) => [...form.querySelectorAll(BOXES)].some((b) => shown(b) && !b.hasAttribute("data-grid-filter"));
+  // The form the cursor is in. With the cursor elsewhere, the only form on the screen or popup that has
+  // boxes; with several there is no telling which was meant, and a form of buttons alone is an action, not a save.
+  function formToSave() {
+    const scope = topDialog() || document.getElementById("main");
+    if (!scope) return null;
+    const form = document.activeElement?.closest?.("form");
+    if (savable(form) && scope.contains(form)) return form;
+    const forms = [...scope.querySelectorAll("form")].filter((f) => savable(f) && hasBoxes(f));
+    return forms.length === 1 ? forms[0] : null;
+  }
+  function saveForm(e) {
+    // Runs after this event: screens with their own F8 have already cancelled it by then.
+    setTimeout(() => {
+      if (e.defaultPrevented) return;
+      const form = formToSave();
+      if (!form) return;
+      // A form that saves itself on change: leaving the box sends what was typed.
+      const trigger = form.hasAttribute("hx-post") && form.getAttribute("hx-trigger");
+      if (trigger && !trigger.includes("submit")) {
+        const box = document.activeElement;
+        box?.blur();
+        box?.focus();
+        return;
+      }
+      const button = form.querySelector("button.btn-primary:not([name])");
+      if (!button?.disabled) form.requestSubmit(button || undefined);
+    });
+  }
+  // The page's main "make a new one". A link opens it. A button that posts a form with boxes only goes to
+  // the first box, and the wider words are for links alone, so this key never creates a record by itself.
+  function newOnPage() {
+    const target = [...document.querySelectorAll("#main a.btn, #main button.btn")].find((b) => {
+      const words = clean(b.textContent);
+      return shown(b) && (/^(\+\s*)?(new|add|register|create)\b/i.test(words) || (b.tagName === "A" && /^(\+\s*)?(book|admit|record|receive|start|issue)\b/i.test(words)));
+    });
+    const firstBox = target?.form && [...target.form.querySelectorAll(BOXES)].find((b) => shown(b) && !b.disabled);
+    if (firstBox) firstBox.focus();
+    else target?.click();
+  }
+
+  document.addEventListener("keydown", (e) => {
+    if (sdCombo.handleKey(e)) return;
+    const el = e.target;
+    const ctrl = e.ctrlKey || e.metaKey;
+    const key = e.key.toLowerCase();
+    // Tab stays inside the open popup, so Enter can never act on the page behind it.
+    const dialog = topDialog();
+    if (dialog && key === "tab") {
+      const items = [...dialog.querySelectorAll('a[href], button, input:not([type=hidden]), select, textarea')].filter((b) => onScreen(b) && b.tabIndex >= 0 && !b.disabled);
+      const edge = e.shiftKey ? items[0] : items[items.length - 1];
+      if (document.activeElement === edge || !dialog.contains(document.activeElement)) {
+        e.preventDefault();
+        (e.shiftKey ? items[items.length - 1] : items[0])?.focus();
+      }
+      return;
+    }
+    if (dialog?.getAttribute("role") === "alertdialog" && (key === "f8" || (ctrl && key === "s"))) {
+      e.preventDefault(); // answer the question first
+      return;
+    }
+    if (modal) {
+      if (key === "escape" || (ctrl && key === "e")) {
+        e.preventDefault();
+        e.stopPropagation();
+        closeModal();
+        return;
+      }
+      if (key === "enter" && modal.moved.length && el.matches("input, select")) {
+        e.preventDefault();
+        const boxes = [...modal.body.querySelectorAll(BOXES)].filter((b) => shown(b));
+        const next = boxes[boxes.indexOf(el) + 1];
+        if (next) next.focus();
+        else closeModal();
+        return;
+      }
+      if (key === "f8" && modal.moved.length) closeModal(); // boxes go home, then the form saves
+      else if (key !== "f8") return;
+    }
+    if (ctrl && key === "e") {
+      const tr = el.closest?.(`${TABLES.split(", ")[0]} tbody tr, ${TABLES.split(", ")[1]} tbody tr`);
+      const target = tr || document.querySelector("#main tr[data-sd-row][tabindex='0']") || document.querySelector("#main tbody tr[data-sd-row]");
+      if (target && !isBlank(target)) {
+        e.preventDefault();
+        openRow(target);
+      }
+      return;
+    }
+    if (ctrl && key === "/") {
+      e.preventDefault();
+      help();
+      return;
+    }
+    if (ctrl && key === "b" && !e.shiftKey) {
+      e.preventDefault();
+      document.querySelector('[aria-label="Show or hide menu names"]')?.click();
+      return;
+    }
+    if (e.altKey && e.code === "KeyN") {
+      e.preventDefault();
+      newOnPage();
+      return;
+    }
+    if (key === "f8") {
+      saveForm(e);
+      return;
+    }
+    if (ctrl && key === "s") {
+      e.preventDefault(); // not the browser's "save page"
+      const again = new KeyboardEvent("keydown", { key: "F8", bubbles: true, cancelable: true });
+      el.dispatchEvent(again);
+      return;
+    }
+    if (e.altKey && e.code === "KeyV") {
+      e.preventDefault();
+      const first = () => document.querySelector('#main [name$="bp_systolic"]');
+      if (first()?.offsetParent) first().focus();
+      else {
+        // Reception folds this section away: open it, then go in.
+        [...document.querySelectorAll('#main [aria-expanded="false"]')].find((b) => /vitals/i.test(b.textContent))?.click();
+        setTimeout(() => first()?.focus(), 30);
+      }
+      return;
+    }
+    if (e.altKey && (e.code === "KeyJ" || e.code === "KeyK")) {
+      e.preventDefault();
+      const firstBox = (card) => [...card.querySelectorAll(BOXES)].find(shown);
+      const cards = [...document.querySelectorAll("#main .card")].filter(firstBox);
+      const at = cards.indexOf(el.closest?.("#main .card"));
+      firstBox(cards[at + (e.code === "KeyJ" ? 1 : -1)] || cards[0])?.focus();
+      return;
+    }
+    if (e.altKey && e.code === "KeyF") {
+      e.preventDefault();
+      const box = [...document.querySelectorAll('#main input[type=search], #main input[name=q]')].find(shown);
+      box?.focus();
+      return;
+    }
+    if (e.altKey && /^Digit[1-9]$/.test(e.code)) {
+      e.preventDefault();
+      document.querySelectorAll(".sidebar-nav a.nav-link")[Number(e.code.slice(5)) - 1]?.click();
+      return;
+    }
+    const cell = el.closest?.("#main table[data-sd-table] tbody td");
+    if (ctrl && (key === "delete" || key === "backspace") && cell && (key === "delete" || e.metaKey)) {
+      e.preventDefault();
+      removeLine(cell.parentElement, false);
+      return;
+    }
+    if (e.altKey || ctrl) return;
+    if (el.matches?.("#main table[data-sd-table] tbody tr")) {
+      onRowKey(e, el);
+      return;
+    }
+    if (cell && typing(el) && !e.shiftKey && e.key.startsWith("Arrow")) {
+      moveInCells(e, el, cell);
+      return;
+    }
+    // A box in a table inside a form: Enter moves on, unless the screen has its own Enter.
+    if (cell && e.key === "Enter" && !e.defaultPrevented && el.matches("input, select") && el.closest("form:is([method=post], [hx-post])")) {
+      e.preventDefault();
+      sdNextBox(el)?.focus();
+      return;
+    }
+    // Entry forms: Enter goes to the next box and Up/Down to the box before or after, never a surprise
+    // save. F8 or Enter on the save button saves. Sign-in forms (data-enter-submits) send on the last box.
+    const entry = el.closest?.("form:is([method=post], [hx-post]) .field");
+    if (entry && !e.defaultPrevented && !e.shiftKey && el.matches("input, select")) {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        const next = sdNextBox(el);
+        if (next?.matches("button") && el.form?.hasAttribute("data-enter-submits")) {
+          el.form.requestSubmit();
+          return;
+        }
+        sdNextBox(el)?.focus();
+        return;
+      }
+      if ((e.key === "ArrowDown" || e.key === "ArrowUp") && el.tagName === "INPUT" && el.type !== "number" && !/^(date|time|datetime-local|month)$/.test(el.type) && el.getAttribute("aria-expanded") !== "true") {
+        e.preventDefault();
+        sdNextBox(el, e.key === "ArrowDown" ? 1 : -1)?.focus();
+        return;
+      }
+    }
+    // From a search box above a table, Down goes into the table.
+    if (e.key === "ArrowDown" && !e.defaultPrevented && el.matches?.('#main input[type=search], #main input[type=text], #main input:not([type])') && el.getAttribute("aria-expanded") !== "true") {
+      const first = [...document.querySelectorAll('#main tr[data-sd-row][tabindex="0"]')].find(shown);
+      if (first) {
+        e.preventDefault();
+        first.focus();
+      }
+      return;
+    }
+    const emptyFilter = el.matches?.("#main input:not(.field input)") && !el.value && !cell;
+    if (typing(el) && !(emptyFilter && "?[]".includes(e.key))) return;
+    if (e.key === "[" || e.key === "]") {
+      const label = e.key === "[" ? "Prev" : "Next";
+      [...document.querySelectorAll('#main nav[aria-label="Pagination"] a')].find((a) => a.textContent.includes(label) || a.getAttribute("aria-label")?.includes(label))?.click();
+      return;
+    }
+    if (e.key === "?") {
+      e.preventDefault();
+      help();
+    } else if (e.key === "ArrowDown" && (el === document.body || el.id === "main")) {
+      const first = document.querySelector('#main tr[data-sd-row][tabindex="0"]');
+      if (first && shown(first)) {
+        e.preventDefault();
+        first.focus();
+      }
+    }
+  });
+
+  document.addEventListener("focusin", (e) => {
+    if (e.target.matches?.('table[data-sd-table] input:not([type=hidden]):not([type=checkbox]):not([type=radio]), form:is([method=post], [hx-post]) .field input:not([type=checkbox]):not([type=radio]):not([type=file])')) e.target.select();
+  });
+  document.addEventListener("click", (e) => {
+    const remove = e.target.closest?.("[data-row-remove]");
+    if (remove) {
+      removeRow(remove.closest("tr"));
+      return;
+    }
+    const button = e.target.closest?.("[data-row-open]");
+    if (button) {
+      openRow(button.closest("tr"));
+      return;
+    }
+    const tr = e.target.closest?.("#main table[data-sd-table] tbody tr");
+    if (tr && tr.tabIndex === -1 && !e.target.closest("a, button, input, select, textarea")) focusRow(tr);
+  });
+  function help() {
+    const m = openPanel("Keyboard shortcuts");
+    const list = document.createElement("dl");
+    list.className = "grid grid-cols-[auto_1fr] items-center gap-x-4 gap-y-2 text-body";
+    SHORTCUTS.forEach(([keys, what]) => {
+      const dt = document.createElement("dt");
+      dt.innerHTML = "<kbd class=\"kbd\"></kbd>";
+      dt.firstChild.textContent = keys;
+      const dd = document.createElement("dd");
+      dd.textContent = what;
+      list.append(dt, dd);
+    });
+    m.body.append(list);
+    m.body.focus();
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    setTimeout(() => {
+      scan(document.body);
+      new MutationObserver((changes) => changes.forEach((c) => c.addedNodes.forEach(scan))).observe(document.body, { childList: true, subtree: true });
+    }, 0);
+  });
+  return { help };
+})();
+
+// ---- First box gets the cursor --------------------------------------------------------
+// Every screen, and every popup, starts with the cursor in its first box, or the first with an error
+// after a failed save. It never scrolls the page to reach one, a dropdown stays closed until asked,
+// and a screen that already placed the cursor keeps it. Phones are left alone (no surprise keyboard).
+// With no box on the first view, the page itself takes the cursor: Tab starts at its content, not the menu.
+const sdFocusFirst = (root) => {
+  if (!window.matchMedia("(pointer: fine)").matches) return;
+  const BOXES = "input:not([type=hidden]):not([type=checkbox]):not([type=radio]):not([type=file]):not([readonly]):not([data-grid-filter]), textarea";
+  const boxes = [...root.querySelectorAll(BOXES)].filter((b) => b.offsetParent !== null && !b.disabled && b.tabIndex >= 0 && !b.closest("details:not([open])"));
+  const bad = boxes.find((b) => b.getAttribute("aria-invalid") === "true" || b.closest(".field")?.querySelector(".field-error"));
+  let box = bad || boxes[0];
+  if (!bad && !(box?.getBoundingClientRect().top < window.innerHeight)) {
+    if (root.id !== "main") return;
+    root.tabIndex = -1;
+    box = root;
+  }
+  window.sdQuietFocus = true;
+  box.focus({ preventScroll: !bad });
+  window.sdQuietFocus = false;
+};
+document.addEventListener("DOMContentLoaded", () => {
+  // After the searchable dropdowns are built and Alpine has run its own x-init focus.
+  setTimeout(() => {
+    const main = document.getElementById("main");
+    if (main && document.activeElement === document.body) sdFocusFirst(main);
+  }, 60);
+});
+document.addEventListener("htmx:afterSettle", (e) => {
+  const root = e.target.closest?.("#overlay-root");
+  if (root) setTimeout(() => sdFocusFirst(root), 60);
+});
+
+// ---- A long form keeps its save button in view ------------------------------------------
+// Only when the form starts on screen and its button is below the window. action-bar does this by hand.
+const sdStickySave = () => {
+  document.querySelectorAll("#main form").forEach((form) => {
+    const saves = [...form.querySelectorAll("button.btn-primary")].filter((b) => b.offsetParent !== null);
+    const save = saves[saves.length - 1];
+    if (!save || save.closest(".action-bar, .save-bar, table")) return;
+    if (form.getBoundingClientRect().top > window.innerHeight || save.getBoundingClientRect().bottom <= window.innerHeight) return;
+    // The widest short block around the button, such as its row; a button alone in the form gets its own.
+    let bar = save;
+    while (bar.parentElement !== form && bar.parentElement.offsetHeight < 120) bar = bar.parentElement;
+    if (bar === save) {
+      bar = document.createElement("div");
+      save.before(bar);
+      bar.append(save);
+    }
+    bar.classList.add("save-bar");
+  });
+};
+document.addEventListener("DOMContentLoaded", () => setTimeout(sdStickySave, 80));
+document.addEventListener("htmx:afterSettle", () => setTimeout(sdStickySave, 80));
+
+// ---- A value outside its reference range says so as you type ----------------------------
+document.addEventListener("input", (e) => {
+  const box = e.target;
+  if (!box.matches?.("[data-ref-low], [data-ref-high]")) return;
+  const value = parseFloat(box.value);
+  const { refLow, refHigh } = box.dataset;
+  let word = "";
+  if (!Number.isNaN(value) && refLow !== "" && value < parseFloat(refLow)) word = "Low";
+  if (!Number.isNaN(value) && refHigh !== "" && value > parseFloat(refHigh)) word = "High";
+  const field = box.closest(".field");
+  let tag = field?.querySelector(".ref-state");
+  if (field && !tag) {
+    tag = document.createElement("span");
+    tag.className = "ref-state";
+    field.querySelector(".field-label")?.append(tag);
+  }
+  if (tag) tag.textContent = word;
+});
+
+// ---- Hints: anything with a title explains itself at once on hover or keyboard focus ----
+(() => {
+  const tip = document.createElement("div");
+  tip.className = "sd-tip";
+  tip.setAttribute("role", "tooltip");
+  tip.hidden = true;
+  let owner = null;
+  const hide = () => {
+    if (owner) owner.setAttribute("title", owner.dataset.sdTitle);
+    owner = null;
+    tip.hidden = true;
+  };
+  const show = (el) => {
+    hide();
+    const text = el.getAttribute("title");
+    if (!text) return;
+    owner = el;
+    el.dataset.sdTitle = text;
+    el.removeAttribute("title"); // or the browser shows its own slow copy as well
+    if (!el.hasAttribute("aria-label") && !el.textContent.trim()) el.setAttribute("aria-label", text);
+    tip.textContent = text;
+    if (!tip.isConnected) document.body.append(tip);
+    tip.hidden = false;
+    const r = el.getBoundingClientRect();
+    tip.style.left = `${Math.max(8, Math.min(r.left, window.innerWidth - tip.offsetWidth - 8))}px`;
+    const below = r.bottom + tip.offsetHeight + 8 < window.innerHeight;
+    tip.style.top = `${below ? r.bottom + 6 : r.top - tip.offsetHeight - 6}px`;
+  };
+  document.addEventListener("mouseover", (e) => {
+    const el = e.target.closest?.("[title]");
+    if (el && el !== owner) show(el);
+    else if (owner && !owner.contains(e.target)) hide();
+  });
+  document.addEventListener("focusin", (e) => {
+    if (e.target.matches?.("[title]")) show(e.target);
+  });
+  ["focusout", "scroll", "click", "keydown"].forEach((name) => document.addEventListener(name, hide, true));
 })();

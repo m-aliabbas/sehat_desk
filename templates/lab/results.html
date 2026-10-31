@@ -25,7 +25,7 @@
               <select name="value_{{ i.pk }}" class="select" aria-label="{{ i.test_name }} result"><option value="">—</option>{% for o in i.test.option_list %}<option {% if row.value == o %}selected{% endif %}>{{ o }}</option>{% endfor %}</select>
             {% endif %}
           </td>
-          <td class="text-label">{{ row.range|default:"—" }}</td>
+          <td class="text-label">{{ row.range|default:"—"|linebreaksbr }}</td>
           <td><textarea name="interp_{{ i.pk }}" rows="1" class="input" aria-label="{{ i.test_name }} interpretation">{{ row.interp|default_if_none:'' }}</textarea></td>
         </tr>
         {% endwith %}{% endfor %}

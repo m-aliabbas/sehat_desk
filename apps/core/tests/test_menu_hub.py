@@ -13,7 +13,8 @@ SIDEBAR = ["Overview", "Inventory", "Reports", "Finance & P&L", "Reception", "Pr
 def _sidebar_labels(html):
     aside = html.split('aria-label="Main navigation"')[1].split("</aside>")[0]
     return re.findall(
-        r'<span class="flex-1 truncate[^"]*">([^<]+)</span>', aside.replace("&amp;", "&")
+        r'<span class="sidebar-text flex-1 truncate[^"]*">([^<]+)</span>',
+        aside.replace("&amp;", "&"),
     )
 
 

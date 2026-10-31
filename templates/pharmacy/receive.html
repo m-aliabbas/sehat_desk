@@ -3,15 +3,18 @@
 {% block page_title %}Receive stock{% endblock %}
 {% block page_subtitle %}Scan or search, one row per batch. Receiving the same batch number again adds to it.{% endblock %}
 {% block content %}
-<form method="post" novalidate class="card space-y-4">
+<form method="post" novalidate class="card space-y-4" x-data="{ total: 0 }" @grid-total="total = $event.detail">
   {% csrf_token %}<input type="hidden" name="rows" value="1">
   {% for e in errors %}{% include "components/alert.html" with level="danger" message=e %}{% endfor %}
+  <div class="flex flex-wrap items-end gap-4">
+    <div class="max-w-md min-w-[14rem] flex-1"><label class="field-label" for="r-ref">Supplier invoice / reference</label><input id="r-ref" name="reference" class="input mt-1" maxlength="80" autocomplete="off" value="{{ reference }}"></div>
+    <label class="flex items-center gap-2 pb-3 text-body"><input type="checkbox" class="checkbox" name="opening" {% if opening %}checked{% endif %}> Opening stock (not a purchase)</label>
+  </div>
   {% include "pharmacy/purchasing/_item_grid.html" %}
-  <div class="flex flex-wrap items-end gap-3">
-    <div class="min-w-[14rem] flex-1"><label class="field-label" for="r-ref">Supplier invoice / reference</label><input id="r-ref" name="reference" class="input mt-1" maxlength="80" autocomplete="off" value="{{ reference }}"></div>
-    <label class="flex items-center gap-2 pb-2 text-body"><input type="checkbox" class="checkbox" name="opening" {% if opening %}checked{% endif %}> Opening stock (not a purchase)</label>
+  <div class="action-bar">
     <button class="btn btn-primary">Post stock</button>
     <a href="{% url 'pharmacy:product-list' %}" class="btn btn-close">Cancel</a>
+    <p class="ml-auto text-body" x-show="total" x-cloak><span class="text-muted">Total</span> <span class="ml-2 text-section-title font-bold" x-text="total.toFixed(2)"></span></p>
   </div>
 </form>
 {% endblock %}

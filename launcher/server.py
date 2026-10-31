@@ -7,12 +7,15 @@ A database from a newer version is refused, so an old installer cannot damage it
 
 import sys
 import tempfile
+import threading
+import time
 import traceback
 from pathlib import Path
 
 from launcher import common
 
 KEEP_SAFETY_BACKUPS = 3
+LAN_CHECK_SECONDS = 60
 
 
 def redirect_output() -> None:
@@ -65,6 +68,25 @@ def prepare(port: int) -> None:
     django.setup()
 
 
+def allow_current_lan_ips() -> None:
+    """A new DHCP address must work without a restart, or Django answers it with 400. Same-origin
+    form posts pass CSRF through the Host header, so only this list needs the new address."""
+    from django.conf import settings
+
+    for ip in common.lan_ips():
+        if ip not in settings.ALLOWED_HOSTS:
+            settings.ALLOWED_HOSTS.append(ip)
+
+
+def _follow_lan_address() -> None:
+    while True:
+        time.sleep(LAN_CHECK_SECONDS)
+        try:
+            allow_current_lan_ips()
+        except Exception:  # keep serving on the addresses already allowed
+            traceback.print_exc()
+
+
 def run(port: int) -> int:
     redirect_output()
     try:
@@ -84,6 +106,7 @@ def run(port: int) -> int:
 
     import serve
 
+    threading.Thread(target=_follow_lan_address, daemon=True).start()
     try:
         serve.run("0.0.0.0", port)
     except Exception:

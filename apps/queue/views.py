@@ -270,7 +270,7 @@ def _token_for_operator(request, pk):
     raise PermissionDenied
 
 
-def _run(request, label, fn, token, default_url, **kwargs):
+def _run(request, label, fn, token, default_url, /, **kwargs):
     before = token.status
     try:
         token = fn(token, **kwargs)

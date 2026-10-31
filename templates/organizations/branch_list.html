@@ -12,7 +12,7 @@
       <thead><tr><th scope="col">Branch</th><th scope="col">Code</th><th scope="col">City</th><th scope="col">Phone</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
       <tbody>
         {% for b in branches %}
-          <tr>
+          <tr data-edit="{% url 'organizations:branch-edit' b.pk %}" data-remove="{% url 'organizations:branch-toggle-active' b.pk %}" data-remove-label="{% if b.is_active %}Deactivate{% else %}Activate{% endif %}">
             <td class="font-medium">{{ b.name }}{% if b.is_main %} <span class="chip chip-info">Main</span>{% endif %}</td>
             <td class="font-mono text-label">{{ b.code }}</td>
             <td>{{ b.city|default:"—" }}</td>

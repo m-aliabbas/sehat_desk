@@ -21,7 +21,7 @@
       {% if day != today %}<a class="btn btn-ghost btn-sm" href="?view={{ view }}&department={{ dept_id }}&doctor={{ doctor_id }}">Today</a>{% endif %}
     </div>
     <div class="flex flex-wrap items-center gap-2">
-      <input type="date" name="date" value="{{ day|date:'Y-m-d' }}" class="input h-10 w-40" aria-label="Date">
+      <input type="date" name="date" value="{{ day|date:'Y-m-d' }}" class="input w-40" aria-label="Date">
       <div class="flex rounded-control border border-line p-0.5">
         <a href="?view=day&date={{ day|date:'Y-m-d' }}&department={{ dept_id }}&doctor={{ doctor_id }}" class="btn btn-sm {% if view == 'day' %}btn-primary{% else %}btn-ghost{% endif %}">Day</a>
         <a href="?view=week&date={{ day|date:'Y-m-d' }}&department={{ dept_id }}&doctor={{ doctor_id }}" class="btn btn-sm {% if view == 'week' %}btn-primary{% else %}btn-ghost{% endif %}">Week</a>
@@ -66,8 +66,8 @@
       <table class="w-full border-separate border-spacing-0 text-body">
         <thead>
           <tr>
-            <th class="w-16"></th>
-            {% for d in columns %}<th scope="col" class="min-w-56 px-2 pb-4 text-left align-bottom"><p class="text-section-title">{{ d.display_name }}</p><p class="text-label font-normal text-muted">{{ d.department }}</p></th>{% endfor %}
+            <th class="w-16 rounded-tl-control bg-head"></th>
+            {% for d in columns %}<th scope="col" class="min-w-56 bg-head px-2 py-2 text-left align-bottom text-head-text last:rounded-tr-control [&_*]:text-head-text"><p class="text-section-title">{{ d.display_name }}</p><p class="text-label font-normal text-muted">{{ d.department }}</p></th>{% endfor %}
           </tr>
         </thead>
         <tbody>

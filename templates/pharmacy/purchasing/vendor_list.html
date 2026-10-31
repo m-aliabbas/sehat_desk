@@ -21,7 +21,7 @@
       <thead><tr><th scope="col">Supplier</th><th scope="col">Contact</th><th scope="col">Terms</th><th scope="col" class="text-right">Purchases</th><th scope="col" class="text-right">Balance owed</th></tr></thead>
       <tbody>
         {% for v in vendors %}
-        <tr>
+        <tr data-edit="{% url 'pharmacy:vendor-edit' v.pk %}" data-remove="{% url 'pharmacy:vendor-toggle' v.pk %}" data-remove-label="{% if v.is_active %}Deactivate{% else %}Activate{% endif %}">
           <td><a href="{% url 'pharmacy:vendor-detail' v.pk %}" class="font-medium hover:underline">{{ v.name }}</a>{% if not v.is_active %} {% status_chip "inactive" "Inactive" %}{% endif %}{% if v.tax_number %}<p class="text-label text-muted">NTN {{ v.tax_number }}</p>{% endif %}</td>
           <td>{{ v.contact_person|default:"—" }}<p class="text-label text-muted">{{ v.phone }}</p></td>
           <td>{% if v.payment_terms_days %}{{ v.payment_terms_days }} days{% else %}On delivery{% endif %}</td>

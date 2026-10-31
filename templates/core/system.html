@@ -28,7 +28,7 @@
         <td class="whitespace-nowrap">{{ e.occurred_at|date:"d M Y" }}<span class="block text-label text-muted">{{ e.occurred_at|date:"H:i:s" }}</span></td>
         <td>{% if e.source == "server" %}{% status_chip "cancelled" "Server" %}{% else %}{% status_chip "pending" "Browser" %}{% endif %}</td>
         <td><span class="font-medium">{{ e.error_type }}</span>{% if e.message %}<span class="block text-label text-muted">{{ e.message }}</span>{% endif %}
-          {% if e.stack %}<details class="mt-1"><summary class="cursor-pointer text-label text-teal">Stack</summary><pre class="mt-1 max-w-xl overflow-x-auto text-[11px] whitespace-pre-wrap">{{ e.stack }}</pre></details>{% endif %}</td>
+          {% if e.stack %}<details class="mt-1"><summary class="cursor-pointer text-label text-teal">Stack</summary><pre class="mt-1 max-w-xl overflow-x-auto text-label whitespace-pre-wrap">{{ e.stack }}</pre></details>{% endif %}</td>
         <td><span class="font-mono text-label">{{ e.method }} {{ e.path }}</span>{% if e.view_name %}<span class="block text-label text-muted">{{ e.view_name }}</span>{% endif %}</td>
         <td>{% if e.user %}{{ e.user.get_full_name|default:e.user.username }}{% else %}—{% endif %}{% if e.branch %}<span class="block text-label text-muted">{{ e.branch.name }}</span>{% endif %}</td>
         <td class="font-mono text-label">{{ e.request_id|truncatechars:14 }}</td>

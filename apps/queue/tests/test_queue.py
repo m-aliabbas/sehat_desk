@@ -457,3 +457,18 @@ def test_tokens_from_other_branch_are_404(
     )  # fmt: skip
     assert admin_client.post(f"/queue/tokens/{token.pk}/skip/").status_code == 404
     assert admin_client.get(f"/queue/tokens/{token.pk}/slip/").status_code == 404
+
+
+def test_call_and_recall_buttons_work(
+    admin_client, org, branch, desk_request, doctor, department, patient
+):
+    """Both views pass request= to the service; it must not clash with _run's own request."""
+    token = services.issue_token(
+        request=desk_request, patient=patient, department=department, doctor=doctor
+    )
+    assert admin_client.post(f"/queue/tokens/{token.pk}/call/").status_code == 302
+    token.refresh_from_db()
+    assert token.status == Status.CALLED and token.call_count == 1
+    assert admin_client.post(f"/queue/tokens/{token.pk}/recall/").status_code == 302
+    token.refresh_from_db()
+    assert token.call_count == 2

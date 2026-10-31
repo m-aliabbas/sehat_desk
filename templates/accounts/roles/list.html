@@ -12,7 +12,7 @@
       <thead><tr><th scope="col">Role</th><th scope="col">Type</th><th scope="col">Permissions</th><th scope="col">Staff</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
       <tbody>
         {% for row in rows %}
-          <tr>
+          <tr {% if not row.role.is_locked %}data-edit="{% url 'accounts:role-edit' row.role.pk %}" data-remove="{% url 'accounts:role-toggle-active' row.role.pk %}" data-remove-label="{% if row.role.is_active %}Deactivate{% else %}Activate{% endif %}"{% endif %}>
             <td><p class="font-medium">{{ row.role.name }}</p><p class="text-label text-muted">{{ row.role.description }}</p></td>
             <td>{% if row.role.is_locked %}<span class="chip chip-neutral">{% icon "lock" "h-3 w-3" %} Locked</span>{% elif row.role.is_system %}<span class="chip chip-info">System</span>{% else %}<span class="chip chip-neutral">Custom</span>{% endif %}</td>
             <td>{{ row.perm_count }}</td>

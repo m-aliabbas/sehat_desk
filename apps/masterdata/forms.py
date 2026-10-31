@@ -102,16 +102,20 @@ class ScheduleDayForm(StyledFormMixin, forms.Form):
     weekday = forms.TypedChoiceField(choices=WEEKDAYS, coerce=int, widget=forms.HiddenInput)
     enabled = forms.BooleanField(required=False, label="Works")
     start_time = forms.TimeField(
-        required=False, widget=forms.TimeInput(attrs={"type": "time"}, format="%H:%M")
+        required=False,
+        widget=forms.TimeInput(attrs={"type": "time", "aria-label": "Clinic from"}, format="%H:%M"),
     )
     end_time = forms.TimeField(
-        required=False, widget=forms.TimeInput(attrs={"type": "time"}, format="%H:%M")
+        required=False,
+        widget=forms.TimeInput(attrs={"type": "time", "aria-label": "Clinic to"}, format="%H:%M"),
     )
     break_start = forms.TimeField(
-        required=False, widget=forms.TimeInput(attrs={"type": "time"}, format="%H:%M")
+        required=False,
+        widget=forms.TimeInput(attrs={"type": "time", "aria-label": "Break from"}, format="%H:%M"),
     )
     break_end = forms.TimeField(
-        required=False, widget=forms.TimeInput(attrs={"type": "time"}, format="%H:%M")
+        required=False,
+        widget=forms.TimeInput(attrs={"type": "time", "aria-label": "Break to"}, format="%H:%M"),
     )
     room = forms.CharField(required=False, max_length=40)
 

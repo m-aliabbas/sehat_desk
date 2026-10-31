@@ -2,11 +2,16 @@
 {% comment %}
   Signed-in app shell: sidebar, topbar, breadcrumbs, page header, content.
   Pages fill: title, breadcrumbs (optional), page_title, page_subtitle, page_actions, content.
-  Below 1024px (tablets) the sidebar collapses behind the menu button.
+  Below 768px the sidebar is a drawer behind the menu button. From 768px it is either full or an
+  icon rail (html[data-nav="rail"]): the rail by default below 1280px, and the topbar button
+  switches it and remembers the choice on this computer. The state is inline here, not in
+  app.js, so a browser still holding an old cached app.js after an update keeps a working menu.
 {% endcomment %}
-{% block body_attrs %}x-data="{ sidebarOpen: false }" @keydown.escape.window="sidebarOpen = false"{% endblock %}
+{% block body_attrs %}x-data="{ sidebarOpen: false, rail: document.documentElement.dataset.nav === 'rail', toggleRail() { this.rail = !this.rail; document.documentElement.toggleAttribute('data-nav', this.rail); if (this.rail) document.documentElement.dataset.nav = 'rail'; try { localStorage.setItem('sd-nav', this.rail ? 'rail' : 'full'); } catch (e) {} } }" @keydown.escape.window="sidebarOpen = false"{% endblock %}
 {% block body %}
-<div class="min-h-screen lg:pl-sidebar">
+{# Runs before the sidebar is drawn, so the page never flashes the wrong width. #}
+<script>try { const s = localStorage.getItem("sd-nav"); if (s ? s === "rail" : innerWidth < 1280) document.documentElement.dataset.nav = "rail"; } catch (e) { if (innerWidth < 1280) document.documentElement.dataset.nav = "rail"; }</script>
+<div class="shell min-h-screen">
   {% include "partials/sidebar.html" %}
 
   <div class="flex min-h-screen flex-col">
@@ -31,8 +36,8 @@
       {% block content %}{% endblock %}
     </main>
 
-    <footer class="flex flex-wrap justify-between gap-2 px-8 pb-6 text-[11px] tracking-wide text-muted uppercase">
-      <span>SehatDesk by vibe.exe</span>
+    <footer class="flex flex-wrap justify-between gap-2 px-8 pb-6 text-label tracking-wide text-muted uppercase">
+      <span>SehatDesk by vibe.exe · <button type="button" class="tracking-wide uppercase hover:text-ink" onclick="sdTables.help()">Press ? for shortcuts</button></span>
       {% if workspace_env != "production" %}<span>{{ workspace_env }} workspace</span>{% endif %}
     </footer>
   </div>

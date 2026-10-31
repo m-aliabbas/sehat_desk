@@ -12,8 +12,12 @@
 @theme {
   /* Brand palette (DESIGN-TOKENS.json) */
   --color-ink: #112d4e;
-  --color-muted: #73869e;
-  --color-line: #e5edf3;
+  --color-muted: #3f4f63; /* secondary text: 8.5:1 on white, passes WCAG AAA */
+  --color-subtle: #5b6b80; /* placeholders only, so they do not read as typed values */
+  --color-head: #0b5345; /* table headers: white text on this is 9.5:1 */
+  --color-head-text: #ffffff;
+  --color-edge: #7f91a3; /* box borders: 3:1 on white, the WCAG minimum for controls */
+  --color-line: #c9d5df;
   --color-page: #f3f8fb;
   --color-teal: #008e81;
   --color-teal-deep: #086c70;
@@ -47,7 +51,7 @@
   --text-section-title--line-height: 1.35;
   --text-body: 14px;
   --text-body--line-height: 1.5;
-  --text-label: 12px;
+  --text-label: 13px;
   --text-label--line-height: 1.4;
 
   /* Radius conventions */
@@ -56,6 +60,7 @@
 
   /* Shell dimensions */
   --spacing-sidebar: 246px;
+  --spacing-rail: 68px;
   --spacing-topbar: 76px;
 }
 
@@ -79,11 +84,11 @@
   .page-title { @apply text-page-title font-bold tracking-tight text-ink; }
   .page-subtitle { @apply mt-1 text-body text-muted; }
   .section-title { @apply text-section-title font-semibold text-ink; }
-  .label { @apply text-label font-medium text-muted; }
+  .label { @apply text-label font-semibold text-ink; }
 
   /* ---- Buttons: use `btn` plus one variant, e.g. class="btn btn-primary" ---- */
   .btn {
-    @apply inline-flex h-10 items-center justify-center gap-2 rounded-control border px-4
+    @apply inline-flex h-9 items-center justify-center gap-2 rounded-control border px-4
       text-body font-medium whitespace-nowrap transition-colors
       disabled:cursor-not-allowed disabled:opacity-60;
   }
@@ -95,7 +100,7 @@
   .btn-warning { @apply border-yellow bg-yellow text-ink hover:brightness-95; }
   .btn-ghost { @apply border-transparent bg-transparent text-ink hover:bg-page; }
   .btn-sm { @apply h-8 px-3 text-label; }
-  .btn-icon { @apply h-10 w-10 px-0; }
+  .btn-icon { @apply h-9 w-9 px-0; }
   .btn-icon[aria-label^="Close"] { @apply text-red hover:bg-red-soft; }
 
   /* ---- Colour coding: one colour per module. `tint` is an icon square, `band` a card's top edge ---- */
@@ -111,12 +116,12 @@
 
   /* ---- Form controls ---- */
   .field { @apply flex flex-col gap-1.5; }
-  .field-label { @apply text-label font-medium text-muted; }
+  .field-label { @apply text-label font-semibold text-ink; }
   .field-help { @apply text-label text-muted; }
   .field-error { @apply text-label font-medium text-red; }
   .input, .select {
-    @apply h-11 w-full rounded-control border border-line bg-white px-3 text-body text-ink
-      placeholder:text-muted/80 focus:border-teal focus:ring-2 focus:ring-teal/20 focus:outline-none
+    @apply h-9 w-full rounded-control border border-edge bg-white px-3 text-body text-ink
+      placeholder:text-subtle focus:border-teal focus:ring-2 focus:ring-teal focus:ring-inset focus:outline-none
       disabled:bg-page disabled:text-muted aria-invalid:border-red aria-invalid:ring-red/20;
   }
   textarea.input { @apply h-auto min-h-24 py-2; }
@@ -134,8 +139,8 @@
   .checkbox { @apply h-4 w-4 rounded border-line text-green accent-green; }
 
   /* ---- Cards ---- */
-  .card { @apply rounded-card border border-line bg-white p-6; }
-  .card-header { @apply mb-4 flex items-start justify-between gap-4; }
+  .card { @apply min-w-0 rounded-card border border-line bg-white p-4 sm:p-6; }
+  .card-header { @apply mb-4 flex flex-wrap items-start justify-between gap-4; }
   .stat-card { @apply rounded-card p-5; }
 
   /* ---- Status chips: `chip` plus one variant. Always text + color, never color alone ---- */
@@ -146,16 +151,78 @@
   .chip-danger { @apply bg-red-soft text-red; }
   .chip-neutral { @apply bg-page text-muted; }
 
-  /* ---- Tables ---- */
-  .table-wrap { @apply overflow-x-auto; }
-  .table { @apply w-full border-separate border-spacing-0 text-left text-body; }
-  .table thead th { @apply bg-page px-4 py-3 text-label font-medium text-muted first:rounded-l-control last:rounded-r-control; }
-  .table tbody td { @apply border-b border-line px-4 py-3.5 align-middle; }
+  /* ---- Tables: compact grid with cell lines. Keys and the expand column come from static/js/app.js ---- */
+  .table-wrap { @apply overflow-x-auto rounded-control border border-edge bg-white; }
+  .table { @apply w-full border-separate border-spacing-0 text-left text-body leading-tight; }
+  .table thead th { @apply sticky top-0 z-10 h-9 border-r border-b border-white/25 bg-head px-3 text-label font-bold whitespace-nowrap text-head-text last:border-r-0; }
+  .table tbody td, .table tfoot td { @apply border-r border-b border-line px-3 py-1.5 align-middle last:border-r-0; }
+  .table tbody tr:last-child td { @apply border-b-0; }
   .table tbody tr:hover td { @apply bg-page/60; }
+  .table td > a:only-child, .table td .font-mono { @apply whitespace-nowrap; }
+  .table td:has(> .input, > .select, > .relative > .input) { @apply p-0; }
+  .table td .input, .table td .select { @apply h-9 rounded-none border-0 bg-transparent px-2 text-body focus:bg-white focus:ring-2 focus:ring-teal focus:ring-inset; }
+  .table td .select { @apply pr-7; background-position: right 0.4rem center; }
+  .table tbody tr:focus-within td { @apply bg-mint/40; }
+  .table tbody tr:focus, .sheet tbody tr:focus { outline: none; }
+  .table tbody tr:focus td, .sheet tbody tr:focus td { @apply bg-mint shadow-[inset_0_2px_0_var(--color-teal),inset_0_-2px_0_var(--color-teal)]; }
+
+  .table thead th *, .sheet thead th * { color: inherit; }
+
+  /* Columns kept for the row popup. `cell-detail` by hand, `cell-fit-hidden` when they do not fit */
+  .cell-detail, .cell-fit-hidden { display: none; }
+  .row-expand { @apply sticky right-0 z-[6] w-px whitespace-nowrap bg-white p-0!; }
+  thead .row-expand { @apply z-20 bg-head; }
+  .row-actions { @apply flex items-center justify-end; }
+  .row-btn { @apply flex h-8 w-7 shrink-0 items-center justify-center rounded-control text-ink hover:bg-mint hover:text-teal-deep; }
+  .row-btn-danger { @apply text-red hover:bg-red-soft hover:text-red; }
+  .row-modal-body:focus { outline: none; }
+  .kbd { @apply inline-block rounded border border-line bg-page px-2 py-0.5 font-mono text-label whitespace-nowrap text-ink; }
+
+  /* ---- Sheet: Excel-style entry grid. Cells touch, boxes fill their cell, the focused cell is outlined ---- */
+  .sheet-wrap { @apply overflow-x-auto rounded-control border border-edge bg-white; }
+  .sheet { @apply w-full border-separate border-spacing-0 text-left text-body leading-tight; }
+  .sheet thead th {
+    @apply sticky top-0 z-10 h-9 border-r border-b border-white/25 bg-head px-2 text-label font-bold whitespace-nowrap text-head-text last:border-r-0;
+  }
+  .sheet tbody td { @apply relative h-9 border-r border-b border-line bg-white p-0 align-middle last:border-r-0; }
+  .sheet tbody tr:last-child td { @apply border-b-0; }
+  .sheet tbody tr:hover td { @apply bg-page/60; }
+  .sheet tbody tr:focus-within td { @apply bg-mint/40; }
+  .sheet td .input, .sheet td .select {
+    @apply h-9 min-w-0 rounded-none border-0 bg-transparent px-2 text-body focus:bg-white focus:ring-2 focus:ring-teal focus:ring-inset;
+  }
+  .sheet td input[type="number"].input { @apply text-right; }
+  .sheet td .select { @apply pr-6; background-position: right 0.3rem center; }
+  .sheet td .input[aria-invalid="true"] { @apply bg-red-soft ring-2 ring-red ring-inset; }
+  /* First column stays in view while the rest scrolls sideways. */
+  .sheet .sheet-freeze { @apply sticky left-0 z-[5]; box-shadow: 1px 0 0 var(--color-line); }
+  .sheet thead .sheet-freeze { @apply z-20; }
+  .sheet tbody tr:hover .sheet-freeze, .sheet tbody tr:focus-within .sheet-freeze { @apply bg-mint; }
+  .sheet .cell-text { @apply px-2; }
+  /* Small unit inside a price cell, e.g. "/strip" */
+  .sheet .cell-unit { @apply pointer-events-none absolute inset-y-0 left-1.5 flex items-center text-[12px] text-muted; }
+  .sheet td:has(.cell-unit) .input { @apply pl-12; }
+  .sheet .sheet-remove { @apply flex h-9 w-full items-center justify-center text-muted hover:bg-red-soft hover:text-red; }
+
+  /* Free-text box with a dropdown (data-list in static/js/app.js) */
+  input[data-list], input[data-sd-combo] {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%2373869E' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
+    background-position: right 0.3rem center;
+    background-repeat: no-repeat;
+    @apply pr-6;
+  }
+  .combo-list { @apply fixed z-[60] max-h-64 overflow-y-auto rounded-control border border-edge bg-white py-1 text-body shadow-lg; }
+  .combo-list li { @apply cursor-pointer px-3 py-1.5 whitespace-nowrap hover:bg-mint; }
+  .combo-list li[aria-selected="true"] { @apply bg-mint font-medium; }
+
+  /* Save bar: stays at the bottom of the window however long the sheet gets. Sits inside a .card. */
+  .save-bar { @apply sticky bottom-0 z-30 mt-4 flex flex-wrap items-center gap-3 border-t border-line bg-white py-3; }
+  #main:focus { outline: none; }
+  .action-bar { @apply sticky bottom-0 z-30 -mx-4 -mb-4 flex flex-wrap items-center gap-3 rounded-b-card border-t border-line bg-white px-4 py-3 sm:-mx-6 sm:-mb-6 sm:px-6; }
 
   /* ---- Tabs ---- */
-  .tabs { @apply flex gap-1 border-b border-line; }
-  .tab { @apply -mb-px border-b-2 border-transparent px-4 py-2.5 text-body font-medium text-muted hover:text-ink; }
+  .tabs { @apply flex gap-1 overflow-x-auto border-b border-line; }
+  .tab { @apply -mb-px shrink-0 whitespace-nowrap border-b-2 border-transparent px-4 py-2.5 text-body font-medium text-muted hover:text-ink; }
   .tab[aria-selected="true"] { @apply border-teal text-teal-deep; }
 
   /* ---- Overlays ---- */
@@ -167,7 +234,7 @@
   .skeleton { @apply animate-pulse rounded-control bg-line; }
 
   /* ---- Navigation ---- */
-  .nav-link { @apply flex items-center gap-3 rounded-control px-3 py-2.5 text-body text-ink/85 transition-colors hover:bg-mint/70; }
+  .nav-link { @apply flex items-center gap-3 rounded-control px-3 py-2.5 text-body text-ink transition-colors hover:bg-mint/70; }
   .nav-link-boxed { @apply border border-line bg-white; }
   .nav-link-active { @apply bg-teal-deep font-medium text-white hover:bg-teal-deep; }
   .nav-link-active .tint { @apply bg-white/20 text-white; }
@@ -180,6 +247,90 @@
   .band-red { @apply border-t-4 border-t-red; }
   .band-yellow { @apply border-t-4 border-t-yellow; }
   .band-teal { @apply border-t-4 border-t-teal; }
+}
+
+/* Unlayered: must beat gap-4 and other utilities written on the grids. */
+  /* ---- Entry forms: each `.field` in a form is a cell: small label on top, a borderless box, a line under
+     it and an outline on focus. In a `grid` the cells touch, like a sheet. ---- */
+  :is(#main, .modal-panel) form .grid:has(> .field) { @apply gap-0 overflow-hidden rounded-control border-t border-l border-edge bg-white; }
+  :is(#main, .modal-panel) :is(form, .row-modal-body) .field { @apply relative min-w-0 gap-0 rounded-control border border-edge bg-white; }
+  :is(#main, .modal-panel) form .grid > .field { @apply rounded-none border-t-0 border-l-0; }
+  :is(#main, .modal-panel) form .grid > .field > .field-label { @apply rounded-none; }
+  /* A wrapper in the grid (e.g. date of birth + age) is one cell; a grid nested in it has no outer edge. */
+  :is(#main, .modal-panel) form .grid:has(> .field) > :not(.field) { @apply min-w-0 border-r border-b border-edge; }
+  :is(#main, .modal-panel) form .grid:has(> .field) .grid:has(> .field) { @apply h-full items-stretch rounded-none border-0; }
+  :is(#main, .modal-panel) form .grid .grid > .field:last-child { @apply border-r-0; }
+  :is(#main, .modal-panel) form .grid .grid > .field { @apply border-b-0; }
+  :is(#main, .modal-panel) :is(form, .row-modal-body) .field:focus-within { @apply bg-mint/40; }
+  /* Field labels carry the same header colours as table headers. */
+  :is(#main, .modal-panel) .field-label { @apply block rounded-control bg-head px-2 py-1 font-bold leading-tight text-head-text; }
+  /* One shape: a label joined to its box. Rounded on the outside corners only. */
+  :is(#main, .modal-panel) .field-label:has(+ .input, + .select, + div) { @apply rounded-b-none; }
+  :is(#main, .modal-panel) .field-label + :is(.input, .select),
+  :is(#main, .modal-panel) .field-label + div > .input { @apply rounded-t-none border-t-0; }
+  /* Inside a boxed field the box draws the corners. */
+  :is(#main, .modal-panel) :is(form, .row-modal-body) .field > .field-label { border-radius: 7px 7px 0 0; }
+  :is(#main, .modal-panel) :is(form, .row-modal-body) .field > :last-child,
+  :is(#main, .modal-panel) :is(form, .row-modal-body) .field > div:last-child > .input { border-bottom-left-radius: 7px; border-bottom-right-radius: 7px; }
+  :is(#main, .modal-panel) .row-modal-body .field > span.text-body { @apply block px-2 py-2; }
+  /* A field nested in a wrapper cell is part of that cell, not a box of its own. */
+  :is(#main, .modal-panel) form .grid > :not(.field) .field { @apply rounded-none border-0; }
+  :is(#main, .modal-panel) form .grid > :not(.field) .field > .field-label { border-radius: 0; }
+  /* A price's unit sits inside its box in the popup too. */
+  .row-modal-body .cell-unit { @apply pointer-events-none absolute right-2 bottom-2 z-10 text-label text-muted; }
+  /* A grid clips its corners, unless a search list has to hang out of it. */
+  :is(#main, .modal-panel) form .grid:has(> .field .absolute) { overflow: visible; }
+  :is(#main, .modal-panel) .field-label * { color: inherit; }
+  :is(#main, .modal-panel) .field-label + :is(.input, .select, div) { margin-top: 0; }
+  :is(#main, .modal-panel) .field { gap: 0; }
+  :is(#main, .modal-panel) :is(form, .row-modal-body) .field > .input,
+  :is(#main, .modal-panel) :is(form, .row-modal-body) .field > .select,
+  :is(#main, .modal-panel) :is(form, .row-modal-body) .field > div > .input { @apply h-9 rounded-none border-0 bg-transparent px-2 text-body focus:bg-white focus:ring-2 focus:ring-teal focus:ring-inset; }
+  :is(#main, .modal-panel) :is(form, .row-modal-body) .field > textarea.input { @apply h-auto min-h-16 py-1; }
+  :is(#main, .modal-panel) :is(form, .row-modal-body) .field > .select { background-position: right 0.4rem center; }
+  :is(#main, .modal-panel) :is(form, .row-modal-body) .field > .field-help,
+  :is(#main, .modal-panel) :is(form, .row-modal-body) .field > .field-error { @apply px-2 pb-1 text-label; }
+  :is(#main, .modal-panel) :is(form, .row-modal-body) .field > label:not(.field-label) { @apply px-2 py-2 text-body; }
+
+
+/* ---- App shell: full sidebar or icon rail, from 768px up (see layouts/app.html). Unlayered so it beats utilities. ---- */
+@media (min-width: 768px) {
+  .shell { padding-left: var(--spacing-sidebar); transition: padding-left 150ms; }
+  .sidebar { transition: width 150ms; }
+  html[data-nav="rail"] .shell { padding-left: var(--spacing-rail); }
+  html[data-nav="rail"] .sidebar { width: var(--spacing-rail); }
+  html[data-nav="rail"] .sidebar-text { display: none; }
+  html[data-nav="rail"] .sidebar-brand { justify-content: center; padding-inline: 0; }
+  html[data-nav="rail"] .sidebar-nav, html[data-nav="rail"] .sidebar-foot { padding-inline: 10px; }
+  html[data-nav="rail"] .sidebar .nav-link { justify-content: center; padding-inline: 0; }
+}
+
+/* Hints */
+.sd-tip { position: fixed; z-index: 80; max-width: 20rem; pointer-events: none; }
+@layer components {
+  .sd-tip { @apply rounded-control bg-ink px-2.5 py-1.5 text-label text-white shadow-lg; }
+  
+  thead th[title], .field-label[title], th[data-sd-title] { @apply cursor-help underline decoration-dotted underline-offset-2; }
+}
+
+.field-label .ref-state:not(:empty) { margin-left: 0.5rem; border-radius: 9999px; background: #fff; padding-inline: 0.5rem; color: var(--color-red) !important; }
+
+/* Entry row: the fixed first row of a table people scan or type into. It stays in view under the header. */
+.entry-row > td { position: sticky; top: 2.25rem; z-index: 35; background: var(--color-page); box-shadow: inset 0 -2px 0 var(--color-head); }
+.sheet-wrap:has(.entry-row), .table-wrap:has(.entry-row) { max-height: 70vh; overflow: auto; }
+.table-wrap:has(.absolute) thead th, .sheet-wrap:has(.absolute) thead th { top: var(--spacing-topbar); }
+.table-wrap:has(.absolute) .entry-row > td, .sheet-wrap:has(.absolute) .entry-row > td { top: calc(var(--spacing-topbar) + 2.25rem); }
+
+/* A search list hanging from a box must never be cut off by the frame around it. Such a frame gives
+   up sideways scrolling and keeps its round corners on the header instead. */
+.table-wrap:has(.absolute), .sheet-wrap:has(.absolute), .overflow-x-auto:has(.absolute), .overflow-hidden:has(> * .absolute[id$="results"]) { overflow: visible; max-height: none; }
+.sheet-wrap:has(.absolute) thead th:first-child, .table-wrap:has(.absolute) thead th:first-child { border-top-left-radius: 7px; }
+.table-wrap:has(.absolute) thead th:last-child { border-top-right-radius: 7px; }
+#main .absolute:is([id$="results"], [id$="suggest"], [role="listbox"]) { z-index: 40; }
+
+/* Paper: no dark header blocks, whichever page prints. */
+@media print {
+  :root { --color-head: #ffffff; --color-head-text: #000000; }
 }
 
 /* htmx: show indicators only while a request is in flight */

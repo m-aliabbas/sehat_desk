@@ -14,6 +14,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Print{% endblock %}</title>
   <link rel="stylesheet" href="{% static 'css/app.css' %}">
+  {# Screen labels are larger than paper needs; keep printed layouts as they were. #}
+  <style>:root { --text-label: 12px; --color-muted: #73869e; --color-line: #e5edf3; --color-head: #ffffff; --color-head-text: #000000; }</style>
   <style>
     @page { size: {% block page_size %}A4{% endblock %}; margin: {% block page_margin %}12mm{% endblock %}; }
     @media print {

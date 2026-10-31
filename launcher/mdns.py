@@ -9,6 +9,10 @@ logger = logging.getLogger(__name__)
 
 SERVICE_TYPE = "_http._tcp.local."
 SERVICE_NAME = f"SehatDesk.{SERVICE_TYPE}"
+# How long clients may keep the address. The library default of 2 minutes makes every client ask
+# again over multicast, which Wi-Fi drops often; a failed lookup is a page that will not open.
+HOST_TTL_SECONDS = 900
+LOOKUP_TIMEOUT_MS = 2000
 
 
 class Advertiser:
@@ -17,6 +21,7 @@ class Advertiser:
         self.ips: list[str] = []
         self.zc = None
         self.info = None
+        self.other_server: str | None = None  # another computer already answers for the name
 
     def _service_info(self, ips: list[str]):
         from zeroconf import ServiceInfo
@@ -27,6 +32,7 @@ class Advertiser:
             addresses=[socket.inet_aton(ip) for ip in ips],
             port=self.port,
             server=f"{HOSTNAME}.",
+            host_ttl=HOST_TTL_SECONDS,
             properties={"path": "/"},
         )
 
@@ -38,6 +44,12 @@ class Advertiser:
             return False
         try:
             self.zc = Zeroconf(ip_version=IPVersion.V4Only)
+            self.other_server = self._find_other_server()
+            if self.other_server:
+                # Two answers for one name send clients to either database at random.
+                logger.warning("Another SehatDesk server answers on this network")
+                self.stop()
+                return False
             self.info = self._service_info(self.ips)
             self.zc.register_service(self.info, allow_name_change=True)
         except Exception:  # the app still works by IP address; the window shows it
@@ -46,10 +58,18 @@ class Advertiser:
             return False
         return True
 
+    def _find_other_server(self) -> str | None:
+        found = self.zc.get_service_info(SERVICE_TYPE, SERVICE_NAME, timeout=LOOKUP_TIMEOUT_MS)
+        addresses = found.parsed_addresses() if found else []
+        if not addresses or set(addresses) & set(self.ips):
+            return None
+        return addresses[0]
+
     def refresh(self) -> None:
-        """Follow a changed address (DHCP renewal, Wi-Fi to cable, cable plugged in later)."""
+        """Follow a changed address (DHCP renewal, Wi-Fi to cable, cable plugged in later), and
+        take over the name once another server has gone."""
         ips = lan_ips()
-        if ips == self.ips:
+        if ips == self.ips and not self.other_server:
             return
         self.stop()
         self.start()

@@ -14,7 +14,7 @@
       <thead><tr><th scope="col">Brand</th><th scope="col">Generic</th><th scope="col">Form · route</th><th scope="col">Manufacturer</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
       <tbody>
         {% for m in medicines %}
-        <tr>
+        <tr data-edit="{% url 'prescriptions:medicine-edit' m.pk %}" data-remove="{% url 'prescriptions:medicine-toggle' m.pk %}" data-remove-label="{% if m.is_active %}Deactivate{% else %}Activate{% endif %}">
           <td class="font-medium">{{ m.display_name }}</td>
           <td>{{ m.generic_name }}</td>
           <td>{{ m.get_form_display }} · {{ m.get_route_display }}</td>

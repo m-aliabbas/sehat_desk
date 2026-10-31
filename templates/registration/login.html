@@ -13,7 +13,7 @@
   {% include "components/alert.html" with level="warning" title="Session expired" message="You were signed out after a period of inactivity. Sign in to continue." %}
 {% endif %}
 
-<form method="post" class="mt-6 space-y-5" novalidate>
+<form method="post" class="mt-6 space-y-5" novalidate data-enter-submits>
   {% csrf_token %}
   <input type="hidden" name="next" value="{{ next }}">
   <div class="field">

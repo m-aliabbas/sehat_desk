@@ -501,3 +501,21 @@ def identifier_remove(request, pk, identifier_pk):
     audit.record(request, "patient.identifier_remove", patient, summary=ident.kind)
     ident.delete()
     return redirect("patients:detail", pk=pk)
+
+
+@require_POST
+@permission_required("patient.update")
+def patient_toggle_active(request, pk):
+    """Deactivate hides a patient from everyday lists. Nothing is erased; it can be undone."""
+    patient = _get_patient(request, pk)
+    patient.is_active = not patient.is_active
+    patient.save(update_fields=["is_active", "updated_at"])
+    state = "active" if patient.is_active else "inactive"
+    audit.record(
+        request,
+        f"patient.{state}",
+        patient,
+        changes={"is_active": [not patient.is_active, patient.is_active]},
+    )
+    messages.success(request, f"{patient.full_name} is now {state}.")
+    return redirect("patients:list")

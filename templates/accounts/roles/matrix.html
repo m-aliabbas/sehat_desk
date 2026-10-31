@@ -27,7 +27,7 @@
           <tr><td colspan="{{ roles|length|add:1 }}" class="bg-page/60 py-2 text-label font-semibold tracking-wide text-muted uppercase">{{ module }}</td></tr>
           {% for row in rows %}
             <tr>
-              <td><span class="font-medium">{{ row.perm.label }}</span><span class="block font-mono text-[11px] text-muted">{{ row.perm.code }}</span></td>
+              <td><span class="font-medium">{{ row.perm.label }}</span><span class="block font-mono text-label text-muted">{{ row.perm.code }}</span></td>
               {% for cell in row.cells %}
                 <td class="text-center">
                   {% if cell.role.is_locked %}

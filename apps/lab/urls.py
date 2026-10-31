@@ -8,6 +8,7 @@ urlpatterns = [
     path("lab/", views.worklist, name="worklist"),
     path("lab/orders/new/", views.order_create, name="order-create"),
     path("lab/orders/<int:pk>/", views.order_detail, name="order-detail"),
+    path("lab/orders/<int:pk>/edit/", views.order_edit, name="order-edit"),
     path("lab/orders/<int:pk>/cancel/", views.order_cancel, name="order-cancel"),
     path("lab/orders/<int:pk>/start/", views.order_start, name="order-start"),
     path("lab/orders/<int:pk>/results/", views.results, name="results"),

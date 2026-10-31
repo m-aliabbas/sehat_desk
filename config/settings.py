@@ -144,6 +144,8 @@ MIDDLEWARE = [
     # CSP, Permissions-Policy, and no browser caching of signed-in pages.
     "apps.core.security.SecurityHeadersMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
+    # Clients often sit on weak Wi-Fi: pages and live-refresh fragments shrink to about a fifth.
+    "django.middleware.gzip.GZipMiddleware",
     # "Please wait" for every page while a restore replaces the database.
     "apps.core.backup_jobs.RestoreMaintenanceMiddleware",
     # No licence on an installed copy: every page leads to the licence page.
@@ -221,7 +223,8 @@ MEDIA_ROOT = DATA_DIR / "media"
 # backend (e.g. "storages.backends.s3.S3Storage" with django-storages) for object storage.
 STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
-    "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+    # collectstatic also writes .gz copies, which WhiteNoise serves to browsers that accept them.
+    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedStaticFilesStorage"},
     "documents": {
         "BACKEND": env(
             "SEHATDESK_DOCUMENT_STORAGE",
@@ -231,6 +234,8 @@ STORAGES = {
         or {"location": str(DATA_DIR / "private" / "documents"), "base_url": None},
     },
 }
+# File names carry no hash, so a new version's CSS and JS reach browsers within this time.
+WHITENOISE_MAX_AGE = 3600
 SEHATDESK_DOCUMENT_MAX_MB = env.int("SEHATDESK_DOCUMENT_MAX_MB", default=15)
 # Document links are signed for the signed-in user and expire after this many seconds.
 SEHATDESK_DOCUMENT_LINK_SECONDS = env.int("SEHATDESK_DOCUMENT_LINK_SECONDS", default=300)

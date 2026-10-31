@@ -9,7 +9,7 @@
       {% if org.logo %}<img src="{{ org.logo.url }}" alt="" class="h-10 w-10 rounded-control object-contain">{% else %}<span class="shrink-0 text-teal">{% icon "heart-pulse" "h-10 w-10" %}</span>{% endif %}
       <span class="flex min-w-0 flex-col leading-tight">
         <span class="text-[28px] font-bold tracking-tight break-words">{{ org.name|default:"SehatDesk" }}</span>
-        <span class="text-[12px] font-medium text-muted">by vibe.exe</span>
+        <span class="text-label font-medium text-muted">by vibe.exe</span>
       </span>
     </div>
     {% endwith %}

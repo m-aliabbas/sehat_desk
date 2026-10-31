@@ -11,6 +11,7 @@ urlpatterns = [
     path("duplicates/", views.duplicate_check, name="duplicates"),
     path("<int:pk>/", views.patient_detail, name="detail"),
     path("<int:pk>/edit/", views.patient_edit, name="edit"),
+    path("<int:pk>/status/", views.patient_toggle_active, name="toggle-active"),
     path("<int:pk>/photo/", views.patient_photo, name="photo"),
     path("<int:pk>/slip/", views.registration_slip, name="slip"),
     path("<int:pk>/allergies/", views.allergy_add, name="allergy-add"),

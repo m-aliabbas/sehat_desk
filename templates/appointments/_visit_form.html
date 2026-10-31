@@ -32,9 +32,9 @@
         get timeLabel() { return this.pickTime && this.time ? this.time : (this.isToday ? 'Next in the queue' : 'First free slot'); },
       }"
       x-init="if (doctor) fee = doctor.fee; $watch('date', v => collect = v === today)"
-      @patient-picked="patientId = $event.detail.id; patientLabel = $event.detail.label; search = ''; refreshSlots(); $nextTick(() => { if (!doctor) $refs.doctorInput.focus(); else $refs.save.focus(); })"
+      @patient-picked="patientId = $event.detail.id; patientLabel = $event.detail.label; search = ''; refreshSlots(); $nextTick(() => { if (!doctor) document.getElementById('doctor-search')?.focus(); else $refs.save.focus(); })"
       @keydown.f2.window.prevent="patientId = ''; mode = 'find'; $nextTick(() => document.getElementById('patient-search').focus())"
-      @keydown.f3.window.prevent="doctorId = ''; $nextTick(() => $refs.doctorInput.focus())"
+      @keydown.f3.window.prevent="doctorId = ''; setTimeout(() => document.getElementById('doctor-search')?.focus())"
       @keydown.f4.window.prevent="pickTime = !pickTime; time = ''; refreshSlots()"
       @keydown.f8.window.prevent="$refs.save.click()"
       @slot-picked.window="time = $event.detail"
@@ -103,7 +103,7 @@
         <template x-if="doctor">
           <div class="flex items-center justify-between rounded-control border border-teal/30 bg-mint/40 p-3">
             <span><span class="font-medium" x-text="doctor.name"></span><span class="block text-label text-muted" x-text="doctor.dept + ' · ' + doctor.today"></span></span>
-            <button type="button" class="btn btn-ghost btn-sm" @click="doctorId = ''; $nextTick(() => $refs.doctorInput.focus())">Change</button>
+            <button type="button" class="btn btn-ghost btn-sm" @click="doctorId = ''; setTimeout(() => document.getElementById('doctor-search')?.focus())">Change</button>
           </div>
         </template>
         <div x-show="!doctor">
@@ -208,7 +208,7 @@
       </ul>
       <p class="mt-4 text-label text-muted" x-show="!isToday" x-cloak>Pre-booking. The token and prescription print when the patient arrives.</p>
       <button type="submit" x-ref="save" class="btn btn-primary mt-5 w-full" :disabled="(mode === 'find' && !patientId) || !doctorId || (pickTime && !time)" x-text="isToday ? 'Save and print (F8)' : 'Save booking (F8)'"></button>
-      <p class="mt-3 flex flex-wrap gap-x-3 text-label text-muted" aria-label="Keyboard shortcuts"><span><kbd class="font-mono font-semibold text-ink">F2</kbd> patient</span><span><kbd class="font-mono font-semibold text-ink">F3</kbd> doctor</span><span><kbd class="font-mono font-semibold text-ink">F4</kbd> time</span><span><kbd class="font-mono font-semibold text-ink">Enter</kbd> pick first</span></p>
+      <p class="mt-3 flex flex-wrap gap-x-3 text-label text-muted" aria-label="Keyboard shortcuts"><span><kbd class="font-mono font-semibold text-ink">F2</kbd> patient</span><span><kbd class="font-mono font-semibold text-ink">F3</kbd> doctor</span><span><kbd class="font-mono font-semibold text-ink">F4</kbd> time</span><span><kbd class="font-mono font-semibold text-ink">Alt+V</kbd> vitals</span><span><kbd class="font-mono font-semibold text-ink">Alt+J</kbd> next section</span><span><kbd class="font-mono font-semibold text-ink">Enter</kbd> pick first</span></p>
     </section>
   </aside>
 </form>

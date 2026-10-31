@@ -4,6 +4,8 @@ from django.shortcuts import redirect, render
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_GET, require_POST
 
+from apps.core.menu_hub import find_screens
+
 from . import services
 
 
@@ -43,6 +45,7 @@ def suggest(request):
             "groups": services.search(request, q, limit=5),
             "recent": [] if q else services.recent(request),
             "too_short": len(q) < services.MIN_LENGTH,
+            "screens": find_screens(request, q) if len(q) >= services.MIN_LENGTH else [],
         },
     )
 

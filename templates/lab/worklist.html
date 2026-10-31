@@ -36,7 +36,7 @@
         <thead><tr><th scope="col">Accession</th><th scope="col">Patient</th><th scope="col">Sample · tests</th><th scope="col">Payment</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
         <tbody>
           {% for s in samples %}
-          <tr>
+          <tr {% if "lab.order.create" in sd_perms %}data-edit="{% url 'lab:order-edit' s.order_id %}"{% endif %}>
             <td><span class="font-mono font-semibold">{{ s.accession }}</span>{% if s.recollection_of %} <span class="chip chip-danger">Recollect</span>{% endif %}<p class="text-label text-muted"><a class="hover:underline" href="{% url 'lab:order-detail' s.order_id %}">{{ s.order.number }}</a> · {{ s.order.created_at|time:"H:i" }}{% if s.order.priority != "routine" %} · <span class="font-semibold text-red">{{ s.order.get_priority_display }}</span>{% endif %}</p></td>
             <td>{{ s.order.patient.full_name }}<p class="font-mono text-label text-muted">{{ s.order.patient.mrn }}</p></td>
             <td>{{ s.get_sample_type_display }}<p class="text-label text-muted">{% for i in s.items.all %}{{ i.test_name }}{% if not forloop.last %}, {% endif %}{% endfor %}</p></td>
@@ -62,7 +62,7 @@
         <thead><tr><th scope="col">Order</th><th scope="col">Patient</th><th scope="col">Doctor</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
         <tbody>
           {% for o in orders %}
-          <tr>
+          <tr {% if "lab.order.create" in sd_perms and o.is_open %}data-edit="{% url 'lab:order-edit' o.pk %}" data-remove="{% url 'lab:order-cancel' o.pk %}" data-remove-label="Cancel order" data-remove-reason{% endif %}>
             <td><a href="{% url 'lab:order-detail' o.pk %}" class="font-mono font-medium hover:underline">{{ o.number }}</a>{% if o.priority != "routine" %} <span class="chip chip-danger">{{ o.get_priority_display }}</span>{% endif %}{% if o.has_critical %} <span class="chip chip-danger">Critical</span>{% endif %}<p class="text-label text-muted">{{ o.created_at|date:"d M, H:i" }}{% if o.n %} · {{ o.n }} test{{ o.n|pluralize }}{% endif %}</p></td>
             <td>{{ o.patient.full_name }}<p class="font-mono text-label text-muted">{{ o.patient.mrn }}</p></td>
             <td>{{ o.doctor|default:"—" }}</td>

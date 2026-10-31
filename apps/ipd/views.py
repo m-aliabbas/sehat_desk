@@ -333,7 +333,7 @@ def admission_detail(request, pk):
         ctx["io_rows"] = admission.intake_output.select_related("recorded_by")[:50]
         ctx["balance"] = nursing.fluid_balance(admission)
         ctx["note_form"] = NursingNoteForm()
-        ctx["io_form"] = IntakeOutputForm()
+        ctx["io_form"] = IntakeOutputForm(auto_id="io_%s")
         schedule = getattr(admission, "vitals_schedule", None)
         ctx["schedule_form"] = VitalsScheduleForm(
             initial={"interval_hours": schedule.interval_hours if schedule else 6}

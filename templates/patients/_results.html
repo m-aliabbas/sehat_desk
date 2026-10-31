@@ -5,7 +5,7 @@
       <thead><tr><th scope="col">Patient</th><th scope="col">MRN</th><th scope="col">Age / gender</th><th scope="col">Mobile</th><th scope="col">CNIC</th><th scope="col"><span class="sr-only">Open</span></th></tr></thead>
       <tbody>
         {% for p in page_obj %}
-          <tr>
+          <tr {% if "patient.update" in sd_perms %}data-edit="{% url 'patients:edit' p.pk %}" data-remove="{% url 'patients:toggle-active' p.pk %}" data-remove-label="{% if p.is_active %}Deactivate{% else %}Activate{% endif %}" data-remove-note="The record, visits and bills are kept. A deactivated patient is only listed under the Inactive filter."{% endif %}>
             <td><a href="{% url 'patients:detail' p.pk %}" class="flex items-center gap-3"><span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-mint text-label font-bold text-teal-deep">{{ p.initials }}</span><span class="font-medium hover:underline">{{ p.full_name }}</span></a></td>
             <td class="font-mono text-label">{{ p.mrn }}</td>
             <td>{{ p.age_label }} · {{ p.get_gender_display }}</td>

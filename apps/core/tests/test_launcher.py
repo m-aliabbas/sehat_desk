@@ -4,8 +4,10 @@ import socket
 import sys
 
 import pytest
+from django.conf import settings
+from django.shortcuts import resolve_url
 
-from launcher import common, main, server
+from launcher import common, main, mdns, server
 
 
 def test_address_has_no_port_on_80():
@@ -137,3 +139,55 @@ def test_database_from_a_newer_version_is_refused(monkeypatch, steps):
 def test_only_windows_uses_the_single_instance_mutex():
     if sys.platform != "win32":
         assert main._already_running() is False
+
+
+class _FakeInfo:
+    def __init__(self, addresses):
+        self.addresses = addresses
+
+    def parsed_addresses(self):
+        return self.addresses
+
+
+class _FakeZeroconf:
+    def __init__(self, found):
+        self.found = found
+
+    def get_service_info(self, *args, **kwargs):
+        return self.found
+
+
+@pytest.mark.parametrize(
+    ("found", "expected"),
+    [
+        (None, None),
+        (_FakeInfo(["192.168.1.50"]), None),  # this computer's own earlier record
+        (_FakeInfo(["192.168.1.77"]), "192.168.1.77"),
+    ],
+)
+def test_finds_another_server_on_the_network(found, expected):
+    advertiser = mdns.Advertiser(80)
+    advertiser.ips = ["192.168.1.50"]
+    advertiser.zc = _FakeZeroconf(found)
+    assert advertiser._find_other_server() == expected
+
+
+def test_clients_may_keep_the_address_for_longer_than_the_default():
+    info = mdns.Advertiser(80)._service_info(["192.168.1.50"])
+    assert info.host_ttl == mdns.HOST_TTL_SECONDS == 900
+
+
+def test_new_lan_address_is_allowed_without_a_restart(monkeypatch, settings):
+    settings.ALLOWED_HOSTS = ["sehatdesk.local", "192.168.1.50"]
+    monkeypatch.setattr(common, "lan_ips", lambda: ["192.168.1.60", "192.168.1.50"])
+    server.allow_current_lan_ips()
+    assert settings.ALLOWED_HOSTS == ["sehatdesk.local", "192.168.1.50", "192.168.1.60"]
+
+
+@pytest.mark.django_db
+def test_pages_are_compressed_for_slow_wifi(client):
+    response = client.get(
+        resolve_url(settings.LOGIN_URL), follow=True, headers={"accept-encoding": "gzip"}
+    )
+    assert response.status_code == 200
+    assert response["Content-Encoding"] == "gzip"

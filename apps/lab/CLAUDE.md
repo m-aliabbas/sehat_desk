@@ -13,6 +13,10 @@ Test catalogue, orders, samples, results, verification and reports. PRD §8. PRO
 - `lab:tests` — read-only list of tests and packages with prices, for reception, doctors and the lab.
 
 ## Rules
+- `edit_order`: priority and notes change until the order closes. Tests and doctor change only before payment, discount and collection; the unpaid invoice is voided and reissued, and removed tests stay as cancelled items.
+- Reference ranges are chosen by sex and age (`range_for`). A test may instead have named bands (`band`, `band_normal`), e.g.
+  HbA1c Normal, Prediabetes, Diabetes (`bands_for`, `services.band_for`). A band runs from its low to the next band's low. The
+  result keeps a copy of `reference_text` and `band`, so a report never changes when the catalogue does.
 - `lab.catalog.manage` alone (default hospital admin) opens the catalogue only: the worklist
   redirects there, and orders, results and labels stay refused.
 - Order status is derived (`refresh_status`) from items, samples and invoice; never set it.

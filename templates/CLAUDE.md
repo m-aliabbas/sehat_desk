@@ -28,15 +28,30 @@ must work offline on the hospital LAN (no CDNs, fonts or icons from other hosts;
 `partials/sidebar.html` pins `settings` to the bottom and shows `more` (All menu) as a separate
 button. That page is `core/menu.html`, built from `apps/core/menu_hub.py`. Colours per module are
 `NAV_COLORS` in `apps/core/navigation.py`.
+Below 768px it is a drawer. From 768px it is full or an icon rail (`html[data-nav="rail"]`, CSS at the end
+of `app.css`): the rail by default below 1280px; the topbar button switches it, remembered in `localStorage`
+(`sd-nav`). Words in the sidebar carry `sidebar-text` so the rail hides them; links keep `title` and `aria-label`.
+
+Ctrl+K search also offers screens: `find_screens` in `apps/core/menu_hub.py` matches the All menu's tiles the user may
+open. A new screen people need goes in `HUB_GROUPS`, so it shows in both.
 
 ## Styling
 - Use the component classes in `static/src/app.css`: `btn btn-primary|secondary|danger|ghost`,
   `btn-sm`, `card`, `card-header`, `input`, `select`, `chip chip-success|info|warning|danger|neutral`,
   `table-wrap`, `table`, `page-title`, `page-subtitle`.
+- Entry grids use `sheet-wrap` + `sheet` (Excel-style: cells touch, boxes fill the cell), `sheet-freeze` on the
+  first column, `cell-text`, `cell-unit`, `sheet-remove`. Save buttons go in `action-bar` (sticks to the window
+  bottom, last child of a `.card`). Used on Add products and the purchase/receive `_item_grid.html`.
 - Colours and radii are tokens from
   `ui_design_reference/SehatDesk-Expanded-Workflow-Kit/03-handoff/DESIGN-TOKENS.json`, mirrored in
   `@theme` in `static/src/app.css` (`text-ink`, `text-muted`, `bg-page`, `bg-teal`, `border-line`...).
   Do not hard-code hex colours in templates.
+- High contrast: on screen nothing is smaller than `text-label` (13px). Field labels and table headers are bold white on `bg-head` (white on paper).
+  `text-muted` is 8.5:1 for secondary text, `text-subtle` is for placeholders only, `border-edge` for box borders.
+  `print/base.html` pins the old label size and colours, so paper layouts do not move.
+- Shape: only two radii, `rounded-card` (16px, cards and dialogs) and `rounded-control` (8px, buttons, boxes, table frames);
+  `rounded-full` is for chips and avatars. A label and its box are one joined shape; table and form-grid headers follow the
+  frame's corners. Buttons and boxes share one height (h-9, `btn-sm` h-8). No square box next to a rounded one.
 - Colour meaning: green = go/save/active (`btn-primary`, `chip-success`), yellow = wait/pending
   (`btn-warning`, `chip-warning`), red = stop/close/delete (`btn-close` for Close and Cancel,
   `btn-danger` for destructive). `tint-<colour>` and `band-<colour>` colour-code a module.
@@ -45,13 +60,42 @@ button. That page is `core/menu.html`, built from `apps/core/menu_hub.py`. Colou
   `python manage.py tailwind build` (CI fails if `static/css/app.css` is stale).
 
 ## Behaviour
+- Ergonomics come first. Every screen: the cursor starts in the first box, the whole job works from the keyboard, Enter moves on, F8 saves,
+  the fewest keystrokes win, and nothing a person needs (a search list, a save button, a column they must fill) is ever hidden or clipped.
 - Number boxes have no spinner arrows (`app.css`); table inputs are compact. Entry screens: one line per
   record, Enter moves on, F8 saves, no second row of settings.
 - Reception's booking form is one partial, `appointments/_visit_form.html`, included on the desk. It
   runs by keyboard: Enter picks and moves on, F2 patient, F3 doctor, F4 time, F8 save and print. Keep
   new entry screens usable the same way: focus moves to the next field, no popups or extra pages.
-- `static/js/app.js` turns every `select.select` with 6+ options (or `data-searchable`) into a
-  type-to-search box; the real select stays, hidden, in the form. `data-native` opts out.
+- `static/js/app.js` turns every `select.select` into the one dropdown: a type-to-search box with a floating list; the
+  real select stays, hidden, in the form. Nothing typed starts on the current value, so Enter keeps it and moves on.
+- Every `table.table` and `table.sheet` in `#main` gets the shared layer in `app.js` (`sdTables`), with no template
+  change: an expand column, Ctrl+E popup (boxes move in and back; a row with a link shows that page's content;
+  otherwise the row's values), arrow keys, Ctrl+Delete, and on read-only tables columns that do not fit move into the popup (entry tables scroll instead).
+  `class="cell-detail"` on a th and td keeps a column for the popup only. `data-plain` opts a table out.
+  A remove button is found by `aria-label` or text starting Remove/Delete. Shortcuts are listed in `SHORTCUTS` (press ?).
+  Keep required fields out of `cell-detail`.
+- Single-record entry forms: every `.field` in a form is a borderless cell with a line under it (`app.css`, no template
+  change), and a `grid` of them touches like a sheet. Enter moves to the next box, Up/Down to the box before or after, F8 saves.
+  `data-enter-submits` on a form (sign-in) makes Enter on the last box send it.
+- Every screen and popup puts the cursor in its first box, or the first with an error (`sdFocusFirst` in `app.js`), without
+  scrolling or opening a dropdown. A screen that focuses something itself keeps that.
+  With no box on the first view, `#main` takes the cursor, so Tab starts at the content.
+- F8 and Ctrl+S save the form the cursor is in, including popups and `hx-post` forms; with the cursor elsewhere, the only form with boxes on
+  the screen or popup. A form with `hx-trigger="change"` sends on leaving the box. A form of buttons alone is never saved this way.
+- Alt+N follows the first link starting New, Add, Register, Create, Book, Admit, Record, Receive, Start or Issue. A button that posts a form goes to its first box instead, so the key never creates a record.
+- A save button below the window in a form that starts on screen gets `save-bar` (`sdStickySave`), no template change. Tab stays inside any open
+  `role=dialog` or `role=alertdialog`.
+- A table of 12+ rows with no search box or pagination on the page gets a filter box (`addFilter`, Alt+F). A table of 50+ tick boxes is one Tab stop; arrows walk it.
+- Any `title` shows as an instant hint on hover or keyboard focus (`sd-tip`, end of `app.js`). Add a `title` to any column or label
+  that needs explaining. `data-ref-low` / `data-ref-high` on a number box add a Low or High word to its label as you type.
+- Row buttons: `data-edit="url"` and `data-remove="url"` on a `<tr>` add small pencil and bin buttons (keys E and Delete). Write them
+  only inside the permission check. Add `data-remove-label`; `data-remove-reason` asks for a reason and posts it as `reason`. Removal
+  always goes to a deactivate or cancel view; clinical and money records are never erased.
+- Any table people scan or add into has a fixed first row, `<tr class="entry-row">`, and lines land below it (POS, stock grid, Add
+  products). Forms that add a line, such as the invoice's, sit above the table. A new entry screen follows this.
+- `<input data-list="datalist-id">` is a free-text box with a dropdown that floats above scrolling tables
+  (`sdCombo` in `app.js`). It opens on click, typing or Alt+Down. 
 - HTMX for partial updates (`hx-get`/`hx-post` return a partial; errors come back as a toast).
   Every htmx endpoint is a normal view with the same permission checks.
 - Alpine for small local state (`x-data`). No other JS frameworks; shared JS in `static/js/app.js`;

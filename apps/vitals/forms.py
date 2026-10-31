@@ -3,7 +3,23 @@ from django import forms
 from apps.core.forms import StyledFormMixin
 
 from .models import VitalSign
-from .services import fahrenheit_to_celsius
+from .services import BANDS, fahrenheit_to_celsius
+
+# Common adult screening ranges (services.BANDS), shown beside the box.
+# They draw attention only and are not a diagnosis.
+REFERENCE_LIMITS = {
+    name: (BANDS[name].low, BANDS[name].high)
+    for name in ["bp_systolic", "bp_diastolic", "pulse", "respiratory_rate", "spo2"]
+}
+REFERENCE_HINTS = {
+    "bp_systolic": "Adult normal 90–139",
+    "bp_diastolic": "Adult normal 60–89",
+    "pulse": "Adult normal 60–100",
+    "respiratory_rate": "Adult normal 12–20",
+    "spo2": "Normal 95 or more",
+    "temperature": "Normal 96.8–99.5 °F",
+    "blood_glucose": "Fasting 70–99, after a meal 70–139",
+}
 
 
 class VitalsForm(StyledFormMixin, forms.ModelForm):
@@ -34,6 +50,13 @@ class VitalsForm(StyledFormMixin, forms.ModelForm):
         self.fields["glucose_context"].choices = VitalSign.GlucoseContext.choices
         self.fields["bp_systolic"].widget.attrs["aria-label"] = "BP systolic"
         self.fields["bp_diastolic"].widget.attrs["aria-label"] = "BP diastolic"
+        for name, text in REFERENCE_HINTS.items():
+            self.fields[name].help_text = text
+        for name, (low, high) in REFERENCE_LIMITS.items():
+            attrs = self.fields[name].widget.attrs
+            attrs.update(
+                {"data-ref-low": low if low is not None else "", "data-ref-high": high or ""}
+            )
 
     def clean(self):
         data = super().clean()

@@ -1,5 +1,6 @@
 from datetime import date
 from decimal import Decimal
+from types import SimpleNamespace
 
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -377,3 +378,104 @@ def test_doctor_sees_only_own_patients_tests(
     client.force_login(lab_req.user)  # the lab keeps every order
     assert client.get(reverse("lab:order-detail", args=[theirs.pk])).status_code == 200
     assert b"Pending samples" in client.get(reverse("lab:worklist")).content
+
+
+def _band_test(org):
+    category = LabTestCategory.objects.create(organization=org, name="Bands")
+    test = LabTest.objects.create(
+        organization=org, code="A1C", name="HbA1c", category=category, sample_type="blood",
+        result_type="numeric", unit="%", decimals=1,
+    )  # fmt: skip
+    for low, high, band, normal in [
+        (0, 5.6, "Normal", True),
+        (5.7, 6.4, "Prediabetes", False),
+        (6.5, None, "Diabetes", False),
+    ]:
+        LabReferenceRange.objects.create(
+            test=test, low=low, high=high, band=band, band_normal=normal
+        )
+    return test
+
+
+@pytest.mark.parametrize(
+    "value, band, flag",
+    [
+        ("5.2", "Normal", "normal"),
+        ("5.65", "Normal", "normal"),
+        ("6.0", "Prediabetes", "high"),
+        ("8.1", "Diabetes", "high"),
+    ],
+)
+def test_named_bands_set_the_band_and_flag(org, value, band, flag):
+    test = _band_test(org)
+    patient = SimpleNamespace(age=40, gender="female")
+    number = Decimal(value)
+    assert services.band_for(test, patient, number).band == band
+    got, ref = services.compute_flag(test, patient, numeric=number)
+    assert got == flag
+    assert ref == "Normal: 0 – 5.6\nPrediabetes: 5.7 – 6.4\nDiabetes: ≥ 6.5"
+
+
+def test_bands_differ_by_sex_and_age(org):
+    category = LabTestCategory.objects.create(organization=org, name="Sex")
+    test = LabTest.objects.create(
+        organization=org, code="HBX", name="Hb", category=category, sample_type="blood",
+        result_type="numeric", unit="g/dL", decimals=1,
+    )  # fmt: skip
+    LabReferenceRange.objects.create(test=test, gender="male", low=13, high=17)
+    LabReferenceRange.objects.create(test=test, gender="female", low=12, high=15)
+    LabReferenceRange.objects.create(test=test, age_max_years=12, low=11, high=14)
+    assert services.compute_flag(
+        test, SimpleNamespace(age=40, gender="male"), numeric=Decimal("12.5")
+    )[0] == "low"  # fmt: skip
+    assert services.compute_flag(
+        test, SimpleNamespace(age=40, gender="female"), numeric=Decimal("12.5")
+    )[0] == "normal"  # fmt: skip
+    assert services.compute_flag(
+        test, SimpleNamespace(age=8, gender="male"), numeric=Decimal("12.5")
+    )[0] == "normal"  # fmt: skip
+
+
+def test_edit_order_changes_tests_and_replaces_unpaid_invoice(lab_req, patient, catalogue):
+    order = services.create_order(
+        request=lab_req, patient=patient, tests=[catalogue["hb"], catalogue["glu"]]
+    )
+    old = order.invoice
+    hb = order.items.get(test=catalogue["hb"])
+    order = services.edit_order(
+        order,
+        request=lab_req,
+        priority="urgent",
+        clinical_notes="Fasting",
+        doctor=None,
+        remove_items=[hb],
+    )
+    old.refresh_from_db()
+    assert old.status == "cancelled"
+    assert order.priority == "urgent" and order.clinical_notes == "Fasting"
+    assert order.invoice_id != old.pk
+    assert order.invoice.items.count() == 1
+    assert [i.test_id for i in order.items.exclude(status="cancelled")] == [catalogue["glu"].pk]
+    hb.refresh_from_db()
+    assert hb.status == "cancelled"  # kept as a record, not erased
+
+
+def test_edit_order_refuses_test_change_after_payment_or_collection(
+    lab_req, patient, catalogue, cash_req
+):
+    order = services.create_order(request=lab_req, patient=patient, tests=[catalogue["hb"]])
+    sample = order.samples.first()
+    services.collect_sample(sample, request=lab_req, unpaid_reason="Urgent")
+    with pytest.raises(services.LabError):
+        services.edit_order(
+            order,
+            request=lab_req,
+            priority="routine",
+            clinical_notes="",
+            doctor=None,
+            add_tests=[catalogue["glu"]],
+        )
+    order = services.edit_order(
+        order, request=lab_req, priority="stat", clinical_notes="Call ward", doctor=None
+    )
+    assert order.priority == "stat"

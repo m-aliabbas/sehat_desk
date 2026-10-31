@@ -16,6 +16,7 @@ from django.views.decorators.http import require_GET, require_POST
 
 from apps.accounts.decorators import has_perm, permission_required
 from apps.audit import services as audit
+from apps.billing.services import BillingError
 from apps.core.labels import LABEL_PAPERS, label_paper
 from apps.core.pdf import weasyprint_html
 from apps.core.scoping import get_scoped_or_404, paginate, scoped
@@ -29,6 +30,7 @@ from . import services
 from .barcode import code39_svg
 from .forms import (
     AttachmentForm,
+    LabOrderEditForm,
     LabOrderForm,
     LabPanelForm,
     LabTestForm,
@@ -368,6 +370,46 @@ def order_detail(request, pk):
     )
 
 
+@permission_required("lab.order.create")
+def order_edit(request, pk):
+    order = _get_order(request, pk)
+    if not order.is_open:
+        messages.error(request, f"{order.number} is {order.get_status_display().lower()}.")
+        return redirect("lab:order-detail", pk=pk)
+    form = LabOrderEditForm(
+        request.POST or None,
+        request=request,
+        initial={
+            "priority": order.priority,
+            "doctor": order.doctor_id,
+            "clinical_notes": order.clinical_notes,
+        },
+    )
+    items = order.items.exclude(status=LabOrderItem.Status.CANCELLED).select_related(
+        "test", "panel"
+    )
+    if request.method == "POST" and form.is_valid():
+        c = form.cleaned_data
+        chosen = {x for x in request.POST.getlist("remove") if x.isdigit()}
+        try:
+            services.edit_order(
+                order,
+                request=request,
+                priority=c["priority"],
+                clinical_notes=c["clinical_notes"],
+                doctor=c["doctor"],
+                add_tests=c["add_tests"],
+                remove_items=[i for i in items if str(i.pk) in chosen],
+            )
+        except (services.LabError, BillingError) as err:
+            form.add_error(None, err.message)
+        else:
+            audit.record(request, "lab.order.edit", order, summary=order.number)
+            messages.success(request, f"{order.number} updated.")
+            return redirect("lab:order-detail", pk=pk)
+    return render(request, "lab/order_edit.html", {"order": order, "form": form, "items": items})
+
+
 @require_POST
 @permission_required("lab.order.create")
 def order_cancel(request, pk):
@@ -515,12 +557,11 @@ def results(request, pk):
     rows = []
     for item in items:
         current = item.current_result
-        rng = item.test.range_for(order.patient)
         rows.append(
             {
                 "item": item,
                 "current": current,
-                "range": rng.label if rng else item.test.normal_value,
+                "range": item.test.reference_for(order.patient),
                 "value": request.POST.get(f"value_{item.pk}")
                 if request.method == "POST"
                 else (current.display_value if current else ""),

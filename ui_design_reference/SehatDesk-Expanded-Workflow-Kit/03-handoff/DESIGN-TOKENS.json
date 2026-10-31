@@ -1,8 +1,8 @@
 {
   "colors": {
     "ink": "#112D4E",
-    "muted": "#73869E",
-    "line": "#E5EDF3",
+    "muted": "#3F4F63",
+    "line": "#C9D5DF",
     "bg": "#F3F8FB",
     "teal": "#008E81",
     "mint": "#E4F8F2",
@@ -19,7 +19,7 @@
     "pageTitle": 28,
     "sectionTitle": 18,
     "body": 14,
-    "label": 12
+    "label": 13
   },
   "spacing": [
     4,

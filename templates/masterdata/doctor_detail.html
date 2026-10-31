@@ -11,71 +11,97 @@
 {% endblock %}
 {% block content %}
 {% include "partials/settings_tabs.html" %}
-<div class="grid gap-6">
-  <form method="post" class="card" novalidate>
+<div class="grid items-start gap-4 xl:grid-cols-3">
+  <form method="post" class="card space-y-3 xl:col-span-2" novalidate x-data="{
+      q: { start: '09:00', end: '17:00', bs: '13:00', be: '14:00', room: '' },
+      days: [true, true, true, true, true, true, false],
+      box(i, name) { return document.querySelector('[name=&quot;days-' + i + '-' + name + '&quot;]'); },
+      setDay(i, on, v) { const c = this.box(i, 'enabled'); c.checked = on; c.dispatchEvent(new Event('change', { bubbles: true })); ['start_time', 'end_time', 'break_start', 'break_end', 'room'].forEach((n, k) => { this.box(i, n).value = on ? v[k] : ''; }); },
+      fill() { const v = [this.q.start, this.q.end, this.q.bs, this.q.be, this.q.room]; this.days.forEach((on, i) => this.setDay(i, on, v)); },
+      preset(from, to, bs, be, sat) { Object.assign(this.q, { start: from, end: to, bs, be }); this.days = [true, true, true, true, true, sat, false]; this.fill(); },
+    }">
     {% csrf_token %}
     {{ formset.management_form }}
-    <div class="card-header">
-      <div>
-        <h2 class="section-title">Weekly schedule</h2>
-        <p class="text-label text-muted">Clinic hours in the selected branch. Changes do not move existing bookings.</p>
-      </div>
-      <div class="flex items-end gap-3">
-        <div class="field">
-          <label class="field-label" for="sched-branch">Branch</label>
-          <select id="sched-branch" class="select" onchange="location.search='?branch='+this.value">
-            {% for b in branches %}<option value="{{ b.pk }}" {% if b == schedule_branch %}selected{% endif %}>{{ b.name }}</option>{% endfor %}
-          </select>
-        </div>
-        <button class="btn btn-primary" name="save_schedule" value="1">Save schedule</button>
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <h2 class="section-title">Weekly schedule</h2>
+      <div class="flex items-center gap-2">
+        <label class="sr-only" for="sched-branch">Branch</label>
+        <div class="w-44"><select id="sched-branch" class="select" onchange="location.search='?branch='+this.value">
+          {% for b in branches %}<option value="{{ b.pk }}" {% if b == schedule_branch %}selected{% endif %}>{{ b.name }}</option>{% endfor %}
+        </select></div>
+        <button class="btn btn-primary" name="save_schedule" value="1">Save (F8)</button>
       </div>
     </div>
     {% if use_shifts %}
-    <div class="mb-4 flex flex-wrap gap-2" role="tablist" aria-label="Shift">
+    <div class="flex flex-wrap gap-2" role="tablist" aria-label="Shift">
       {% for value, label in shifts %}<a role="tab" aria-selected="{% if value == shift %}true{% else %}false{% endif %}" href="?branch={{ schedule_branch.pk }}&amp;shift={{ value }}" class="btn btn-sm {% if value == shift %}btn-primary{% else %}btn-secondary{% endif %}">{{ label }}</a>{% endfor %}
     </div>
     {% endif %}
     {% if formset.non_form_errors %}{% for e in formset.non_form_errors %}{% include "components/alert.html" with level="danger" message=e %}{% endfor %}{% endif %}
+
+    {# Quick fill: writes into the days below; nothing is stored until Save. These boxes have no name, so they never post. #}
+    <div class="rounded-control bg-page p-3" @keydown.enter.prevent.stop="fill()">
+      <div class="mb-2 flex flex-wrap items-center gap-2">
+        <span class="field-label">Auto fill</span>
+        <button type="button" class="btn btn-secondary btn-sm" @click="preset('09:00', '17:00', '13:00', '14:00', true)">Mon to Sat, 9 to 5</button>
+        <button type="button" class="btn btn-secondary btn-sm" @click="preset('09:00', '17:00', '13:00', '14:00', false)">Mon to Fri, 9 to 5</button>
+        <button type="button" class="btn btn-secondary btn-sm" @click="preset('17:00', '21:00', '', '', true)">Evening, 5 to 9</button>
+      </div>
+      <div class="flex flex-wrap items-end gap-2">
+        <div class="flex gap-1" role="group" aria-label="Days to fill">
+          {% for day, f in rows %}<button type="button" class="btn btn-sm w-9 px-0" :class="days[{{ forloop.counter0 }}] ? 'btn-primary' : 'btn-secondary'" :aria-pressed="days[{{ forloop.counter0 }}]" @click="days[{{ forloop.counter0 }}] = !days[{{ forloop.counter0 }}]" title="{{ day }}">{{ day|slice:":2" }}</button>{% endfor %}
+        </div>
+        <label class="w-32"><span class="field-label">From</span><input type="time" class="input" x-model="q.start"></label>
+        <label class="w-32"><span class="field-label">To</span><input type="time" class="input" x-model="q.end"></label>
+        <label class="w-32"><span class="field-label">Break from</span><input type="time" class="input" x-model="q.bs"></label>
+        <label class="w-32"><span class="field-label">Break to</span><input type="time" class="input" x-model="q.be"></label>
+        <label class="w-20"><span class="field-label">Room</span><input class="input" x-model="q.room" maxlength="40"></label>
+        <button type="button" class="btn btn-secondary btn-sm" @click="fill()">Apply</button>
+      </div>
+    </div>
+
     <div class="table-wrap">
-      <table class="table">
-        <thead><tr><th scope="col">Day</th><th scope="col">Works</th><th scope="col">Clinic hours</th><th scope="col">Break</th><th scope="col">Room</th></tr></thead>
+      <table class="table" data-plain>
+        <thead><tr><th scope="col">Day</th><th scope="col">Works</th><th scope="col">From</th><th scope="col">To</th><th scope="col">Break from</th><th scope="col">Break to</th><th scope="col">Room</th></tr></thead>
         <tbody>
           {% for day, f in rows %}
             <tr x-data="{ on: {{ f.enabled.value|yesno:'true,false' }} }">
-              <td class="font-medium">{{ day }}{{ f.weekday }}
-                {% for e in f.non_field_errors %}<p class="field-error">{{ e }}</p>{% endfor %}
-              </td>
-              <td><input type="checkbox" class="checkbox" name="{{ f.enabled.html_name }}" x-model="on" {% if f.enabled.value %}checked{% endif %} aria-label="{{ day }} works"></td>
-              <td><div class="flex items-center gap-2" :class="!on && 'opacity-40'">{{ f.start_time }}<span class="text-muted">–</span>{{ f.end_time }}</div></td>
-              <td><div class="flex items-center gap-2" :class="!on && 'opacity-40'">{{ f.break_start }}<span class="text-muted">–</span>{{ f.break_end }}</div></td>
+              <td class="font-medium whitespace-nowrap">{{ day }}{{ f.weekday }}{% for e in f.non_field_errors %}<p class="field-error">{{ e }}</p>{% endfor %}</td>
+              <td class="text-center"><input type="checkbox" class="checkbox" name="{{ f.enabled.html_name }}" x-model="on" {% if f.enabled.value %}checked{% endif %} aria-label="{{ day }} works"></td>
+              <td :class="!on && 'opacity-40'">{{ f.start_time }}</td>
+              <td :class="!on && 'opacity-40'">{{ f.end_time }}</td>
+              <td :class="!on && 'opacity-40'">{{ f.break_start }}</td>
+              <td :class="!on && 'opacity-40'">{{ f.break_end }}</td>
               <td :class="!on && 'opacity-40'">{{ f.room }}</td>
             </tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
+    <p class="text-label text-muted">Changes do not move existing bookings.</p>
   </form>
 
   <section class="card">
-    <h2 class="section-title mb-1">Leave &amp; unavailability</h2>
-    <p class="mb-4 text-label text-muted">No slots are offered on leave days. Existing appointments on those days are flagged for rescheduling.</p>
-    <form method="post" action="{% url 'masterdata:leave-add' doctor.pk %}" class="grid gap-3 md:grid-cols-[1fr_1fr_2fr_auto] md:items-end" novalidate>
+    <h2 class="section-title mb-3">Leave</h2>
+    <form method="post" action="{% url 'masterdata:leave-add' doctor.pk %}" novalidate>
       {% csrf_token %}
-      {% include "components/field.html" with field=leave_form.start_date %}
-      {% include "components/field.html" with field=leave_form.end_date %}
-      {% include "components/field.html" with field=leave_form.reason %}
-      <button class="btn btn-secondary">{% icon "plus" "h-4 w-4" %} Add leave</button>
+      <div class="grid grid-cols-2 [&>.field:last-child]:col-span-2">
+        {% include "components/field.html" with field=leave_form.start_date %}
+        {% include "components/field.html" with field=leave_form.end_date %}
+        {% include "components/field.html" with field=leave_form.reason wide=True %}
+      </div>
+      <button class="btn btn-secondary btn-sm mt-2">{% icon "plus" "h-4 w-4" %} Add leave</button>
     </form>
     {% if leaves %}
-      <ul class="mt-5 divide-y divide-line">
+      <ul class="mt-3 divide-y divide-line">
         {% for l in leaves %}
-          <li class="flex items-center justify-between gap-3 py-3">
-            <span><span class="font-medium">{{ l.start_date|date:"d M Y" }}{% if l.end_date != l.start_date %} – {{ l.end_date|date:"d M Y" }}{% endif %}</span> <span class="text-muted">{{ l.reason }}</span></span>
+          <li class="flex items-center justify-between gap-3 py-2 text-[13px]">
+            <span class="min-w-0"><span class="font-medium">{{ l.start_date|date:"d M Y" }}{% if l.end_date != l.start_date %} – {{ l.end_date|date:"d M Y" }}{% endif %}</span> <span class="text-muted">{{ l.reason }}</span></span>
             <form method="post" action="{% url 'masterdata:leave-remove' doctor.pk l.pk %}">{% csrf_token %}<button class="btn btn-ghost btn-sm text-red">Remove</button></form>
           </li>
         {% endfor %}
       </ul>
-    {% endif %}
+    {% else %}<p class="mt-3 text-label text-muted">No slots are offered on leave days. Bookings on those days are flagged.</p>{% endif %}
   </section>
 </div>
 {% endblock %}

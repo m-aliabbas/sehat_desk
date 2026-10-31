@@ -110,6 +110,112 @@ def create_order(
     return refresh_status(order)
 
 
+def _bill_lines(order):
+    """Invoice lines for the active tests: a panel once, at its price; other tests singly."""
+    lines, panels = [], set()
+    for item in _active_items(order).select_related("panel", "test"):
+        if item.panel_id:
+            if item.panel_id not in panels:
+                panels.add(item.panel_id)
+                lines.append((f"{item.panel.name} (panel)", item.panel.price))
+        else:
+            lines.append((f"{item.test_name} ({item.test.code})", item.price))
+    return lines
+
+
+def _rebill(order, *, request, reason):
+    """Swap an order's unpaid invoice for one that matches it. The old one stays, cancelled."""
+    if order.invoice_id:
+        billing.void_unpaid(order.invoice, user=request.user, reason=reason)
+    order.invoice = None
+    lines = _bill_lines(order)
+    if any(price > 0 for _, price in lines):
+        invoice = billing.create_invoice(
+            request=request, patient=order.patient, notes=f"Laboratory order {order.number}"
+        )
+        for description, price in lines:
+            billing.add_item(
+                invoice,
+                request=request,
+                kind=InvoiceItem.Kind.LAB,
+                description=description,
+                unit_price=price,
+                performed_by=order.doctor.user if order.doctor else None,
+            )
+        billing.issue(invoice, request=request)
+        order.invoice = invoice
+    order.save(update_fields=["invoice", "updated_at"])
+
+
+@transaction.atomic
+def edit_order(
+    order, *, request, priority, clinical_notes, doctor, add_tests=(), remove_items=()
+) -> LabOrder:
+    """Correct an open order. Priority and notes can change until it closes. Tests and the doctor
+    affect the bill and the tubes, so they change only before payment and before any collection."""
+    _need(request, "lab.order.create", "edit lab orders")
+    order = LabOrder.objects.select_for_update(of=("self",)).get(pk=order.pk)
+    if not order.is_open:
+        raise LabError(f"{order.number} is {order.get_status_display().lower()}.")
+    add_tests, remove_items = list(add_tests), list(remove_items)
+    doctor_changed = (doctor.pk if doctor else None) != order.doctor_id
+    if add_tests or remove_items or doctor_changed:
+        what = "tests or doctor"
+        if order.items.exclude(status__in=[ItemStatus.PENDING, ItemStatus.CANCELLED]).exists():
+            raise LabError(
+                f"A sample is already collected, so the {what} cannot change. Cancel and re-order."
+            )
+        if order.samples.exclude(status=LabSample.Status.PENDING).exists():
+            raise LabError(
+                f"A sample is already collected, so the {what} cannot change. Cancel and re-order."
+            )
+        invoice = order.invoice
+        if invoice and invoice.net_paid > 0:
+            raise LabError(f"{invoice.number} has payments. Refund in Billing first.")
+        if invoice and (invoice.invoice_discount > 0 or invoice.line_discount_total > 0):
+            raise LabError(f"{invoice.number} has a discount. Remove it in Billing first.")
+    order.priority = priority
+    order.clinical_notes = clinical_notes.strip()[:300]
+    order.doctor = doctor
+    order.save(update_fields=["priority", "clinical_notes", "doctor", "updated_at"])
+    if not (add_tests or remove_items or doctor_changed):
+        return refresh_status(order)
+
+    # A panel is one line on the bill, so removing one of its tests removes the panel.
+    panels = {i.panel_id for i in remove_items if i.panel_id}
+    for item in _active_items(order).filter(panel_id__in=panels) if panels else []:
+        remove_items.append(item)
+    for item in remove_items:
+        if item.order_id != order.pk:
+            raise LabError("That test belongs to another order.")
+        item.status = ItemStatus.CANCELLED
+        item.sample = None
+        item.save(update_fields=["status", "sample", "updated_at"])
+    held = set(_active_items(order).values_list("test_id", flat=True))
+    for test in add_tests:
+        if test.organization_id != order.organization_id or not test.is_active:
+            raise LabError(f"{test} is not available.")
+        if test.pk not in held:
+            held.add(test.pk)
+            _add_item(order, test, price=test.price)
+    if not held:
+        raise LabError("An order needs at least one test. Cancel the order instead.")
+    # Tubes follow the tests: pending tubes are reused by sample type; empty ones go.
+    tubes = {s.sample_type: s for s in order.samples.all()}
+    for item in _active_items(order).filter(sample__isnull=True).select_related("test"):
+        kind = item.test.sample_type
+        tubes.setdefault(kind, None)
+        if tubes[kind] is None:
+            tubes[kind] = _new_sample(order, kind)
+        item.sample = tubes[kind]
+        item.save(update_fields=["sample", "updated_at"])
+    for sample in order.samples.all():
+        if not sample.items.exists():
+            sample.delete()  # never collected, so it holds nothing
+    _rebill(order, request=request, reason=f"{order.number}: order edited")
+    return refresh_status(order)
+
+
 def _add_item(order, test, *, panel=None, price):
     return LabOrderItem.objects.create(
         order=order, test=test, panel=panel, test_name=test.name, unit=test.unit, price=price
@@ -283,6 +389,9 @@ def start_processing(order, *, request) -> int:
 def compute_flag(test, patient, *, numeric=None, text=""):
     """(flag, reference text) for a result value."""
     if test.result_type == test.ResultType.NUMERIC:
+        bands = test.bands_for(patient)
+        if bands:
+            return _band_flag(bands, numeric), test.reference_for(patient)
         rng = test.range_for(patient)
         ref = rng.label if rng else ""
         if numeric is None or rng is None:
@@ -300,6 +409,39 @@ def compute_flag(test, patient, *, numeric=None, text=""):
         normal = text.strip().lower() == test.normal_value.strip().lower()
         return (Flag.NORMAL if normal else Flag.ABNORMAL), test.normal_value
     return Flag.NONE, test.normal_value
+
+
+def band_for(test, patient, numeric):
+    """The named band a value falls in, or None. A band runs from its low up to the next band's low,
+    so a value between two written ranges (5.65 between 5.6 and 5.7) still lands in one."""
+    if numeric is None:
+        return None
+    return _pick_band(test.bands_for(patient), numeric)
+
+
+def _pick_band(bands, numeric):
+    chosen = None
+    for band in bands:
+        if band.low is None or numeric >= band.low or chosen is None:
+            chosen = band
+    return chosen
+
+
+def _band_flag(bands, numeric):
+    if numeric is None:
+        return Flag.NONE
+    for band in bands:
+        if band.critical_low is not None and numeric < band.critical_low:
+            return Flag.CRITICAL_LOW
+        if band.critical_high is not None and numeric > band.critical_high:
+            return Flag.CRITICAL_HIGH
+    chosen = _pick_band(bands, numeric)
+    if chosen.band_normal:
+        return Flag.NORMAL
+    normal = next((b for b in bands if b.band_normal), None)
+    if normal is None:
+        return Flag.ABNORMAL
+    return Flag.LOW if bands.index(chosen) < bands.index(normal) else Flag.HIGH
 
 
 def _parse_value(test, raw: str):
@@ -337,13 +479,15 @@ def enter_result(item, *, request, value: str, interpretation="") -> LabResult:
         raise LabError(f"{item.test_name}: the sample has not been collected.")
     numeric, text = _parse_value(item.test, value)
     flag, ref = compute_flag(item.test, item.order.patient, numeric=numeric, text=text)
+    band = band_for(item.test, item.order.patient, numeric)
     current = item.results.filter(is_current=True).first()
     fields = {
         "value_numeric": numeric,
         "value_text": text,
         "interpretation": interpretation.strip()[:4000],
         "flag": flag,
-        "reference_text": ref[:120],
+        "reference_text": ref[:255],
+        "band": band.band if band else "",
         "unit": item.unit,
         "entered_by": request.user,
         "entered_at": timezone.now(),
@@ -411,6 +555,7 @@ def amend(item, *, request, value: str, interpretation="", reason: str) -> LabRe
         raise LabError("Only verified results are amended. Edit unverified results directly.")
     numeric, text = _parse_value(item.test, value)
     flag, ref = compute_flag(item.test, item.order.patient, numeric=numeric, text=text)
+    band = band_for(item.test, item.order.patient, numeric)
     last = item.results.aggregate(m=Max("version"))["m"] or 0
     item.results.filter(is_current=True).update(is_current=False, updated_at=timezone.now())
     result = LabResult.objects.create(
@@ -420,7 +565,8 @@ def amend(item, *, request, value: str, interpretation="", reason: str) -> LabRe
         value_text=text,
         interpretation=interpretation.strip()[:4000],
         flag=flag,
-        reference_text=ref[:120],
+        reference_text=ref[:255],
+        band=band.band if band else "",
         unit=item.unit,
         entered_by=request.user,
         amendment_reason=reason.strip()[:300],

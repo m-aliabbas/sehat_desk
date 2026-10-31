@@ -100,6 +100,8 @@ class LabTest(OrgScopedModel):
         age = patient.age
         best = None
         for r in self.ranges.all():
+            if r.band:
+                continue  # named bands go through bands_for
             if r.gender not in ("any", patient.gender):
                 continue
             if age is not None and (
@@ -114,6 +116,40 @@ class LabTest(OrgScopedModel):
                 best = (score, r)
         return best[1] if best else None
 
+    def _matches(self, patient):
+        """(specificity, range) for every row that applies to this patient's sex and age."""
+        age = patient.age
+        found = []
+        for r in self.ranges.all():
+            if r.gender not in ("any", patient.gender):
+                continue
+            if age is not None and (
+                age < r.age_min_years or (r.age_max_years is not None and age > r.age_max_years)
+            ):
+                continue
+            if age is None and (r.age_min_years > 0 or r.age_max_years is not None):
+                continue
+            score = (r.age_min_years > 0 or r.age_max_years is not None) * 2 + (r.gender != "any")
+            found.append((score, r))
+        return found
+
+    def bands_for(self, patient) -> list:
+        """Named bands (Normal, Prediabetes, Diabetes) for this patient, lowest first."""
+        found = [(score, r) for score, r in self._matches(patient) if r.band]
+        if not found:
+            return []
+        top = max(score for score, _ in found)
+        rows = [r for score, r in found if score == top]
+        return sorted(rows, key=lambda r: (r.low is not None, r.low or 0))
+
+    def reference_for(self, patient) -> str:
+        """The reference text a report carries: one line per band, or the single range."""
+        bands = self.bands_for(patient)
+        if bands:
+            return "\n".join(r.band_line for r in bands)
+        rng = self.range_for(patient)
+        return rng.label if rng else self.normal_value
+
 
 class LabReferenceRange(TimeStampedModel):
     GENDERS = [("any", "Any"), ("male", "Male"), ("female", "Female")]
@@ -126,26 +162,37 @@ class LabReferenceRange(TimeStampedModel):
     high = models.DecimalField(max_digits=10, decimal_places=3, null=True, blank=True)
     critical_low = models.DecimalField(max_digits=10, decimal_places=3, null=True, blank=True)
     critical_high = models.DecimalField(max_digits=10, decimal_places=3, null=True, blank=True)
+    # A named band, e.g. HbA1c: Normal, Prediabetes, Diabetes.
+    # Rows for the same sex and age form a set.
+    band = models.CharField(max_length=40, blank=True)
+    band_normal = models.BooleanField("Normal band", default=False)
 
     class Meta:
-        ordering = ["gender", "age_min_years"]
+        ordering = ["gender", "age_min_years", "low"]
 
     def __str__(self):
         return self.label
 
     @property
-    def label(self) -> str:
+    def limits(self) -> str:
         def fmt(v):
             return f"{Decimal(v).normalize():f}" if v is not None else ""
 
         if self.low is not None and self.high is not None:
-            text = f"{fmt(self.low)} – {fmt(self.high)}"
-        elif self.low is not None:
-            text = f"≥ {fmt(self.low)}"
-        elif self.high is not None:
-            text = f"≤ {fmt(self.high)}"
-        else:
-            text = ""
+            return f"{fmt(self.low)} – {fmt(self.high)}"
+        if self.low is not None:
+            return f"≥ {fmt(self.low)}"
+        if self.high is not None:
+            return f"≤ {fmt(self.high)}"
+        return ""
+
+    @property
+    def band_line(self) -> str:
+        return f"{self.band}: {self.limits}"
+
+    @property
+    def label(self) -> str:
+        text = self.band_line if self.band else self.limits
         who = []
         if self.gender != "any":
             who.append(self.get_gender_display())
@@ -352,7 +399,8 @@ class LabResult(TimeStampedModel):
     value_text = models.TextField(blank=True)
     interpretation = models.TextField(blank=True)
     flag = models.CharField(max_length=14, choices=Flag.choices, blank=True, default="")
-    reference_text = models.CharField(max_length=120, blank=True)
+    reference_text = models.CharField(max_length=255, blank=True)
+    band = models.CharField(max_length=40, blank=True)  # the named band this value fell in
     unit = models.CharField(max_length=30, blank=True)
     entered_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+"

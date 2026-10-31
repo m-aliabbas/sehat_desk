@@ -15,7 +15,7 @@
         <thead><tr><th scope="col">Department</th><th scope="col">Code</th><th scope="col">Doctors</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
         <tbody>
           {% for d in departments %}
-            <tr>
+            <tr data-edit="{% url 'masterdata:department-edit' d.pk %}" data-remove="{% url 'masterdata:department-toggle' d.pk %}" data-remove-label="{% if d.is_active %}Deactivate{% else %}Activate{% endif %}">
               <td><p class="font-medium">{{ d.name }}</p>{% if d.description %}<p class="text-label text-muted">{{ d.description }}</p>{% endif %}</td>
               <td class="font-mono text-label">{{ d.code }}</td>
               <td>{{ d.doctors.count }}</td>

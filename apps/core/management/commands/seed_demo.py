@@ -342,10 +342,11 @@ class Command(BaseCommand):
                 decimals=decimals, normal_value=normal,
                 turnaround_hours=4 if cat == "Haematology" else 24,
             )  # fmt: skip
-            for gender, low, high, crit_low, crit_high in ranges:
+            for gender, low, high, crit_low, crit_high, *band in ranges:
                 LabReferenceRange.objects.create(
                     test=test, gender=gender, low=low, high=high, critical_low=crit_low,
-                    critical_high=crit_high,
+                    critical_high=crit_high, band=band[0] if band else "",
+                    band_normal=band[1] if band else False,
                 )  # fmt: skip
             self.lab_tests[code] = test
             self.lab_normals[code] = typical

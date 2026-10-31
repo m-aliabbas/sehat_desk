@@ -27,9 +27,9 @@
           <tr class="border-b border-line align-top">
             <td class="py-1.5">{{ i.test_name }}{% if r.version > 1 %}<span class="block text-label text-amber">Amended: {{ r.amendment_reason }}</span>{% endif %}</td>
             <td class="{% if r.is_abnormal %}font-bold{% endif %}">{% if r %}{{ r.display_value }}{% else %}Pending{% endif %}{% if r.interpretation %}<span class="block text-label font-normal whitespace-pre-line">{{ r.interpretation }}</span>{% endif %}</td>
-            <td class="{% if r.is_critical %}font-bold text-red{% endif %}">{% if r.flag and r.flag != "normal" %}{{ r.get_flag_display }}{% endif %}</td>
+            <td class="{% if r.is_critical %}font-bold text-red{% endif %}">{% if r.band %}{{ r.band }}{% elif r.flag and r.flag != "normal" %}{{ r.get_flag_display }}{% endif %}</td>
             <td>{{ r.unit|default:i.unit }}</td>
-            <td class="text-label">{{ r.reference_text }}</td>
+            <td class="text-label">{{ r.reference_text|linebreaksbr }}</td>
           </tr>
           {% endwith %}{% endfor %}
         {% endfor %}

@@ -13,7 +13,7 @@
       <thead><tr><th scope="col">Doctor</th><th scope="col">Department</th><th scope="col">Consultation</th><th scope="col">Follow-up</th><th scope="col">Slot</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Action</span></th></tr></thead>
       <tbody>
         {% for d in doctors %}
-          <tr>
+          <tr data-edit="{% url 'masterdata:doctor-edit' d.pk %}" data-remove="{% url 'masterdata:doctor-toggle' d.pk %}" data-remove-label="{% if d.is_active %}Deactivate{% else %}Activate{% endif %}">
             <td><p class="font-medium">{{ d.display_name }}</p><p class="text-label text-muted">{{ d.specialty|default:"" }}{% if d.qualifications %} · {{ d.qualifications }}{% endif %}</p></td>
             <td>{{ d.department }}</td>
             <td>{{ organization.currency }} {{ d.consultation_fee|floatformat:"0g" }}</td>

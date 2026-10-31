@@ -246,13 +246,22 @@ class Launcher:
 
     def _show_running(self) -> None:
         ips = common.lan_ips()
+        other = self.mdns.other_server if self.mdns else None
+        if other:
+            self.show(
+                "Running, but only for this computer",
+                GREEN,
+                f"Another computer ({other}) is the SehatDesk server on this network, and its "
+                "data is separate. Staff should use that one. Close SehatDesk here.",
+            )
+            return
         lines = [f"On this network: {common.base_url(common.HOSTNAME, self.port)}"]
         if ips:
             lines.append(f"If that does not open: {common.base_url(ips[0], self.port)}")
         self.show("Running", GREEN, "\n".join(lines))
 
     def _on_ready(self) -> None:
-        host = common.HOSTNAME if resolves() else "localhost"
+        host = common.HOSTNAME if resolves() and not self.mdns.other_server else "localhost"
         self.url = common.base_url(host, self.port)
         self._show_running()
         if not self.browser_opened:

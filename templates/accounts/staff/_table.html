@@ -12,7 +12,7 @@
     <thead><tr><th scope="col">Staff</th><th scope="col">Designation</th><th scope="col">Roles</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Action</span></th></tr></thead>
     <tbody>
       {% for s in page_obj %}
-        <tr>
+        <tr {% if "admin.users.manage" in sd_perms %}data-edit="{% url 'accounts:staff-edit' s.pk %}" data-remove="{% url 'accounts:staff-toggle-active' s.pk %}" data-remove-label="{% if s.is_active %}Deactivate{% else %}Activate{% endif %}"{% endif %}>
           <td>
             <div class="flex items-center gap-3">
               <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-mint text-label font-bold text-teal-deep">{{ s|initials }}</span>

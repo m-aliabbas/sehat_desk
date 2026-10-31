@@ -366,7 +366,7 @@ def staff_ledger(request, user_id):
             "pay_form": PayStaffForm(
                 request=request, initial={"idempotency_key": uuid.uuid4().hex}
             ),
-            "opening_form": OpeningBalanceForm(),
+            "opening_form": OpeningBalanceForm(auto_id="ob_%s"),
             "has_opening": any(e.kind == StaffLedgerEntry.Kind.OPENING for e in entries),
             "breadcrumbs": _crumbs(
                 {"label": "Staff pay", "url": reverse("hr:pay-list")}, {"label": f"{user} ledger"}

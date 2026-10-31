@@ -23,7 +23,7 @@
       <thead><tr><th scope="col">Time</th><th scope="col">Patient</th><th scope="col">Doctor</th><th scope="col">Type</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
       <tbody>
         {% for a in appointments %}
-          <tr>
+          <tr {% if "appointment.manage" in sd_perms and a.status == "scheduled" or "appointment.manage" in sd_perms and a.status == "confirmed" %}data-edit="{% url 'appointments:reschedule' a.pk %}" data-remove="{% url 'appointments:cancel' a.pk %}" data-remove-label="Cancel appointment" data-remove-reason{% endif %}>
             <td class="font-medium">{{ a.start_time|time:"H:i" }}</td>
             <td><a href="{% url 'appointments:detail' a.pk %}" class="font-medium hover:underline">{{ a.patient.full_name }}</a><p class="font-mono text-label text-muted">{{ a.patient.mrn }}</p></td>
             <td>{{ a.doctor }}<p class="text-label text-muted">{{ a.department }}</p></td>

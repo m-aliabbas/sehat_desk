@@ -5,7 +5,26 @@
     <table class="table">
       <thead><tr><th scope="col">Medicine</th><th scope="col" colspan="2">Quantity</th><th scope="col" class="text-right">Price</th>{% if can_discount %}<th scope="col" class="whitespace-nowrap">Disc %</th>{% endif %}<th scope="col" class="text-right">Total</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
       <tbody>
-          {% for i in items %}
+          {# The fixed first row: everything is entered here and lands below it, newest first. Preserved across cart refreshes so a fast scanner never loses a digit. #}
+          <tr id="pos-entry" hx-preserve="true" class="entry-row">
+            <td class="relative" colspan="{% if can_discount %}7{% else %}6{% endif %}">
+              <div class="flex items-center gap-2">
+                <label class="sr-only" for="pos-search">Scan a barcode or search a medicine</label>
+                <input id="pos-search" form="pos-add-form" name="q" type="search" autocomplete="off" autofocus class="input flex-1"
+                       placeholder="Scan, or type a medicine. 3*name adds three."
+                       hx-get="{% url 'pharmacy:pos-search' %}" hx-trigger="input changed delay:200ms" hx-target="#pos-results" hx-swap="innerHTML" hx-include="this, #pos-return-flag"
+                       @keydown.down.prevent="document.querySelector('#pos-results button:not([disabled])')?.focus()"
+                       @keydown.up.prevent="if (!$el.value) document.querySelector('[data-pos-qty]')?.focus()"
+                       @keydown.escape="$el.value = ''; document.getElementById('pos-results').innerHTML = ''">
+                <label class="sr-only" for="pos-qty">Quantity</label>
+                <input id="pos-qty" form="pos-add-form" name="quantity" type="number" min="1" value="1" tabindex="-1" class="input w-14">
+                <button form="pos-add-form" tabindex="-1" class="btn btn-primary btn-icon btn-sm" aria-label="Add">{% icon "plus" "h-4 w-4" %}</button>
+              </div>
+              <input type="hidden" id="pos-return-flag" name="as_return" form="pos-add-form" value="">
+              <div id="pos-results" class="absolute right-0 left-0 z-20 mt-1" @keydown.down.prevent="$event.target.closest('li')?.nextElementSibling?.querySelector('button')?.focus()" @keydown.up.prevent="($event.target.closest('li')?.previousElementSibling?.querySelector('button') || document.getElementById('pos-search')).focus()"></div>
+            </td>
+          </tr>
+          {% for i in items reversed %}
           <tr class="align-top">
             <td>
               <p class="font-medium">{{ i.product.display_name }}{% if i.product.requires_prescription %} <span class="chip chip-warning" {% if not i.prescription_item_id and not cart.prescription_id %}title="Sold without a prescription; this is written to the audit log"{% endif %}>Rx{% if not i.prescription_item_id and not cart.prescription_id %} · none attached{% endif %}</span>{% endif %}{% for a in i.allergy_hits %} <span class="chip chip-danger">Allergy: {{ a }}</span>{% endfor %}{% if i.near_expiry %} <span class="chip chip-warning">Exp {{ i.batch.expiry_date|date:"m/y" }}</span>{% endif %}{% if i.low_after %} <span class="chip chip-neutral">Low: {{ i.left_after }} left</span>{% endif %}</p>
@@ -13,7 +32,7 @@
               {# Earliest expiry is chosen automatically; expired batches are never offered. #}
               <details class="text-label text-muted"><summary class="cursor-pointer" tabindex="-1">Batch {{ i.batch.label }} · exp {{ i.batch.expiry_date|date:"m/y" }}</summary>
               <label class="sr-only" for="batch-{{ i.pk }}">Batch for {{ i.product.display_name }}</label>
-              <select id="batch-{{ i.pk }}" name="batch" data-native class="select mt-1 w-56" hx-post="{% url 'pharmacy:pos-item' i.pk %}" hx-trigger="change" hx-target="#pos-cart" hx-swap="outerHTML">
+              <select id="batch-{{ i.pk }}" name="batch" class="select mt-1 w-56" hx-post="{% url 'pharmacy:pos-item' i.pk %}" hx-trigger="change" hx-target="#pos-cart" hx-swap="outerHTML">
                 {% for b in i.batch_options %}<option value="{{ b.pk }}" {% if b.pk == i.batch_id %}selected{% endif %}>{{ b.label }} · exp {{ b.expiry_date|date:"m/y" }} · {{ b.quantity_available }} · {{ b.sale_price|floatformat:"2g" }} each</option>{% endfor %}
               </select></details>
             </td>
@@ -62,25 +81,6 @@
             <td class="text-right"><button type="button" class="btn btn-ghost btn-icon btn-sm text-red" aria-label="Take off this return" hx-post="{% url 'pharmacy:pos-return-row' r.pk %}" hx-vals='{"action": "remove"}' hx-target="#pos-cart" hx-swap="outerHTML">{% icon "trash" "h-4 w-4" %}</button></td>
           </tr>
           {% endfor %}
-          {# The empty row. Preserved across cart refreshes so a fast scanner never loses a digit. #}
-          <tr id="pos-entry" hx-preserve="true" class="bg-page">
-            <td class="relative" colspan="{% if can_discount %}7{% else %}6{% endif %}">
-              <div class="flex items-center gap-2">
-                <label class="sr-only" for="pos-search">Scan a barcode or search a medicine</label>
-                <input id="pos-search" form="pos-add-form" name="q" type="search" autocomplete="off" autofocus class="input flex-1"
-                       placeholder="Scan, or type a medicine. 3*name adds three."
-                       hx-get="{% url 'pharmacy:pos-search' %}" hx-trigger="input changed delay:200ms" hx-target="#pos-results" hx-swap="innerHTML" hx-include="this, #pos-return-flag"
-                       @keydown.down.prevent="document.querySelector('#pos-results button:not([disabled])')?.focus()"
-                       @keydown.up.prevent="if (!$el.value) [...document.querySelectorAll('[data-pos-qty]')].pop()?.focus()"
-                       @keydown.escape="$el.value = ''; document.getElementById('pos-results').innerHTML = ''">
-                <label class="sr-only" for="pos-qty">Quantity</label>
-                <input id="pos-qty" form="pos-add-form" name="quantity" type="number" min="1" value="1" tabindex="-1" class="input w-14">
-                <button form="pos-add-form" tabindex="-1" class="btn btn-primary btn-icon btn-sm" aria-label="Add">{% icon "plus" "h-4 w-4" %}</button>
-              </div>
-              <input type="hidden" id="pos-return-flag" name="as_return" form="pos-add-form" value="">
-              <div id="pos-results" class="absolute right-0 left-0 z-20 mt-1" @keydown.down.prevent="$event.target.closest('li')?.nextElementSibling?.querySelector('button')?.focus()" @keydown.up.prevent="($event.target.closest('li')?.previousElementSibling?.querySelector('button') || document.getElementById('pos-search')).focus()"></div>
-            </td>
-          </tr>
       </tbody>
     </table>
   </section>

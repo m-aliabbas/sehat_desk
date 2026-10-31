@@ -13,7 +13,7 @@
         <thead><tr><th scope="col">Code</th><th scope="col">Title</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
         <tbody>
           {% for c in codes %}
-          <tr>
+          <tr data-remove="{% url 'encounters:diagnosis-code-toggle' c.pk %}" data-remove-label="{% if c.is_active %}Deactivate{% else %}Activate{% endif %}">
             <td class="font-mono">{{ c.code }}</td><td>{{ c.title }}</td>
             <td>{% if c.is_active %}{% status_chip "active" %}{% else %}{% status_chip "inactive" %}{% endif %}</td>
             <td class="text-right"><form method="post" action="{% url 'encounters:diagnosis-code-toggle' c.pk %}">{% csrf_token %}{% if c.is_active %}<button class="btn btn-ghost btn-sm text-red">Deactivate</button>{% else %}<button class="btn btn-ghost btn-sm">Activate</button>{% endif %}</form></td>

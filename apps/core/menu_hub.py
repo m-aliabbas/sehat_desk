@@ -175,6 +175,118 @@ HUB_GROUPS: list[tuple[str, str, str, list[HubLink]]] = [
                     "core:updates", ("admin.organization.manage",)),
         ],
     ),
+    (
+        "Front desk",
+        "ticket",
+        "teal",
+        [
+            HubLink("Register patient", "Full patient record", "user",
+                    "patients:register", ("patient.create",)),
+            HubLink("Book appointment", "Reserve a clinic slot", "calendar",
+                    "appointments:book", ("appointment.manage",)),
+            HubLink("Appointment list", "Every booking, with filters", "calendar",
+                    "appointments:list", ("appointment.view",)),
+            HubLink("Doctor queue", "Call the next patient", "ticket",
+                    "queue:doctor", ("queue.manage", "consultation.view")),
+            HubLink("New invoice", "Bill a patient", "credit-card",
+                    "billing:invoice-create", ("billing.payment.collect",)),
+            HubLink("Payments", "Money received", "credit-card",
+                    "billing:payment-list", ("billing.view",)),
+            HubLink("New lab order", "Order tests for a patient", "flask",
+                    "lab:order-create", ("lab.order.create",), feature="lab"),
+            HubLink("Admit patient", "Start an admission", "bed",
+                    "ipd:admit", ("ipd.manage",), feature="ipd"),
+            HubLink("Admissions", "Everyone admitted", "bed",
+                    "ipd:admission-list", ("ipd.manage", "nursing.notes"), feature="ipd"),
+            HubLink("Shift handover", "Notes between nurses", "clipboard",
+                    "nursing:handover", ("nursing.notes",), feature="ipd"),
+        ],
+    ),
+    (
+        "Pharmacy & stock",
+        "pill",
+        "orange",
+        [
+            HubLink("Receive stock", "Add stock from a bill", "package",
+                    "pharmacy:receive", INVENTORY, feature="pharmacy"),
+            HubLink("New purchase", "Enter a supplier's bill", "package",
+                    "pharmacy:purchase-create", INVENTORY, feature="pharmacy"),
+            HubLink("Stock ledger", "Every stock movement", "package",
+                    "pharmacy:ledger", (*INVENTORY, "pharmacy.sale"), feature="pharmacy"),
+            HubLink("Prescriptions to dispense", "Sent by doctors", "pill",
+                    "pharmacy:rx-queue", ("pharmacy.sale",), feature="pharmacy"),
+            HubLink("Held sales", "Sales put on hold", "pill",
+                    "pharmacy:pos-held", ("pharmacy.sale",), feature="pharmacy"),
+            HubLink("Sales and returns", "Past sales, take a return", "pill",
+                    "pharmacy:sale-list", ("pharmacy.sale", "pharmacy.refund"), feature="pharmacy"),
+        ],
+    ),
+    (
+        "Finance",
+        "credit-card",
+        "green",
+        [
+            HubLink("Finance overview", "Money in and out", "bar-chart",
+                    "finance:dashboard", ("finance.view", "finance.expense.manage")),
+            HubLink("New expense", "Record money spent", "plus",
+                    "finance:expense-create", ("finance.expense.manage",)),
+            HubLink("Expenses", "All expenses", "credit-card",
+                    "finance:expense-list", ("finance.view", "finance.expense.manage")),
+            HubLink("Pay a supplier", "Settle a supplier's bills", "credit-card",
+                    "finance:supplier-pay", ("finance.expense.manage",)),
+            HubLink("Profit and loss", "Income against costs", "bar-chart",
+                    "finance:pnl", ("finance.view",)),
+            HubLink("Ledger", "Accounts ledger", "file", "finance:ledger", ("finance.view",)),
+            HubLink("Expense categories", "Kinds of expense", "sliders",
+                    "finance:category-list", ("finance.expense.manage",)),
+        ],
+    ),
+    (
+        "Attendance & payroll",
+        "calendar",
+        "yellow",
+        [
+            HubLink("Attendance", "Mark today's attendance", "calendar",
+                    "hr:attendance-register", ("hr.attendance.manage",)),
+            HubLink("Monthly attendance", "One month at a glance", "calendar",
+                    "hr:attendance-month", ("hr.attendance.manage",)),
+            HubLink("Pay setup", "Salary and commission per person", "users",
+                    "hr:pay-list", ("hr.pay.manage",)),
+            HubLink("Payroll", "Monthly pay runs", "credit-card",
+                    "hr:payroll-list", ("hr.pay.manage",)),
+            HubLink("My earnings", "Your own pay", "user", "hr:earnings", ("hr.self",)),
+        ],
+    ),
+    (
+        "Settings",
+        "sliders",
+        "neutral",
+        [
+            HubLink("Hospital details", "Name, logo, contact", "building",
+                    "organizations:hospital", ("admin.organization.manage",)),
+            HubLink("Preferences", "Defaults for the whole system", "sliders",
+                    "organizations:preferences", ("admin.organization.manage",)),
+            HubLink("Required fields", "Which boxes show or are required", "sliders",
+                    "organizations:field-rules", ("admin.organization.manage",)),
+            HubLink("Billing settings", "Payment methods and rules", "credit-card",
+                    "billing:settings", ("admin.organization.manage",)),
+            HubLink("Print layouts", "Letterhead and paper", "file",
+                    "organizations:print-layouts", ("admin.organization.manage",)),
+            HubLink("Printers", "Which printer prints what", "file",
+                    "printing:stations", ("admin.organization.manage",)),
+            HubLink("Message wording", "Texts sent to patients", "file",
+                    "notifications:messages", ("admin.organization.manage",)),
+            HubLink("Branches", "Your hospital's branches", "building",
+                    "organizations:branch-list", ("admin.branches.manage",)),
+            HubLink("Roles", "What each role may do", "users",
+                    "accounts:role-list", ("admin.roles.manage",)),
+            HubLink("Permission matrix", "Roles and rights side by side", "users",
+                    "accounts:permission-matrix", ("admin.roles.manage",)),
+            HubLink("Audit log", "Who changed what", "file", "audit:log", ("admin.audit.view",)),
+            HubLink("System status", "Errors and health", "sliders",
+                    "core:system", ("admin.system.view",)),
+        ],
+    ),
 ]  # fmt: skip
 
 
@@ -207,3 +319,18 @@ def build_hub(request) -> list[dict]:
         if tiles:
             groups.append({"title": title, "icon": icon, "color": color, "tiles": tiles})
     return groups
+
+
+def find_screens(request, query: str, limit: int = 6) -> list[dict]:
+    """Screens this user may open whose name or description has every typed word (Ctrl+K)."""
+    words = query.lower().split()
+    if not words:
+        return []
+    found = []
+    for group in build_hub(request):
+        for tile in group["tiles"]:
+            text = f"{tile['label']} {tile['description']} {group['title']}".lower()
+            if tile["url"] and all(word in text for word in words):
+                found.append(tile)
+    found.sort(key=lambda t: not t["label"].lower().startswith(words[0]))
+    return found[:limit]
