@@ -18,11 +18,13 @@ from django.db.models import Count, Sum
 from django.utils import timezone
 
 from apps.billing.models import to_money
+from apps.core.dates import in_days
 from apps.core.models import next_number
 from apps.organizations import field_rules
 
 from . import pricing, stock
 from .models import (
+    InventoryBatch,
     Purchase,
     PurchaseItem,
     PurchaseReturn,
@@ -331,6 +333,80 @@ def cancel(purchase, *, request, reason) -> Purchase:
 # --- Purchase returns --------------------------------------------------------------------------
 
 
+def _bought_line(batch, vendor, qty):
+    """The purchase line this stock came from, if it can still take the whole return."""
+    lines = PurchaseItem.objects.filter(stock_txn__batch=batch, purchase__vendor=vendor)
+    return next((i for i in lines if i.received_quantity - i.returned_quantity >= qty), None)
+
+
+@transaction.atomic
+def return_to_supplier(vendor, *, request, quantities: dict[int, int], reason, reference=""):
+    """Send stock back by supplier and medicine, with no purchase to open first. Credits the
+    supplier at each batch's cost. quantities: {batch_id: units}. Returns the PurchaseReturn."""
+    _need_manage(request)
+    if not reason.strip():
+        raise PurchaseError("Give the reason for returning stock to the supplier.")
+    wanted = {k: v for k, v in quantities.items() if v}
+    if not wanted:
+        raise PurchaseError("Add at least one medicine and its quantity.")
+    batches = {
+        b.pk: b
+        for b in InventoryBatch.objects.filter(branch=request.branch, pk__in=wanted).select_related(
+            "product"
+        )
+    }
+    org = vendor.organization
+    ret = PurchaseReturn.objects.create(
+        organization=org,
+        branch=request.branch,
+        number=f"PRN-{next_number(org, 'purchase_return'):05d}",
+        vendor=vendor,
+        reason=reason.strip()[:200],
+        reference=reference.strip()[:80],
+        amount=ZERO,
+        created_by=request.user,
+    )
+    total = ZERO
+    for batch_id, qty in wanted.items():
+        batch = batches.get(batch_id)
+        if batch is None:
+            raise PurchaseError("That batch is not in this branch.")
+        if qty < 0:
+            raise PurchaseError("Enter a quantity greater than zero.")
+        try:
+            txn = stock.purchase_return(
+                batch,
+                request=request,
+                quantity=qty,
+                reason=reason,
+                reference=ret.reference or ret.number,
+            )
+        except stock.StockError as err:
+            raise PurchaseError(f"{batch.product}: {err.message}") from err
+        amount = to_money(batch.purchase_cost * qty)
+        PurchaseReturnItem.objects.create(
+            purchase_return=ret,
+            purchase_item=_bought_line(batch, vendor, qty),
+            quantity=qty,
+            unit_cost=to_money(batch.purchase_cost),
+            amount=amount,
+            stock_txn=txn,
+        )
+        total += amount
+    ret.amount = total
+    ret.save(update_fields=["amount", "updated_at"])
+    if total:
+        _ledger(
+            request,
+            vendor,
+            VendorLedgerEntry.Kind.PURCHASE_RETURN,
+            -total,
+            purchase_return=ret,
+            note=reason,
+        )
+    return ret
+
+
 @transaction.atomic
 def return_items(purchase, *, request, quantities: dict[int, int], reason, reference=""):
     """Send received stock back to the supplier and credit the supplier ledger.
@@ -410,11 +486,9 @@ def return_items(purchase, *, request, quantities: dict[int, int], reason, refer
 def report(purchases, returns, start: date, end: date) -> dict:
     """Received purchases and returns in a date range (querysets already scoped by the view)."""
     received = purchases.filter(
-        status=Status.RECEIVED, received_at__date__gte=start, received_at__date__lte=end
+        status=Status.RECEIVED, **in_days("received_at", start, end)
     ).select_related("vendor", "received_by")
-    rets = returns.filter(created_at__date__gte=start, created_at__date__lte=end).select_related(
-        "vendor", "purchase"
-    )
+    rets = returns.filter(**in_days("created_at", start, end)).select_related("vendor", "purchase")
     by_vendor = {}
     for row in received.values("vendor_id", "vendor__name").annotate(
         n=Count("id"), total=Sum("grand_total")

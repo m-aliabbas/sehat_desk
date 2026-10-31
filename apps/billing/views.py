@@ -19,6 +19,7 @@ from django_htmx.http import HttpResponseClientRedirect
 from apps.accounts.decorators import has_perm, permission_required
 from apps.appointments.models import Appointment
 from apps.audit import services as audit
+from apps.core.dates import on_day
 from apps.core.forms import StyledFormMixin
 from apps.core.scoping import get_scoped_or_404, scoped
 from apps.ipd.models import AdmissionDeposit
@@ -219,6 +220,10 @@ class PaymentForm(StyledFormMixin, forms.Form):
     def __init__(self, *args, request, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["method"].queryset = services.active_methods(request.organization)
+
+
+def _receive(invoice, *, cash_paid, **kwargs):
+    return services.receive_payment(invoice, amount=cash_paid, **kwargs)
 
 
 def _pay_form(request, invoice, data=None):
@@ -454,11 +459,12 @@ def pay(request, pk):
         c = form.cleaned_data
         before = Invoice.objects.get(pk=invoice.pk)
         try:
-            payment = services.receive_payment(
+            take = services.settle_cash if request.POST.get("close_bill") else _receive
+            payment = take(
                 invoice,
                 request=request,
                 method=c["method"],
-                amount=c["amount"],
+                cash_paid=c["amount"],
                 reference=c["reference"],
                 note=c["note"],
                 idempotency_key=c["key"],
@@ -485,7 +491,7 @@ def pay(request, pk):
     ctx = {"invoice": invoice, "form": form, "breadcrumbs": _crumbs(
         {"label": invoice.number, "url": reverse("billing:invoice-detail", args=[pk])},
         {"label": "Collect payment"},
-    )}  # fmt: skip
+    ), "cash_limit": services.settings_for(request.organization).cash_adjustment_limit}  # fmt: skip
     template = "billing/_pay_modal.html" if request.htmx else "billing/pay.html"
     return render(request, template, ctx)
 
@@ -650,22 +656,22 @@ def payment_list(request):
     method = request.GET.get("method", "")
     payments = (
         scoped(Payment, request)
-        .filter(created_at__date=day)
+        .filter(**on_day("created_at", day))
         .select_related("invoice__patient", "method", "received_by")
     )
     refunds = (
         scoped(Refund, request)
-        .filter(created_at__date=day)
+        .filter(**on_day("created_at", day))
         .select_related("invoice__patient", "method", "refunded_by", "payment")
     )
     deposits = (
         scoped(AdmissionDeposit, request)
-        .filter(created_at__date=day)
+        .filter(**on_day("created_at", day))
         .select_related("admission__patient", "method", "received_by")
     )
     deposit_returns = (
         scoped(AdmissionDeposit, request)
-        .filter(returned_at__date=day, returned_amount__gt=0)
+        .filter(**on_day("returned_at", day), returned_amount__gt=0)
         .select_related("admission__patient", "method", "returned_by")
     )
     if method.isdigit():
@@ -699,7 +705,13 @@ def payment_list(request):
 class BillingSettingsForm(StyledFormMixin, forms.ModelForm):
     class Meta:
         model = BillingSettings
-        fields = ["tax_label", "default_tax_percent", "max_discount_percent", "receipt_message"]
+        fields = [
+            "tax_label",
+            "default_tax_percent",
+            "max_discount_percent",
+            "cash_adjustment_limit",
+            "receipt_message",
+        ]
 
 
 class PaymentMethodForm(StyledFormMixin, forms.ModelForm):

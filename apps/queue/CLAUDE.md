@@ -22,6 +22,8 @@ Phase 6. Tokens per branch, department and day (A-001...). PROJECT_NOTES §11.
 - Special priority needs `priority.special`.
 - The public display (`queue:display`) uses the branch `display_key`, shows token numbers only.
 
+- `position(token)` gives the slip its "Now serving" number and patients ahead (`queue/_running_number.html`).
+
 ## Permissions
 `queue.manage`, `priority.special`.
 

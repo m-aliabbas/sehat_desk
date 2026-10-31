@@ -22,6 +22,7 @@ from django.utils import timezone
 
 from apps.billing import services as billing
 from apps.billing.models import Invoice, InvoiceItem
+from apps.core.dates import on_day
 from apps.core.models import next_number
 
 from .models import (
@@ -802,6 +803,6 @@ def discharges_today(branch) -> int:
 def deposit_totals(branch, day=None):
     """Deposits taken in a branch on a day (cash in hand before the bill is closed)."""
     day = day or timezone.localdate()
-    return AdmissionDeposit.objects.filter(branch=branch, created_at__date=day).aggregate(
+    return AdmissionDeposit.objects.filter(branch=branch, **on_day("created_at", day)).aggregate(
         s=Sum("amount"), n=Count("id")
     )

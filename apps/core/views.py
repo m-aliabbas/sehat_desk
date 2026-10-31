@@ -11,6 +11,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
 
 from apps.accounts.decorators import has_perm, permission_required
+from apps.core.dates import on_day
 
 from .navigation import NAV_ITEMS, PLACEHOLDER_KEYS, item_is_visible
 
@@ -113,7 +114,7 @@ def dashboard(request: HttpRequest) -> HttpResponse:
     if has_perm(request, "patient.view"):
         patients = scoped(Patient, request).filter(is_active=True)
         ctx["patient_total"] = patients.count()
-        ctx["patients_today"] = patients.filter(created_at__date=today).count()
+        ctx["patients_today"] = patients.filter(**on_day("created_at", today)).count()
     if has_perm(request, "appointment.view"):
         appts = scoped(Appointment, request).filter(date=today)
         ctx["appt_total"] = appts.active().count()

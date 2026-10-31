@@ -21,6 +21,7 @@ from apps.audit import services as audit
 from apps.billing import services as billing_services
 from apps.billing.models import Invoice
 from apps.core import features
+from apps.core.dates import on_day
 from apps.core.forms import StyledFormMixin
 from apps.core.scoping import get_scoped_or_404, scoped
 from apps.encounters import services as encounter_services
@@ -114,7 +115,7 @@ def desk(request):
         "to_collect": scoped(Invoice, request)
         .filter(
             status__in=Invoice.OUTSTANDING_STATUSES,
-            issued_at__date=today,
+            **on_day("issued_at", today),
             patient__isnull=False,
         )
         .select_related("patient")
@@ -219,16 +220,7 @@ def token_slip(request, pk):
     token = get_scoped_or_404(
         QueueToken.objects.select_related("patient", "department", "doctor__user"), request, pk=pk
     )
-    ahead = (
-        services.waiting(
-            services.queue_for(request.branch, doctor=token.doctor)
-            if token.doctor
-            else _tokens(request).filter(department=token.department)
-        )
-        .filter(priority_rank__lte=token.priority_rank, queued_at__lt=token.queued_at)
-        .count()
-    )
-    return render(request, "queue/slip.html", {"token": token, "ahead": ahead})
+    return render(request, "queue/slip.html", {"token": token, **services.position(token)})
 
 
 # --- Token actions -----------------------------------------------------------------------------
@@ -461,7 +453,7 @@ def _reports_today(request, doctor):
     reports = []
     if features.is_enabled(request.organization, "lab"):
         released = lab_services.orders_for_doctor(request, doctor).filter(
-            status=LabOrder.Status.RELEASED, released_at__date=today
+            status=LabOrder.Status.RELEASED, **on_day("released_at", today)
         )
         reports += [
             {
@@ -476,7 +468,7 @@ def _reports_today(request, doctor):
         ]
     procedures = (
         scoped(PatientProcedure, request)
-        .filter(status=PatientProcedure.Status.COMPLETED, completed_at__date=today)
+        .filter(status=PatientProcedure.Status.COMPLETED, **on_day("completed_at", today))
         .filter(Q(performed_by=doctor) | Q(encounter__doctor=doctor))
         .select_related("patient")
     )

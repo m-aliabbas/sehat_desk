@@ -140,9 +140,9 @@ def test_appointment_invoice_starts_with_consultation_fee(
 
 def test_discount_needs_permission_and_reason(role_request, bill_request, patient):
     inv = _invoice(bill_request, patient, ("Consultation", "1500", 1))
-    reception = role_request("reception")
+    no_right = role_request("nurse")
     with pytest.raises(services.BillingError, match="not allowed"):
-        services.set_invoice_discount(inv, request=reception, amount="100", reason="x")
+        services.set_invoice_discount(inv, request=no_right, amount="100", reason="x")
     with pytest.raises(services.BillingError, match="reason"):
         services.set_invoice_discount(inv, request=bill_request, amount="100", reason=" ")
     with pytest.raises(services.BillingError, match="between"):
@@ -243,7 +243,7 @@ def test_refund_needs_permission_and_reason(role_request, bill_request, patient,
     inv = _invoice(bill_request, patient, ("Consultation", "1500", 1))
     pay = services.receive_payment(inv, request=bill_request, method=cash, amount="1500")
     with pytest.raises(services.BillingError, match="not allowed"):
-        services.refund(pay, request=role_request("reception"), amount="100", reason="x")
+        services.refund(pay, request=role_request("nurse"), amount="100", reason="x")
     with pytest.raises(services.BillingError, match="reason"):
         services.refund(pay, request=bill_request, amount="100", reason="")
     assert not Refund.objects.exists()
@@ -267,7 +267,7 @@ def test_cancel_rules(bill_request, role_request, patient, cash):
     issued = _invoice(bill_request, patient, ("Consultation", "1500", 1))
     services.issue(issued, request=bill_request)
     with pytest.raises(services.BillingError, match="Only staff"):
-        services.cancel(issued, request=role_request("reception"), reason="x")
+        services.cancel(issued, request=role_request("nurse"), reason="x")
 
 
 def test_day_totals_by_method(bill_request, patient, cash, card):
@@ -359,6 +359,7 @@ def test_role_permissions(client, make_user, bill_request, patient, cash):
     assert client.get(f"/payments/{pay.pk}/receipt/").status_code == 403
     client.force_login(make_user("reception"))
     assert client.get("/billing/").status_code == 200
+    client.force_login(make_user("nurse"))
     assert client.get(f"/billing/{inv.pk}/refund/").status_code == 403
     assert client.post(f"/billing/{inv.pk}/discount/", {"amount": "1"}).status_code == 403
     client.force_login(make_user("hospital_admin"))
@@ -395,6 +396,7 @@ def test_billing_settings_page(admin_client, org):
             "tax_label": "GST",
             "default_tax_percent": "5",
             "max_discount_percent": "100",
+            "cash_adjustment_limit": "50",
             "receipt_message": "Thank you.",
         },
     )

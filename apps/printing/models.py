@@ -41,6 +41,25 @@ class PrintStation(OrgScopedModel):
         return route
 
 
+class TokenPrinter(OrgScopedModel):
+    """An 80 mm printer the server prints on itself, so no PC installs anything: an IP address on
+    the network, or the name of a printer installed (or shared) on the server PC."""
+
+    name = models.CharField(max_length=80)
+    address = models.CharField(max_length=200)
+
+    class Meta:
+        ordering = ["name"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "address"], name="uniq_token_printer_address"
+            )
+        ]
+
+    def __str__(self):
+        return self.name
+
+
 class PrintEnrollment(OrgScopedModel):
     """While open, a print helper on the hospital network can connect itself."""
 

@@ -1,0 +1,90 @@
+{% extends "layouts/app.html" %}
+{% block title %}Returns to supplier{% endblock %}
+{% block page_title %}Returns to supplier{% endblock %}
+{% block page_subtitle %}Stock leaves its batch and the supplier's balance is credited at cost.{% endblock %}
+{% block content %}
+{% include "pharmacy/purchasing/_tabs.html" %}
+{% if error %}{% include "components/alert.html" with level="danger" title="Return not recorded" message=error %}{% endif %}
+<form method="post" class="card" x-data="supplierReturn()" @submit="if (!lines.length) $event.preventDefault()">
+  {% csrf_token %}
+  <div class="grid gap-4 md:grid-cols-3">
+    <div class="field"><label class="field-label" for="sr-vendor">Supplier <span class="text-red" aria-hidden="true">*</span></label>
+      <select id="sr-vendor" name="vendor" class="select" required autofocus>
+        <option value="">Choose a supplier</option>
+        {% for v in vendors %}<option value="{{ v.pk }}" {% if v.pk == chosen_vendor %}selected{% endif %}>{{ v.name }}</option>{% endfor %}
+      </select></div>
+    <div class="field"><label class="field-label" for="sr-reason">Reason <span class="text-red" aria-hidden="true">*</span></label><input id="sr-reason" name="reason" required maxlength="200" class="input" value="{{ post.reason }}" placeholder="e.g. Near expiry, damaged"></div>
+    <div class="field"><label class="field-label" for="sr-ref">Supplier note no. (optional)</label><input id="sr-ref" name="reference" maxlength="80" class="input" value="{{ post.reference }}"></div>
+  </div>
+  <div class="table-wrap mt-4 overflow-visible">
+    <table class="table">
+      <thead><tr><th scope="col">Medicine</th><th scope="col">Batch</th><th scope="col">Expiry</th><th scope="col" class="text-right">On shelf</th><th scope="col" class="text-right">Cost</th><th scope="col" class="w-28">Return qty</th><th scope="col" class="text-right">Credit</th><th scope="col"><span class="sr-only">Remove</span></th></tr></thead>
+      <tbody>
+        <tr>
+          <td colspan="8" class="relative">
+            <label class="sr-only" for="sr-search">Find medicine</label>
+            <input id="sr-search" x-ref="search" type="search" class="input" placeholder="Scan or type a medicine, Enter picks the first batch" autocomplete="off"
+                   x-model="q" @input.debounce.200ms="find()" @keydown.enter.prevent="pick(results[0])" @keydown.escape="results = []">
+            <ul x-show="results.length" x-cloak class="absolute left-0 z-30 mt-1 max-h-72 w-full overflow-y-auto rounded-control border border-line bg-white shadow-lg">
+              <template x-for="(r, i) in results" :key="r.id">
+                <li><button type="button" class="flex w-full justify-between gap-3 px-3 py-2 text-left hover:bg-mint" @click="pick(r)"><span class="font-medium" x-text="r.name"></span><span class="text-label text-muted" x-text="`${r.batch} · ${r.expiry} · ${r.available} ${r.unit}`"></span></button></li>
+              </template>
+            </ul>
+          </td>
+        </tr>
+        <template x-for="(l, i) in lines" :key="l.id">
+          <tr>
+            <td class="font-medium" x-text="l.name"></td>
+            <td class="font-mono text-label" x-text="l.batch"></td>
+            <td x-text="l.expiry"></td>
+            <td class="text-right" x-text="`${l.available} ${l.unit}`"></td>
+            <td class="text-right" x-text="l.cost.toFixed(2)"></td>
+            <td><input type="number" min="1" :max="l.available" required class="input w-24" :name="'qty_' + l.id" x-model.number="l.qty" :id="'sr-qty-' + l.id" @keydown.enter.prevent="$refs.search.focus()"></td>
+            <td class="text-right" x-text="(l.cost * (l.qty || 0)).toFixed(2)"></td>
+            <td class="text-right"><button type="button" class="btn btn-ghost btn-icon btn-sm" aria-label="Remove" @click="lines.splice(i, 1)">✕</button></td>
+          </tr>
+        </template>
+      </tbody>
+    </table>
+  </div>
+  <div class="mt-4 flex items-center justify-between gap-3">
+    <p class="text-body">Supplier credit: <b x-text="total.toFixed(2)"></b></p>
+    <button class="btn btn-danger" :disabled="!lines.length" data-confirm="The units leave stock and the supplier's balance is reduced. This cannot be undone." data-confirm-title="Return stock to supplier?" data-confirm-action="Return stock" data-confirm-danger="true">Return stock</button>
+  </div>
+</form>
+<section class="card mt-6">
+  <h2 class="section-title mb-3">Recent returns</h2>
+  {% if returns %}
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th scope="col">Return</th><th scope="col">Date</th><th scope="col">Supplier</th><th scope="col">Items</th><th scope="col">Reason</th><th scope="col" class="text-right">Credit</th></tr></thead>
+    <tbody>{% for r in returns %}<tr>
+      <td class="font-mono">{{ r.number }}{% if r.purchase %}<p class="text-label text-muted">{{ r.purchase.number }}</p>{% endif %}</td>
+      <td>{{ r.created_at|date:"d M Y" }}</td>
+      <td><a class="hover:underline" href="{% url 'pharmacy:vendor-detail' r.vendor_id %}">{{ r.vendor }}</a></td>
+      <td>{% for i in r.items.all %}{{ i.product.display_name }} × {{ i.quantity }}{% if not forloop.last %}, {% endif %}{% endfor %}</td>
+      <td>{{ r.reason }}</td>
+      <td class="text-right font-semibold">{{ r.amount|floatformat:"2g" }}</td>
+    </tr>{% endfor %}</tbody>
+  </table></div>
+  {% else %}<p class="text-body text-muted">No returns yet.</p>{% endif %}
+</section>
+<script>
+  function supplierReturn() {
+    return {
+      q: "", results: [], lines: [],
+      get total() { return this.lines.reduce((s, l) => s + l.cost * (l.qty || 0), 0); },
+      async find() {
+        if (this.q.trim().length < 2) { this.results = []; return; }
+        const url = "{% url 'pharmacy:supplier-return-batches' %}?q=" + encodeURIComponent(this.q);
+        this.results = (await fetch(url).then((r) => r.json())).rows;
+      },
+      pick(row) {
+        if (!row) return;
+        this.q = ""; this.results = [];
+        if (!this.lines.some((l) => l.id === row.id)) this.lines.push({ ...row, qty: 1 });
+        this.$nextTick(() => document.getElementById("sr-qty-" + row.id)?.select());
+      },
+    };
+  }
+</script>
+{% endblock %}

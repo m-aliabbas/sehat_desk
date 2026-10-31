@@ -50,6 +50,15 @@ class BillingSettings(OrgScopedModel):
         help_text="Cap on any one discount, as a percent of the line or invoice. Applies to "
         "staff who hold the discount permission.",
     )
+    cash_adjustment_limit = models.DecimalField(
+        "Cash adjustment limit",
+        max_digits=8,
+        decimal_places=2,
+        default=Decimal("50"),
+        validators=[MinValueValidator(ZERO)],
+        help_text="Largest difference, up or down, between the bill and the cash paid that closes "
+        "the bill as an adjustment. 0 = always exact.",
+    )
     receipt_message = models.CharField(
         max_length=160,
         default="Thank you. Please keep this receipt.",
@@ -134,6 +143,9 @@ class Invoice(BranchScopedModel):
     line_discount_total = models.DecimalField(**money, default=ZERO)
     tax_total = models.DecimalField(**money, default=ZERO)
     invoice_discount = models.DecimalField(**money, default=ZERO)
+    # Cash paid minus the bill, closed at the counter: negative a little less paid, positive no
+    # change given. Part of grand_total, so the invoice agrees with the money in the till.
+    cash_adjustment = models.DecimalField(max_digits=12, decimal_places=2, default=ZERO)
     grand_total = models.DecimalField(**money, default=ZERO)
     amount_paid = models.DecimalField(**money, default=ZERO)
     amount_refunded = models.DecimalField(**money, default=ZERO)

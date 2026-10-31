@@ -111,6 +111,16 @@ urlpatterns = [
         name="purchase-return",
     ),
     path(
+        "inventory/supplier-returns/",
+        views_purchasing.supplier_returns,
+        name="supplier-returns",
+    ),
+    path(
+        "inventory/supplier-returns/batches/",
+        views_purchasing.supplier_return_batches,
+        name="supplier-return-batches",
+    ),
+    path(
         "inventory/reports/purchases/",
         views_purchasing.purchase_report,
         name="purchase-report",

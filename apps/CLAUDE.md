@@ -28,6 +28,7 @@ Each app has its own `CLAUDE.md` with its flow and rules. Open the one for the a
 - **Permissions:** every view has `@permission_required("code", ...)` (`apps/accounts/decorators.py`)
   or is listed as public/personal in `apps/core/tests/test_url_inventory.py`. Codes live in
   `apps/accounts/permissions.py` (skill: `sehatdesk-permission`).
+- **Dates:** filter datetime columns with `core.dates.on_day` / `in_days`, never `field__date`: on SQLite that lookup calls Python once per row.
 - **Money and stock:** `@transaction.atomic` (or `core.db.critical_write`) and re-read the row with
   `core.db.locked(obj)` before changing it. Use `after_commit` for side effects.
 - **Clinical records:** corrected by a new version or an "entered in error" mark with a reason,

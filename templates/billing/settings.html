@@ -43,6 +43,7 @@
       {% include "components/field.html" with field=form.default_tax_percent %}
       <h3 class="pt-2 text-body font-semibold">Discounts</h3>
       {% include "components/field.html" with field=form.max_discount_percent %}
+      {% include "components/field.html" with field=form.cash_adjustment_limit %}
       <h3 class="pt-2 text-body font-semibold">Receipts</h3>
       {% include "components/field.html" with field=form.receipt_message %}
       <button class="btn btn-primary">Save</button>

@@ -11,6 +11,7 @@ from django.views.decorators.http import require_GET, require_POST
 
 from apps.accounts.decorators import has_perm, permission_required
 from apps.audit import services as audit
+from apps.core.dates import on_day
 from apps.core.scoping import get_scoped_or_404, scoped
 from apps.encounters import services as encounter_services
 from apps.encounters.models import Encounter
@@ -304,7 +305,7 @@ def _visit_vitals(request, encounter):
         vitals_services.valid_for(encounter.patient, request.organization)
         .filter(
             Q(encounter=encounter)
-            | Q(recorded_at__date=timezone.localtime(encounter.started_at).date())
+            | Q(**on_day("recorded_at", timezone.localtime(encounter.started_at).date()))
         )
         .first()
     )

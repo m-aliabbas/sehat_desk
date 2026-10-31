@@ -70,7 +70,7 @@
         {% for r in returns %}
         <li class="py-3">
           <p class="flex justify-between"><span><span class="font-mono font-medium">{{ r.number }}</span> · {{ r.created_at|date:"d M Y" }} · {{ r.created_by }}{% if r.reference %} · note {{ r.reference }}{% endif %}</span><span class="font-semibold">−{{ r.amount|floatformat:"2g" }}</span></p>
-          <p class="text-label text-muted">{% for ri in r.items.all %}{{ ri.purchase_item.product.display_name }} × {{ ri.quantity }}{% if not forloop.last %}, {% endif %}{% endfor %} — {{ r.reason }}</p>
+          <p class="text-label text-muted">{% for ri in r.items.all %}{{ ri.product.display_name }} × {{ ri.quantity }}{% if not forloop.last %}, {% endif %}{% endfor %} — {{ r.reason }}</p>
         </li>
         {% endfor %}
       </ul>

@@ -10,6 +10,12 @@ Print goes to the right printer on the PC it was pressed on, with no print windo
 3. The helper (`print_helper/`, one per PC) polls `agent-next` with its token, prints, reports back.
 4. The browser polls `job-status`, then fires `afterprint`, so pages that print copies in turn still work.
 
+## Token printer (no helper)
+`direct.py`: an 80 mm job with no helper route goes to the `TokenPrinter` for this PC (one printer, or the `sd_token_printer`
+cookie set by `token-printer-use`). The server draws it with `print_helper.render` and sends it to an IP (port 9100) or a
+printer installed on the server PC, within the request. The page is sealed by a CSP (no disk, no network), never stored.
+On failure the browser's print window opens. A page with `<meta name="sd-print-dialog">` (prescription) always opens the window.
+
 ## Connecting and choosing printers
 - An admin presses "Allow new PCs" (`PrintEnrollment`, 24 hours). A helper posts its PC name to
   `agent-join` every 10 s and gets its token; nothing is typed on the PC. Refused when closed, when the

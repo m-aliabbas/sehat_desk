@@ -21,9 +21,17 @@ from apps.accounts.decorators import permission_required
 from apps.audit import services as audit
 from apps.core.scoping import get_scoped_or_404, paginate, scoped
 
-from . import catalog, purchasing
+from . import catalog, pos, purchasing
 from .forms import PurchaseCreateForm, PurchaseDetailsForm, PurchaseItemForm, VendorForm
-from .models import Product, Purchase, PurchaseItem, PurchaseReturn, Vendor, VendorLedgerEntry
+from .models import (
+    InventoryBatch,
+    Product,
+    Purchase,
+    PurchaseItem,
+    PurchaseReturn,
+    Vendor,
+    VendorLedgerEntry,
+)
 
 MANAGE = purchasing.MANAGE
 Status = Purchase.Status
@@ -785,3 +793,83 @@ def purchase_report(request):
             "breadcrumbs": _crumbs({"label": "Purchase report"}),
         },
     )
+
+
+@permission_required(MANAGE)
+def supplier_returns(request):
+    """Return medicine to a supplier: choose the supplier, scan or type medicines, send back."""
+    vendors = scoped(Vendor, request).filter(is_active=True).order_by("name")
+    error = ""
+    if request.method == "POST":
+        vendor = vendors.filter(pk=_int(request.POST.get("vendor"))).first()
+        quantities = {
+            _int(key.removeprefix("qty_")): _int(value)
+            for key, value in request.POST.items()
+            if key.startswith("qty_")
+        }
+        try:
+            if vendor is None:
+                raise purchasing.PurchaseError("Choose the supplier.")
+            ret = purchasing.return_to_supplier(
+                vendor,
+                request=request,
+                quantities=quantities,
+                reason=request.POST.get("reason", ""),
+                reference=request.POST.get("reference", ""),
+            )
+        except purchasing.PurchaseError as err:
+            error = err.message
+        else:
+            audit.record(
+                request,
+                "purchase.return",
+                ret,
+                summary=f"{ret.number} to {vendor}: {ret.amount} — {ret.reason}",
+            )
+            messages.success(
+                request, f"{ret.number}: stock sent back, {vendor} credited {ret.amount:,.2f}."
+            )
+            return redirect("pharmacy:supplier-returns")
+    returns = (
+        scoped(PurchaseReturn, request)
+        .select_related("vendor", "purchase", "created_by")
+        .prefetch_related("items__stock_txn__product")[:50]
+    )
+    return render(
+        request,
+        "pharmacy/purchasing/supplier_returns.html",
+        {
+            "vendors": vendors,
+            "chosen_vendor": _int(request.POST.get("vendor") or request.GET.get("vendor")),
+            "returns": returns,
+            "error": error,
+            "post": request.POST,
+            "active": "returns",
+            "breadcrumbs": _crumbs({"label": "Returns to supplier"}),
+        },
+    )
+
+
+@require_GET
+@permission_required(MANAGE)
+def supplier_return_batches(request):
+    """Type-to-search for the return screen: the batches on the shelf, first to expire first."""
+    q = request.GET.get("q", "").strip()
+    rows = []
+    for product in pos.search_products(request, q, limit=8) if q else []:
+        batches = InventoryBatch.objects.filter(
+            branch=request.branch, product=product, quantity_available__gt=0
+        ).order_by("expiry_date")
+        rows += [
+            {
+                "id": b.pk,
+                "name": product.display_name,
+                "batch": b.label,
+                "expiry": f"{b.expiry_date:%b %Y}",
+                "available": b.quantity_available,
+                "unit": product.unit,
+                "cost": float(b.purchase_cost),
+            }
+            for b in batches
+        ]
+    return JsonResponse({"rows": rows})

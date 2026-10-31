@@ -51,6 +51,7 @@ PERSONAL = {
     "core:module-placeholder",
     "printing:job-create",  # the page the user already has open; their own organization
     "printing:job-status",  # their own jobs
+    "printing:token-printer-use",  # a cookie in their own browser, from their organization's list
 }
 
 _CONVERTERS = re.compile(r"<(?:(\w+):)?(\w+)>")

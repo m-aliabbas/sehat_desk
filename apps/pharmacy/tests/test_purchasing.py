@@ -196,3 +196,31 @@ def test_purchasing_permissions(client, make_user):
     client.force_login(make_user("cashier"))  # financial reports only
     assert client.get(reverse("pharmacy:purchase-list")).status_code == 403
     assert client.get(reverse("pharmacy:purchase-report")).status_code == 200
+
+
+def test_return_to_supplier_without_a_purchase(req, vendor, ors):
+    batch = stock.receive(
+        product=ors,
+        request=req, batch_number="OPEN-1", expiry_date=TODAY + timedelta(days=90),
+        quantity=20, purchase_cost=D("10"), sale_price=D("15"),
+    ).batch  # fmt: skip
+    ret = purchasing.return_to_supplier(
+        vendor, request=req, quantities={batch.pk: 5}, reason="Near expiry"
+    )
+    batch.refresh_from_db()
+    assert batch.quantity_available == 15
+    assert ret.purchase is None
+    assert ret.amount == D("50")
+    entry = VendorLedgerEntry.objects.get(vendor=vendor, purchase_return=ret)
+    assert entry.amount == D("-50")
+    with pytest.raises(purchasing.PurchaseError):
+        purchasing.return_to_supplier(vendor, request=req, quantities={batch.pk: 99}, reason="x")
+
+
+def test_supplier_returns_screen(client, pharmacist, vendor, ors):
+    client.force_login(pharmacist)
+    page = client.get(reverse("pharmacy:supplier-returns"))
+    assert page.status_code == 200
+    assert vendor.name in page.content.decode()
+    found = client.get(reverse("pharmacy:supplier-return-batches"), {"q": "zzz"})
+    assert found.json() == {"rows": []}

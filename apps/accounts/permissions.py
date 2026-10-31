@@ -133,6 +133,7 @@ DEFAULT_ROLES: list[RoleDef] = [
         "Registration, appointments, tokens and consultation payments.",
         _codes("patient.", "appointment.", "queue.")
         | {"billing.view", "billing.payment.collect", "document.view", "document.upload"}
+        | {"billing.discount", "billing.refund"}
         | {"procedure.view", "procedure.order", "vitals.record", "hr.self"},
     ),
     RoleDef(

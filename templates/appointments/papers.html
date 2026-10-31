@@ -2,22 +2,54 @@
 {% load ui %}
 {# Token and fee slip on the 80 mm roll. #}
 {% block title %}Visit papers · {{ appt.number }}{% endblock %}
-{% block print_button %}<button class="btn btn-primary" onclick="printSlips()">Print slip</button>{% endblock %}
+{% block print_button %}<button class="btn btn-secondary" onclick="printSlips()">Print slip again</button>{% endblock %}
 {% block toolbar_extra %}
-  {% if token %}<a href="{% url 'queue:slip' token.pk %}" target="_blank" class="btn btn-secondary">Token only</a>{% endif %}
-  {% if prefs.opd_print_blank_prescription %}<a href="?part=rx&amp;print=1" target="_blank" class="btn btn-secondary">Print prescription (A5)</a>{% endif %}
+  {% if prefs.opd_print_blank_prescription %}<a id="print-rx" href="?part=rx&amp;print=1" target="_blank" class="btn btn-secondary">Print Rx · F9</a>{% endif %}
+  {% if invoice and invoice.refundable and can_refund %}<a href="{% url 'billing:invoice-refund' invoice.pk %}" class="btn btn-secondary">Refund</a>{% endif %}
   <a href="{% url 'queue:desk' %}" class="btn btn-primary">Next patient</a>
 {% endblock %}
 {% block close_button %}<a href="{% url 'queue:desk' %}" class="btn btn-close">Back to desk</a>{% endblock %}
 {% block before_sheet %}
 <div class="no-print mx-auto mb-4 max-w-[148mm] space-y-3 px-4">
+  {% if token_printers|length > 1 %}
+  <form method="post" action="{% url 'printing:token-printer-use' %}" class="card flex items-center justify-between gap-3 text-body">
+    {% csrf_token %}<input type="hidden" name="next" value="{{ request.path }}">
+    <label for="token-printer">{% if token_printer %}This PC's token printer{% else %}<b>Which token printer is at this PC?</b>{% endif %}</label>
+    <select id="token-printer" name="printer" class="select w-56" onchange="this.form.submit()">
+      {% if not token_printer %}<option value="">Choose once</option>{% endif %}
+      {% for p in token_printers %}<option value="{{ p.pk }}" {% if p == token_printer %}selected{% endif %}>{{ p.name }}</option>{% endfor %}
+    </select>
+  </form>
+  {% elif not token_printers %}
+  <p class="card text-body">No token printer is set, so slips open the print window.{% if can_set_printers %} <a class="font-medium text-teal-deep underline" href="{% url 'printing:stations' %}">Set one up</a> to print by itself.{% else %} Ask your administrator to set one up.{% endif %}</p>
+  {% endif %}
   {% if due and can_collect %}
-  <form method="post" action="{% url 'appointments:collect' appt.pk %}" class="card flex flex-wrap items-end gap-3">
+  <form method="post" action="{% url 'appointments:collect' appt.pk %}" class="card space-y-3"
+        x-data="{ discount: '', cash: '', keep: false, limit: {{ cash_limit|stringformat:'s' }}, isCash: true,
+          get due() { return Math.max((parseFloat('{{ invoice.balance_due|stringformat:'s' }}') || 0) - (parseFloat(this.discount) || 0), 0) },
+          get gap() { return Math.round(((parseFloat(this.cash) || 0) - this.due) * 100) / 100 },
+          get canAdjust() { return Math.abs(this.gap) <= this.limit },
+          get kept() { if (!this.isCash || !this.cash) return ''; if (this.gap > 0) return this.keep && this.canAdjust ? this.cash : ''; return this.cash }, }"
+        x-init="const m = document.getElementById('id_method'); const f = () => { isCash = /cash/i.test(m?.selectedOptions[0]?.text || ''); }; m?.addEventListener('change', f); f()">
     {% csrf_token %}<input type="hidden" name="key" value="{{ key }}">
-    <p class="w-full font-semibold">Collect the fee: {{ organization.currency }} {{ invoice.balance_due|floatformat:"0g" }}</p>
-    <div class="field"><label class="field-label" for="pay-method">Paid by</label>
-      <select id="pay-method" name="method" class="select">{% for m in methods %}<option value="{{ m.pk }}">{{ m.name }}</option>{% endfor %}</select></div>
-    <div class="field"><label class="field-label" for="pay-ref">Reference</label><input id="pay-ref" name="reference" class="input w-36" maxlength="80"></div>
+    <p class="font-semibold">Collect the fee: {{ organization.currency }} {{ invoice.balance_due|floatformat:"0g" }}</p>
+    <div class="flex flex-wrap items-end gap-3">
+    <div class="field"><label class="field-label" for="id_method">Paid by</label>
+      <select id="id_method" name="method" class="select">{% for m in methods %}<option value="{{ m.pk }}">{{ m.name }}</option>{% endfor %}</select></div>
+    <div class="field" x-show="!isCash"><label class="field-label" for="pay-ref">Reference</label><input id="pay-ref" name="reference" class="input w-36" maxlength="80"></div>
+    </div>
+    {% if can_discount %}
+        <div class="grid grid-cols-2 gap-3">
+          <div class="field"><label class="field-label" for="id_discount">Discount</label><input id="id_discount" name="discount" type="number" min="0" step="0.01" class="input" x-model="discount" autocomplete="off"></div>
+          <div class="field" x-show="parseFloat(discount) > 0" x-cloak><label class="field-label" for="id_discount_reason">Reason</label><input id="id_discount_reason" name="discount_reason" class="input" maxlength="200" value=""></div>
+        </div>
+        {% endif %}
+        <div class="field" x-show="isCash"><label class="field-label" for="id_cash_paid">Cash paid <span class="text-label text-muted">(blank = exact)</span></label><input id="id_cash_paid" type="number" min="0" step="0.01" class="input" x-model="cash" autocomplete="off"></div>
+        <input type="hidden" name="cash_paid" :value="kept">
+        <p x-show="isCash && cash && gap < 0 && canAdjust" x-cloak class="rounded-control bg-amber-soft p-2 text-body">Short by <b x-text="-gap"></b>: the bill closes with this as an adjustment.</p>
+        <p x-show="isCash && cash && gap > 0" x-cloak class="text-body">Change to give back: <b x-text="keep ? 0 : gap"></b></p>
+        <label x-show="isCash && cash && gap > 0 && canAdjust" x-cloak class="flex items-center gap-2 text-body"><input type="checkbox" class="checkbox" x-model="keep"> No change given: keep <b x-text="gap"></b> as an adjustment</label>
+        <p x-show="isCash && cash && gap < 0 && !canAdjust" x-cloak class="text-body text-red">Short by more than {{ organization.currency }} {{ cash_limit|floatformat:"0" }}. Take the rest or give a discount.</p>
     <button class="btn btn-primary">Received · print</button>
   </form>
   {% endif %}
@@ -35,12 +67,13 @@
 {% block document %}
   {% print_layout "fee_slip" as FL %}
   {% if invoice %}
-    <div data-slip-copy>{% include "appointments/_fee_copy.html" with copy_label="Patient copy" L=FL %}</div>
+    <div data-slip-copy>{% include "appointments/_fee_copy.html" with copy_label="Patient copy" L=FL show_running=True %}</div>
     {% if prefs.opd_print_office_copy %}
     <div class="thermal-next-slip" data-slip-copy>{% include "appointments/_fee_copy.html" with copy_label="Office copy" L=FL %}</div>
     {% endif %}
   {% elif token %}
   <p class="text-center font-mono text-[44px] font-bold">{{ token.label }}</p>
+  <div class="text-center">{% include "queue/_running_number.html" %}</div>
   <p class="text-center">{{ patient.full_name }} · {{ appt.doctor }}</p>
   {% endif %}
   <script>
@@ -61,5 +94,6 @@
       else document.querySelectorAll("[data-slip-copy]").forEach((c) => { c.hidden = false; });
     });
   </script>
+  <script>window.addEventListener("keydown", (e) => { if (e.key === "F9") { e.preventDefault(); document.getElementById("print-rx")?.click(); } });</script>
   {% if auto_print %}<script>window.addEventListener("load", printSlips);</script>{% endif %}
 {% endblock %}

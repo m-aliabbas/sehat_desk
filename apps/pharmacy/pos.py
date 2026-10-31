@@ -22,6 +22,7 @@ from django.utils import timezone
 from apps.appointments.models import Appointment
 from apps.billing import services as billing
 from apps.billing.models import InvoiceItem, to_money
+from apps.core.dates import on_day
 from apps.core.models import next_number
 from apps.organizations import field_rules
 from apps.organizations.models import preferences_for
@@ -396,8 +397,8 @@ def visits_without_rx(request, *, patient=None, q="") -> list[dict]:
     handled = set(
         Prescription.objects.filter(branch=request.branch)
         .filter(
-            Q(status=Prescription.Status.PAPER, created_at__date=today)
-            | Q(sent_to_pharmacy_at__date=today)
+            Q(status=Prescription.Status.PAPER, **on_day("created_at", today))
+            | Q(**on_day("sent_to_pharmacy_at", today))
         )
         .values_list("patient_id", "doctor_id")
     )
@@ -609,8 +610,9 @@ def checkout_problems(sale) -> list[str]:
 
 
 @transaction.atomic
-def checkout(sale, *, request, payments: list[dict]) -> PharmacySale:
+def checkout(sale, *, request, payments: list[dict], adjust_cash=False) -> PharmacySale:
     """Sell the cart. payments: [{"method", "amount", "reference"}] adding up to the total.
+    adjust_cash: a cash payment may differ by up to the limit in Settings → Billing.
 
     Posts stock-out per line, issues an invoice and records the payments, all or nothing.
     Submitting the same cart twice returns the completed sale instead of charging again."""
@@ -628,7 +630,8 @@ def checkout(sale, *, request, payments: list[dict]) -> PharmacySale:
     if returned:
         sale.refresh_from_db()
     paid = sum((to_money(p["amount"]) for p in payments), ZERO)
-    if paid != t["grand_total"]:
+    has_cash = any(p["method"].code == "cash" for p in payments)
+    if paid != t["grand_total"] and not (adjust_cash and has_cash):
         raise PosError(
             f"Payments add up to {paid}; the sale total is {t['grand_total']}. "
             "Pharmacy sales are paid in full."
@@ -669,6 +672,8 @@ def checkout(sale, *, request, payments: list[dict]) -> PharmacySale:
                 authorized_by=sale.discount_by,
             )
         invoice = billing.issue(invoice, request=request)
+        if paid != invoice.balance_due:
+            invoice = billing.apply_cash_adjustment(invoice, cash_paid=paid)
         for p in payments:
             billing.receive_payment(
                 invoice,

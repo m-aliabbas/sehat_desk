@@ -80,7 +80,7 @@ Goal: a customer installs one package, gets a desktop shortcut, double-clicks it
 ## 4. Network: the app runs at sehatdesk.local
 - Staff on the hospital LAN open **http://sehatdesk.local** in any browser.
 - The launcher advertises the hostname over mDNS (the `zeroconf` package, `launcher/mdns.py`), so the server works on Windows without Bonjour installed. It rechecks the LAN address every minute. The window also shows the IP address as a fallback, and the installer adds firewall rules for the exe (TCP and UDP, all network profiles).
-- Clients may keep the address for 15 minutes (`HOST_TTL_SECONDS`), not the library's 2: multicast is often lost on Wi-Fi, and each lost lookup is a page that does not open. A new DHCP address on the server is allowed without a restart.
+- Clients may keep the address for 4 hours (`HOST_TTL_SECONDS`), not the library's 2 minutes: multicast is often lost on Wi-Fi, and each lost lookup is a page that does not open. This assumes a fixed server IP (static address or router reservation): if it does change, a client may keep the old one for up to 4 hours (`ipconfig /flushdns` clears it on Windows). A changed address is still allowed by the server without a restart.
 - Only one computer may answer for the name. A copy that finds another server does not advertise, its window says so, and it takes over the name only once the other has gone. Client PCs need a browser only, not the installer: every installed copy has its own separate database.
 - Wi-Fi clients: if `sehatdesk.local` keeps failing, open the server by IP address. Give the server a fixed address (router reservation) and connect it by cable where possible.
 - `.local` resolution depends on the client:
@@ -111,6 +111,9 @@ Goal: a customer installs one package, gets a desktop shortcut, double-clicks it
 
 ## 6. Decision log
 
+- 2026-11-01 The server prints 80 mm slips itself, with nothing installed on PCs. Prescriptions keep the print window. §4b.
+- 2026-11-01 Passwords: 5 characters minimum, weak allowed. Cash may differ from a bill by up to Rs 50 (setting), kept
+  as `Invoice.cash_adjustment`, part of the total. Reception role gains discount and refund.
 - 2026-10-31 Print helper: no pair codes or per-PC dropdowns. An admin allows new PCs for 24 hours and each helper
   connects itself from the LAN; printers are detected by paper size and name, and Settings asks only when unclear. §4b.
 - 2026-10-31 v1.0.4: licensing works as in vibe_pos: manual approval, then a 30-day local token, then Firebase again.
@@ -275,7 +278,7 @@ Tooling:
 - **Sessions:** idle timeout `SEHATDESK_SESSION_IDLE_MINUTES` (60), refreshed on every request. Expired users
   see a "Session expired" banner; htmx requests get `HX-Redirect` to login instead of a broken fragment.
   Deactivating a user or organization ends their sessions on the next request.
-- **Passwords:** minimum 10 characters plus Django validators. Admin-created accounts and admin resets set
+- **Passwords:** minimum 5 characters and no strength rules (decided 2026-11-01, the hospital's choice for staff who type them all day). Admin-created accounts and admin resets set
   `must_change_password`, which blocks every page until the user picks a new password. "Forgot password"
   emails a reset link only when `SEHATDESK_EMAIL_HOST` is configured; otherwise it tells the user to ask an admin.
 - **Audit:** `apps/audit` `AuditLog` is append-only. `audit.record(request, "action", obj, changes=...)`.
@@ -599,7 +602,8 @@ Tooling:
   in 4 queries (tested equal to the cashier's day closing). Dashboard now < 80 queries.
 - `test_query_scaling.py` fails if a main list page runs more queries for 12 rows than for 3 (N+1 guard).
 - Network size: HTML and htmx fragments are gzipped (`GZipMiddleware`); `collectstatic` writes `.gz` copies that WhiteNoise serves, and browsers cache CSS and JS for an hour (a new version can look stale for that long).
-- Measured 2026-11-01 on the dev Mac: 10 clients at once gave about 95 requests/s with a median of 100 ms. Persistent SQLite connections made no real difference, so `CONN_MAX_AGE` stays 0.
+- Date filters use `apps/core/dates.py` (`on_day`, `in_days`), never `field__date`: on SQLite that lookup calls Python once per row. With 20,000 patients the dashboard went from 75 ms to 30 ms. `TruncDate` remains only in the daily reports.
+- Measured 2026-11-01 on the dev Mac, 20,000 patients: 10 clients on mixed pages gave 57 requests/s with a median of 144 ms; the notification sweep took 4 ms. Persistent SQLite connections made no real difference, so `CONN_MAX_AGE` stays 0.
 - `python manage.py loadtest` (empty data folder only) seeds 20,000 patients and times the hot paths. On the
   dev Mac (SQLite): patient search 12–18 ms median, global search 12 ms, dashboard 70 ms, POS checkout 10 ms.
 
@@ -641,6 +645,10 @@ Tooling:
 - The pharmacy can tag a sale to a reception visit with an empty paper prescription.
 
 ## 4b. Print routing (print helper)
+- Decided 2026-11-01. Tokens and 80 mm receipts need no helper: the server prints them itself (`apps/printing/direct.py`)
+  on a network printer's IP or a printer installed or shared on the server PC, using the server PC's Edge or Chrome to
+  draw the page. Set in Settings → Printers; with several, each PC picks once (cookie). Prescriptions always open the
+  print window. A browser cannot pick a printer, so no choice with zero setup exists. The helper below stays optional.
 - Decided 2026-10-31. A web page cannot choose a printer, so each PC that prints runs SehatDesk Print
   (`SehatDesk-Print-Setup-<v>.exe`), built with the main installer. Details: `apps/printing/CLAUDE.md`.
 - Jobs travel browser → server → helper. The helper polls outward, so the browser never calls localhost

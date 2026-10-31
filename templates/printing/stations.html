@@ -1,11 +1,36 @@
 {% extends "layouts/app.html" %}
 {% block title %}Printers · Settings{% endblock %}
 {% block page_title %}Printers{% endblock %}
-{% block page_subtitle %}Print goes straight to the right printer for its paper size, with no print window. A paper with no printer still opens the print window.{% endblock %}
+{% block page_subtitle %}Tokens and receipts print by themselves on the token printer. Everything else opens the print window, unless a PC has the optional helper.{% endblock %}
 {% block content %}
 {% include "partials/settings_tabs.html" %}
 <section class="card mb-6">
-  <h2 class="section-title mb-1">Add PCs</h2>
+  <h2 class="section-title mb-1">Token printer</h2>
+  <p class="text-body">SehatDesk prints 80 mm slips by itself. Nothing is installed on any PC. Use the printer's network IP address, or a printer installed or shared on this server PC.</p>
+  {% if token_printers %}
+  <div class="table-wrap mt-3"><table class="table"><tbody>
+    {% for p in token_printers %}<tr>
+      <td class="font-medium">{{ p.name }}</td><td class="font-mono text-label">{{ p.address }}</td>
+      <td class="text-right whitespace-nowrap">
+        <form method="post" class="inline-flex gap-1">{% csrf_token %}
+          <button formaction="{% url 'printing:token-printer-test' p.pk %}" class="btn btn-secondary btn-sm">Test</button>
+          <button formaction="{% url 'printing:token-printer-delete' p.pk %}" class="btn btn-ghost btn-sm">Remove</button>
+        </form>
+      </td>
+    </tr>{% endfor %}
+  </tbody></table></div>
+  {% endif %}
+  <form method="post" action="{% url 'printing:token-printer-add' %}" class="mt-3 flex flex-wrap items-end gap-3">{% csrf_token %}
+    <div class="field"><label class="field-label" for="tp-address">IP address or printer</label>
+      <input id="tp-address" name="address" list="tp-installed" class="input w-72" required maxlength="200" placeholder="192.168.1.50" autocomplete="off">
+      <datalist id="tp-installed">{% for name in installed_printers %}<option value="{{ name }}"></option>{% endfor %}</datalist></div>
+    <div class="field"><label class="field-label" for="tp-name">Name (optional)</label><input id="tp-name" name="name" class="input w-48" maxlength="80" placeholder="Reception"></div>
+    <button class="btn btn-primary">Add and print a test slip</button>
+  </form>
+  <p class="mt-3 text-label text-muted">With more than one, each PC picks its own the first time it prints. A USB printer on another PC: share it in Windows, add it on this server PC, then choose it here.</p>
+</section>
+<section class="card mb-6">
+  <h2 class="section-title mb-1">Optional: print helper for other papers</h2>
   {% if open_until %}
   <p class="text-body"><span class="chip chip-success">Open</span> Until {{ open_until|date:"d M Y, H:i" }}. Install SehatDesk Print on each PC. It connects by itself and appears below.</p>
   <form method="post" class="mt-3">{% csrf_token %}<button class="btn btn-secondary" name="enrollment" value="close">Stop adding PCs</button></form>

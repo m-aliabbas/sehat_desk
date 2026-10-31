@@ -54,10 +54,16 @@ def test_setup_creates_org_branch_roles_and_super_admin(client):
 
 
 @pytest.mark.django_db
-def test_setup_rejects_weak_password(client):
-    response = client.post("/setup/", _setup_data(password1="12345", password2="12345"))
+def test_setup_rejects_password_under_five_characters(client):
+    response = client.post("/setup/", _setup_data(password1="1234", password2="1234"))
     assert response.status_code == 200
     assert not User.objects.exists()
+
+
+@pytest.mark.django_db
+def test_setup_accepts_simple_five_character_password(client):
+    client.post("/setup/", _setup_data(password1="12345", password2="12345"))
+    assert User.objects.exists()
 
 
 def test_setup_disabled_once_users_exist(client, admin_user):

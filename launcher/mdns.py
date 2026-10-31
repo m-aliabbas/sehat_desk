@@ -11,7 +11,8 @@ SERVICE_TYPE = "_http._tcp.local."
 SERVICE_NAME = f"SehatDesk.{SERVICE_TYPE}"
 # How long clients may keep the address. The library default of 2 minutes makes every client ask
 # again over multicast, which Wi-Fi drops often; a failed lookup is a page that will not open.
-HOST_TTL_SECONDS = 900
+# Assumes the server has a fixed IP: after a change, a client may keep the old one this long.
+HOST_TTL_SECONDS = 4 * 3600
 LOOKUP_TIMEOUT_MS = 2000
 
 

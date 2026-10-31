@@ -50,7 +50,7 @@ def invoice_problems(branch) -> list[Problem]:
             if real_paid - real_refunded:
                 found.append(f"is cancelled but still holds {real_paid - real_refunded}")
         else:
-            total = lines.get(inv.pk, ZERO) - inv.invoice_discount
+            total = lines.get(inv.pk, ZERO) - inv.invoice_discount + inv.cash_adjustment
             if inv.grand_total != total:
                 found.append(f"shows a total of {inv.grand_total}, its lines give {total}")
             if not found and inv.status != _status_from_money(inv):

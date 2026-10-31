@@ -1525,7 +1525,7 @@ document.addEventListener("input", (e) => {
   });
   document.addEventListener("submit", (e) => {
     const form = e.target;
-    if ((form.method || "").toLowerCase() === "post" && !form.hasAttribute("hx-post")) write("sd-trail-posted", true);
+    if ((form.getAttribute("method") || "").toLowerCase() === "post" && !form.hasAttribute("hx-post")) write("sd-trail-posted", true);
   }, true);
 
   const crumbLink = (label, url) => Object.assign(document.createElement("a"), { href: url, textContent: label, className: "hover:text-teal-deep hover:underline" });

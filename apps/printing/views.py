@@ -6,6 +6,7 @@ from django.contrib.auth.decorators import login_not_required
 from django.core.exceptions import RequestDataTooBig
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
 
@@ -13,8 +14,8 @@ from apps.accounts.decorators import permission_required
 from apps.audit import services as audit
 from apps.core.scoping import get_scoped_or_404, scoped
 
-from . import services
-from .models import Paper, PrintJob, PrintStation
+from . import direct, services
+from .models import Paper, PrintJob, PrintStation, TokenPrinter
 
 MANAGE = "admin.organization.manage"
 
@@ -29,9 +30,32 @@ def job_create(request):
         return JsonResponse({"queued": False})
     except (ValueError, KeyError, TypeError):
         return HttpResponse(status=400)
-    if job is None:
+    if job is not None:
+        return JsonResponse({"queued": True, "id": job.pk, "printer": job.printer})
+    printer = direct.chosen(request) if data["paper"] == Paper.THERMAL else None
+    if printer is None:
         return JsonResponse({"queued": False})
-    return JsonResponse({"queued": True, "id": job.pk, "printer": job.printer})
+    error = direct.send(printer, data["html"])
+    return JsonResponse({"queued": False, "direct": True, "printer": printer.name, "error": error})
+
+
+@require_POST
+def token_printer_use(request):
+    """This PC's token printer, kept in its own browser so staff choose it once."""
+    printer = (
+        direct.printers_for(request.organization)
+        .filter(pk=request.POST.get("printer") or 0)
+        .first()
+    )
+    back = request.POST.get("next", "")
+    if not url_has_allowed_host_and_scheme(back, allowed_hosts={request.get_host()}):
+        back = "/"
+    response = redirect(back)
+    if printer:
+        response.set_cookie(
+            direct.COOKIE, str(printer.pk), max_age=direct.COOKIE_AGE, samesite="Lax"
+        )
+    return response
 
 
 @require_GET
@@ -160,10 +184,54 @@ def stations(request):
         "printing/stations.html",
         {
             "stations": rows,
+            "token_printers": direct.printers_for(request.organization),
+            "installed_printers": direct.installed_printers(),
             "open_until": services.enrollment_open_until(request.organization),
             "settings_tab": "printers",
         },
     )
+
+
+@require_POST
+@permission_required(MANAGE)
+def token_printer_add(request):
+    address = request.POST.get("address", "").strip()[:200]
+    if not address:
+        messages.error(request, "Enter the printer's IP address or choose its name.")
+        return redirect("printing:stations")
+    printer, _ = TokenPrinter.objects.get_or_create(
+        organization=request.organization,
+        address=address,
+        defaults={"name": request.POST.get("name", "").strip()[:80] or address[:80]},
+    )
+    audit.record(request, "printing.token_printer_add", printer, summary=printer.name)
+    _report_test(request, printer)
+    return redirect("printing:stations")
+
+
+def _report_test(request, printer):
+    error = direct.send_test(printer)
+    if error:
+        messages.error(request, f"{printer}: {error}")
+    else:
+        messages.success(request, f"Test slip sent to {printer}.")
+
+
+@require_POST
+@permission_required(MANAGE)
+def token_printer_test(request, pk):
+    _report_test(request, get_scoped_or_404(TokenPrinter, request, pk=pk))
+    return redirect("printing:stations")
+
+
+@require_POST
+@permission_required(MANAGE)
+def token_printer_delete(request, pk):
+    printer = get_scoped_or_404(TokenPrinter, request, pk=pk)
+    audit.record(request, "printing.token_printer_delete", printer, summary=printer.name)
+    printer.delete()
+    messages.success(request, "Printer removed.")
+    return redirect("printing:stations")
 
 
 @require_POST

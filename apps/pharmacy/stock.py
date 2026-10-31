@@ -13,6 +13,8 @@ from django.db import IntegrityError, transaction
 from django.db.models import F, Q, Sum
 from django.utils import timezone
 
+from apps.core.dates import in_days, start_of_day
+
 from .models import InventoryBatch, Product, ProductPriceChange, StockTransaction
 
 Kind = StockTransaction.Kind
@@ -347,7 +349,7 @@ def product_statement(branch, product, *, start=None, end=None, batch=None) -> d
     txns = StockTransaction.objects.filter(branch=branch, product=product)
     if batch is not None:
         txns = txns.filter(batch=batch)
-    before = txns.filter(created_at__date__lt=start) if start else txns.none()
+    before = txns.filter(created_at__lt=start_of_day(start)) if start else txns.none()
     opening = before.aggregate(q=Sum("quantity", default=0))["q"]
     opening_value = sum((t.unit_cost * t.quantity for t in before.only("unit_cost", "quantity")), 0)
     period = txns.order_by("created_at", "pk").select_related(
@@ -359,9 +361,9 @@ def product_statement(branch, product, *, start=None, end=None, batch=None) -> d
         "purchase_return_item__purchase_return",
     )
     if start:
-        period = period.filter(created_at__date__gte=start)
+        period = period.filter(**in_days("created_at", start))
     if end:
-        period = period.filter(created_at__date__lte=end)
+        period = period.filter(**in_days("created_at", end=end))
     rows, balance = [], opening
     total_in = total_out = 0
     value = Decimal(opening_value)

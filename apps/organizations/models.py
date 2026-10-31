@@ -152,9 +152,7 @@ class OrganizationPreferences(TimeStampedModel):
         default=True,
         help_text="Off = only the patient copy is printed.",
     )
-    opd_auto_print = models.BooleanField(
-        "Open the print window straight after booking", default=True
-    )
+    opd_auto_print = models.BooleanField("Print the slips straight after booking", default=True)
     # Waiting-room token display.
     display_refresh_seconds = models.PositiveSmallIntegerField(
         "Display refresh (seconds)",

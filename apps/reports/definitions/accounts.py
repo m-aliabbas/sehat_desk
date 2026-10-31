@@ -208,7 +208,7 @@ def supplier_returns(f):
             "date": local_date(r.created_at),
             "number": r.number,
             "vendor": r.vendor.name,
-            "purchase": r.purchase.number,
+            "purchase": r.purchase.number if r.purchase_id else "—",
             "reason": r.reason,
             "amount": r.amount,
         }

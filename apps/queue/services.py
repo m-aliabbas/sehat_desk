@@ -107,6 +107,20 @@ def waiting(qs):
     return qs.filter(status=Status.WAITING).order_by("priority_rank", "queued_at")
 
 
+def position(token) -> dict:
+    """What the patient's slip says: the number being seen now and how many are ahead."""
+    qs = queue_for(token.branch, doctor=token.doctor, department=token.department, day=token.date)
+    serving = (
+        qs.filter(status__in=(Status.CALLED, Status.IN_CONSULTATION)).order_by("-called_at").first()
+    )
+    ahead = (
+        waiting(qs)
+        .filter(priority_rank__lte=token.priority_rank, queued_at__lt=token.queued_at)
+        .count()
+    )
+    return {"now_serving": serving.label if serving else "", "ahead": ahead}
+
+
 def current_for(branch, doctor):
     """The token a doctor is calling or seeing now."""
     return (

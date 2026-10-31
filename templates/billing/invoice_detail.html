@@ -118,6 +118,7 @@
       <dl class="space-y-2 text-body">
         <div class="flex justify-between"><dt class="text-muted">Subtotal</dt><dd>{{ invoice.subtotal|floatformat:"2g" }}</dd></div>
         <div class="flex justify-between"><dt class="text-muted">Discount</dt><dd>{% if invoice.discount_total %}−{% endif %}{{ invoice.discount_total|floatformat:"2g" }}</dd></div>
+        {% if invoice.cash_adjustment %}<div class="flex justify-between"><dt class="text-muted">Cash adjustment</dt><dd>{{ invoice.cash_adjustment|floatformat:"2g" }}</dd></div>{% endif %}
         {% if invoice.tax_total %}<div class="flex justify-between"><dt class="text-muted">{{ billing_settings.tax_label }}</dt><dd>{{ invoice.tax_total|floatformat:"2g" }}</dd></div>{% endif %}
         <div class="flex justify-between border-t border-line pt-3 text-[20px] font-bold"><dt>Total</dt><dd>{{ organization.currency }} {{ invoice.grand_total|floatformat:"2g" }}</dd></div>
         {% if not invoice.is_draft %}

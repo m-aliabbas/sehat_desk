@@ -17,6 +17,7 @@ from django.views.decorators.http import require_GET, require_POST
 from apps.accounts.decorators import has_perm, permission_required
 from apps.audit import services as audit
 from apps.billing.services import BillingError
+from apps.core.dates import on_day
 from apps.core.labels import LABEL_PAPERS, label_paper
 from apps.core.pdf import weasyprint_html
 from apps.core.scoping import get_scoped_or_404, paginate, scoped
@@ -146,7 +147,7 @@ def worklist(request):
         "processing": items.filter(status=ItemStatus.COLLECTED).count(),
         "results": items.filter(status=ItemStatus.PROCESSING).count(),
         "verify": items.filter(status=ItemStatus.RESULT_ENTERED).count(),
-        "released": scoped(LabOrder, request).filter(released_at__date=today).count(),
+        "released": scoped(LabOrder, request).filter(**on_day("released_at", today)).count(),
     }
 
     def order_filter(qs, prefix=""):
@@ -187,7 +188,7 @@ def worklist(request):
             samples = samples.filter(items__test__category_id=category).distinct()
         ctx["samples"] = samples[:200]
     elif tab == "released":
-        ctx["orders"] = order_filter(_orders(request).filter(released_at__date=today))[:200]
+        ctx["orders"] = order_filter(_orders(request).filter(**on_day("released_at", today)))[:200]
     else:
         status = {
             "processing": ItemStatus.COLLECTED,

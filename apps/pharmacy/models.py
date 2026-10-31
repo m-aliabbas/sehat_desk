@@ -434,6 +434,8 @@ class StockTransaction(BranchScopedModel):
             if attr == "sale_return_item":
                 return doc.number, reverse("pharmacy:sale-detail", args=[doc.sale_id])
             if attr == "purchase_return_item":
+                if doc.purchase_id is None:
+                    return doc.number, reverse("pharmacy:vendor-detail", args=[doc.vendor_id])
                 return doc.number, reverse("pharmacy:purchase-detail", args=[doc.purchase_id])
             return doc.number, reverse(f"pharmacy:{route}", args=[doc.pk])
         return None
@@ -894,7 +896,10 @@ class PurchaseItem(TimeStampedModel):
 
 class PurchaseReturn(BranchScopedModel):
     number = models.CharField(max_length=20)
-    purchase = models.ForeignKey(Purchase, on_delete=models.PROTECT, related_name="returns")
+    # Empty for a return entered by supplier and medicine, not from one purchase.
+    purchase = models.ForeignKey(
+        Purchase, on_delete=models.PROTECT, null=True, blank=True, related_name="returns"
+    )
     vendor = models.ForeignKey(Vendor, on_delete=models.PROTECT, related_name="returns")
     reason = models.CharField(max_length=200)
     reference = models.CharField(
@@ -921,8 +926,9 @@ class PurchaseReturnItem(models.Model):
     purchase_return = models.ForeignKey(
         PurchaseReturn, on_delete=models.CASCADE, related_name="items"
     )
+    # The bought line when one is known; stock from opening balances or Receive stock has none.
     purchase_item = models.ForeignKey(
-        PurchaseItem, on_delete=models.PROTECT, related_name="return_lines"
+        PurchaseItem, on_delete=models.PROTECT, null=True, blank=True, related_name="return_lines"
     )
     quantity = models.PositiveIntegerField()
     unit_cost = models.DecimalField(**money)
@@ -932,7 +938,11 @@ class PurchaseReturnItem(models.Model):
     )
 
     def __str__(self):
-        return f"{self.purchase_item.product} × {self.quantity}"
+        return f"{self.product} × {self.quantity}"
+
+    @property
+    def product(self):
+        return self.stock_txn.product
 
 
 class VendorLedgerEntry(BranchScopedModel):

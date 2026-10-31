@@ -190,14 +190,12 @@ TEMPLATES = [
 ]
 
 # --- Passwords ---------------------------------------------------------------
+# Length only: the hospital chose short, simple passwords staff can type all day.
 AUTH_PASSWORD_VALIDATORS = [
-    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {
         "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
-        "OPTIONS": {"min_length": 10},
+        "OPTIONS": {"min_length": 5},
     },
-    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
-    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
 # --- Localization (Pakistan defaults; Urdu UI is a later phase) ----------------

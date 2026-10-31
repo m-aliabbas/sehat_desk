@@ -49,3 +49,8 @@ firebase-admin>=7.5,<8.0
 zeroconf>=0.132,<1.0
 
 # Test tools live in requirements-dev.txt so installers do not ship them.
+
+# The server prints 80 mm token slips itself (apps/printing/direct.py)
+pypdfium2>=4.30,<6
+Pillow>=10.4
+pywin32>=306; sys_platform == "win32"

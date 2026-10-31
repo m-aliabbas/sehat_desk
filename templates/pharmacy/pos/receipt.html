@@ -31,6 +31,7 @@
       <div class="flex justify-between"><dt>Subtotal</dt><dd>{{ sale.invoice.subtotal|floatformat:"2g" }}</dd></div>
       {% if sale.invoice.tax_total %}<div class="flex justify-between"><dt>{{ billing_settings.tax_label }}</dt><dd>{{ sale.invoice.tax_total|floatformat:"2g" }}</dd></div>{% endif %}
       {% if sale.invoice.invoice_discount %}<div class="flex justify-between"><dt>Discount</dt><dd>−{{ sale.invoice.invoice_discount|floatformat:"2g" }}</dd></div>{% endif %}
+      {% if sale.invoice.cash_adjustment %}<div class="flex justify-between"><dt>Cash adjustment</dt><dd>{{ sale.invoice.cash_adjustment|floatformat:"2g" }}</dd></div>{% endif %}
     </dl>
     <div class="mt-2 flex justify-between font-bold"><span>Total</span><span>{{ request.organization.currency }} {{ sale.grand_total|floatformat:"2g" }}</span></div>
     {% for p in payments %}<div class="flex justify-between text-label"><span>{{ p.method }}{% if p.reference %} ({{ p.reference }}){% endif %}</span><span>{{ p.amount|floatformat:"2g" }}</span></div>{% endfor %}

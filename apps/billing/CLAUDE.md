@@ -24,6 +24,11 @@ cashier's day closing. PRD §11. PROJECT_NOTES §12–13, §18.
   box price. `gross` and totals round to two.
 - `InvoiceItem.performed_by` names the doctor for commission (hr/commission.py).
 
+- Cash adjustment: `apply_cash_adjustment` / `settle_cash` close a cash bill when the cash paid differs by up to
+  `BillingSettings.cash_adjustment_limit` (default 50), up or down. Stored signed on `Invoice.cash_adjustment`
+  and part of `grand_total`, so day totals and the till agree. Never for non-cash methods.
+- Visit fees are issued on booking: `set_invoice_discount(before_payment=True)` allows a discount until money is taken.
+
 ## Permissions
 `billing.view`, `billing.payment.collect`, `billing.discount`, `billing.refund`.
 

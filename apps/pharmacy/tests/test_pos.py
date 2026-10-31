@@ -425,3 +425,17 @@ def test_pos_views_need_sale_permission(client, make_user):
     client.force_login(make_user("reception"))
     assert client.get(reverse("pharmacy:pos")).status_code == 403
     assert client.get(reverse("pharmacy:rx-queue")).status_code == 403
+
+
+def test_cash_adjustment_at_the_till(req, cash, panadol, stocked):
+    cart = pos.open_cart(req)
+    pos.add_product(cart, request=req, product=panadol, quantity=10)
+    total = pos.totals(cart)["grand_total"]
+    with pytest.raises(pos.PosError):
+        pos.checkout(cart, request=req, payments=[{"method": cash, "amount": total - 1}])
+    sale = pos.checkout(
+        cart, request=req, payments=[{"method": cash, "amount": total - 1}], adjust_cash=True
+    )
+    assert sale.invoice.status == "paid"
+    assert sale.invoice.cash_adjustment == -1
+    assert sale.invoice.grand_total == total - 1

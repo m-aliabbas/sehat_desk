@@ -15,6 +15,7 @@ from django.views.decorators.http import require_GET, require_POST
 
 from apps.accounts.decorators import has_perm, permission_required
 from apps.audit import services as audit
+from apps.core.dates import in_days
 from apps.core.labels import LABEL_PAPERS, label_paper
 from apps.core.scoping import get_scoped_or_404, paginate, scoped
 from apps.organizations.models import preferences_for
@@ -549,7 +550,7 @@ def product_ledger(request, pk):
             "batch": batch,
             "batches": batches.order_by("expiry_date", "pk"),
             "price_changes": product.price_changes.filter(
-                created_at__date__gte=start, created_at__date__lte=end
+                **in_days("created_at", start, end)
             ).select_related("batch", "created_by"),
             "breadcrumbs": _crumbs(
                 {"label": "Products", "url": reverse("pharmacy:product-list")},
@@ -779,9 +780,9 @@ def ledger(request):
     if q:
         txns = txns.filter(product__search_text__contains=q)
     if start:
-        txns = txns.filter(created_at__date__gte=start)
+        txns = txns.filter(**in_days("created_at", start))
     if end:
-        txns = txns.filter(created_at__date__lte=end)
+        txns = txns.filter(**in_days("created_at", end=end))
     return render(
         request,
         "pharmacy/ledger.html",

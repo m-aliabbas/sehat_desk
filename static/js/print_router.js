@@ -1,9 +1,11 @@
-// Print goes to this PC's print helper through the server (apps/printing). When there is no helper,
-// or no printer chosen for this paper, the browser's own print window opens as before.
+// Print goes through the server (apps/printing): to this PC's print helper, or for 80 mm slips to the
+// token printer the server prints on itself. With neither, the browser's own print window opens.
+// A page with <meta name="sd-print-dialog"> always opens the print window, so staff pick the printer.
 (function () {
   const nativePrint = window.print.bind(window);
   const meta = (name) => document.querySelector(`meta[name="${name}"]`)?.content || "";
   const WAIT_MS = 35000;
+  const MAX_IMAGE_PX = 600;
   let busy = false;
 
   function paper() {
@@ -34,10 +36,23 @@
     });
   }
 
+  // A large logo must not push the page past the server's size limit: paper needs no more than this.
+  async function smallImage(blob) {
+    try {
+      const bitmap = await createImageBitmap(blob);
+      const scale = Math.min(1, MAX_IMAGE_PX / Math.max(bitmap.width, bitmap.height));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(bitmap.width * scale);
+      canvas.height = Math.round(bitmap.height * scale);
+      canvas.getContext("2d").drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+      return canvas.toDataURL("image/png");
+    } catch { return dataUrl(blob); }
+  }
+
   // A complete page that needs nothing from the network: the helper's renderer has none.
   async function snapshot() {
     const page = document.documentElement.cloneNode(true);
-    page.querySelectorAll("script, .no-print, meta[name^='sd-print']").forEach((el) => el.remove());
+    page.querySelectorAll("script, .no-print, [hidden], meta[name^='sd-print']").forEach((el) => el.remove());
     for (const link of page.querySelectorAll("link[rel='stylesheet']")) {
       const css = await fetch(link.href).then((r) => r.text());
       const style = document.createElement("style");
@@ -46,7 +61,7 @@
     }
     for (const img of page.querySelectorAll("img[src]")) {
       if (img.src.startsWith("data:")) continue;
-      img.src = await fetch(img.src).then((r) => r.blob()).then(dataUrl);
+      img.src = await fetch(img.src).then((r) => r.blob()).then(smallImage);
     }
     return "<!doctype html>" + page.outerHTML;
   }
@@ -77,6 +92,7 @@
   }
 
   window.print = async function () {
+    if (meta("sd-print-dialog")) { nativePrint(); return; }
     if (busy) return;
     busy = true;
     const base = meta("sd-print-jobs");
@@ -89,6 +105,18 @@
       });
       if (response.ok) sent = await response.json();
     } catch { sent = null; }
+    if (sent && sent.direct) {
+      busy = false;
+      if (sent.error) {
+        notice(sent.error);
+        nativePrint();
+        return;
+      }
+      const box = notice(`Printed on ${sent.printer}.`);
+      setTimeout(() => box.remove(), 3000);
+      window.dispatchEvent(new Event("afterprint"));
+      return;
+    }
     if (!sent || !sent.queued) {
       busy = false;
       nativePrint();

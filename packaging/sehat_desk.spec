@@ -28,6 +28,7 @@ hiddenimports = (
     collect_submodules("apps", filter=not_test)
     + collect_submodules("config")
     + ["serve", "launcher.common", "launcher.server", "launcher.window", "launcher.mdns"]
+    + ["print_helper.render", "print_helper.printers"]
     + ["tkinter", "tkinter.messagebox", "ifaddr", "waitress"]
 )
 
@@ -52,6 +53,8 @@ for package in (
     "pydyf",
     "openpyxl",
     "zeroconf",
+    "pypdfium2",
+    "pypdfium2_raw",
     "pydrive2",
     "oauth2client",
     "googleapiclient",

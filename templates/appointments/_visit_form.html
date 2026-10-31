@@ -186,13 +186,31 @@
         <input type="checkbox" class="checkbox" name="collect" x-model="collect">
         <span x-text="isToday ? 'Fee received now' : 'Fee received in advance'"></span>
       </label>
-      <div x-show="collect" class="mt-3 space-y-3">
+      <div x-show="collect" class="mt-3 space-y-3"
+           x-data="{ discount: '', cash: '', keep: false, limit: {{ cash_limit|stringformat:'s' }}, isCash: true,
+          get due() { return Math.max((parseFloat(fee) || 0) - (parseFloat(this.discount) || 0), 0) },
+          get gap() { return Math.round(((parseFloat(this.cash) || 0) - this.due) * 100) / 100 },
+          get canAdjust() { return Math.abs(this.gap) <= this.limit },
+          get kept() { if (!this.isCash || !this.cash) return ''; if (this.gap > 0) return this.keep && this.canAdjust ? this.cash : ''; return this.cash }, }"
+           x-init="const m = document.getElementById('id_method'); const f = () => { isCash = /cash/i.test(m?.selectedOptions[0]?.text || ''); }; m?.addEventListener('change', f); f()">
         <div class="field">
           <label class="field-label" for="id_method">Paid by</label>
           <select id="id_method" name="method" class="select">
             {% for m in methods %}<option value="{{ m.pk }}" {% if form.method.value|stringformat:"s" == m.pk|stringformat:"s" %}selected{% endif %}>{{ m.name }}</option>{% endfor %}
           </select>
         </div>
+        {% if can_discount %}
+        <div class="grid grid-cols-2 gap-3">
+          <div class="field"><label class="field-label" for="id_discount">Discount</label><input id="id_discount" name="discount" type="number" min="0" step="0.01" class="input" x-model="discount" autocomplete="off"></div>
+          <div class="field" x-show="parseFloat(discount) > 0" x-cloak><label class="field-label" for="id_discount_reason">Reason</label><input id="id_discount_reason" name="discount_reason" class="input" maxlength="200" value="{{ form.discount_reason.value|default:'' }}"></div>
+        </div>
+        {% endif %}
+        <div class="field" x-show="isCash"><label class="field-label" for="id_cash_paid">Cash paid <span class="text-label text-muted">(blank = exact)</span></label><input id="id_cash_paid" type="number" min="0" step="0.01" class="input" x-model="cash" autocomplete="off"></div>
+        <input type="hidden" name="cash_paid" :value="kept">
+        <p x-show="isCash && cash && gap < 0 && canAdjust" x-cloak class="rounded-control bg-amber-soft p-2 text-body">Short by <b x-text="-gap"></b>: the bill closes with this as an adjustment.</p>
+        <p x-show="isCash && cash && gap > 0" x-cloak class="text-body">Change to give back: <b x-text="keep ? 0 : gap"></b></p>
+        <label x-show="isCash && cash && gap > 0 && canAdjust" x-cloak class="flex items-center gap-2 text-body"><input type="checkbox" class="checkbox" x-model="keep"> No change given: keep <b x-text="gap"></b> as an adjustment</label>
+        <p x-show="isCash && cash && gap < 0 && !canAdjust" x-cloak class="text-body text-red">Short by more than {{ organization.currency }} {{ cash_limit|floatformat:"0" }}. Take the rest or give a discount.</p>
         <div class="field" x-data x-init="const m = document.getElementById('id_method'); const f = () => { $el.hidden = /cash/i.test(m?.selectedOptions[0]?.text || ''); }; m?.addEventListener('change', f); f()">
           <label class="field-label" for="id_reference">Reference <span class="text-label text-muted">(not for cash)</span></label>
           <input id="id_reference" name="reference" class="input" maxlength="80" value="{{ form.reference.value|default:'' }}">
@@ -204,7 +222,7 @@
         <input id="id_reason" name="reason" class="input" maxlength="200" value="{{ form.reason.value|default:'' }}">
       </div>
       <ul class="mt-4 space-y-1 text-label text-muted" x-show="isToday">
-        <li>Prints: token{% if prefs.opd_collect_fee_upfront %}, fee invoice{% if prefs.opd_print_office_copy %} (patient and office copy){% endif %}{% endif %}.{% if prefs.opd_print_blank_prescription %} The empty prescription has its own button.{% endif %}</li>
+        <li>Prints by itself: token{% if prefs.opd_collect_fee_upfront %}, fee slip{% if prefs.opd_print_office_copy %} (patient and office copy){% endif %}{% endif %}.{% if prefs.opd_print_blank_prescription %} The prescription has its own button.{% endif %}</li>
       </ul>
       <p class="mt-4 text-label text-muted" x-show="!isToday" x-cloak>Pre-booking. The token and prescription print when the patient arrives.</p>
       <button type="submit" x-ref="save" class="btn btn-primary mt-5 w-full" :disabled="(mode === 'find' && !patientId) || !doctorId || (pickTime && !time)" x-text="isToday ? 'Save and print (F8)' : 'Save booking (F8)'"></button>

@@ -62,14 +62,22 @@ def _bill_fee(request, appt) -> Invoice | None:
     return billing.issue(invoice, request=request) if invoice.is_draft else invoice
 
 
-def collect_fee(invoice, *, request, method, reference="", key="") -> Payment:
+@transaction.atomic
+def collect_fee(
+    invoice, *, request, method, reference="", key="", cash_paid=None, discount=ZERO, reason=""
+) -> Payment:
+    """Take the fee. A discount comes off first; cash_paid may differ by the adjustment limit."""
     if COLLECT not in request.sd_perms:
         raise BookingError("You are not allowed to collect payments.")
-    return billing.receive_payment(
+    if discount:
+        invoice = billing.set_invoice_discount(
+            invoice, request=request, amount=discount, reason=reason, before_payment=True
+        )
+    return billing.settle_cash(
         invoice,
         request=request,
         method=method,
-        amount=invoice.balance_due,
+        cash_paid=invoice.balance_due if cash_paid is None else cash_paid,
         reference=reference,
         idempotency_key=key,
     )
@@ -104,6 +112,9 @@ def register_visit(
     method=None,
     reference="",
     key="",
+    cash_paid=None,
+    discount=ZERO,
+    discount_reason="",
 ) -> Visit:
     suggested = services.suggest_visit_type(doctor, patient, on_date)
     visit_type = None
@@ -132,7 +143,14 @@ def register_visit(
         if method is None:
             raise BookingError("Choose how the fee was paid.")
         visit.payment = collect_fee(
-            visit.invoice, request=request, method=method, reference=reference, key=key
+            visit.invoice,
+            request=request,
+            method=method,
+            reference=reference,
+            key=key,
+            cash_paid=cash_paid,
+            discount=discount,
+            reason=discount_reason,
         )
     return visit
 

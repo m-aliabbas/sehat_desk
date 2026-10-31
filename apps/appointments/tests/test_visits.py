@@ -240,3 +240,54 @@ def test_reception_desk_is_the_booking_screen(desk, clinic, patient, cash):
     response = _post(desk, patient, clinic, collect="on", method=cash.pk, key="k9")
     appt = Appointment.objects.get(patient=patient)
     assert f"/appointments/{appt.pk}/papers/?print=1" in response["Location"]
+
+
+def _invoice(patient):
+    return Appointment.objects.get(patient=patient).invoices.get()
+
+
+def test_cash_short_by_the_limit_closes_as_an_adjustment(desk, clinic, patient, cash):
+    _post(desk, patient, clinic, collect="on", method=cash.pk, key="a1", cash_paid="1450")
+    invoice = _invoice(patient)
+    assert invoice.status == "paid"
+    assert invoice.cash_adjustment == Decimal("-50")
+    assert invoice.grand_total == invoice.amount_paid == Decimal("1450")
+
+
+def test_cash_kept_above_the_bill_closes_as_an_adjustment(desk, clinic, patient, cash):
+    _post(desk, patient, clinic, collect="on", method=cash.pk, key="a2", cash_paid="1520")
+    invoice = _invoice(patient)
+    assert invoice.status == "paid"
+    assert invoice.cash_adjustment == Decimal("20")
+
+
+def test_cash_past_the_limit_saves_nothing(desk, clinic, patient, cash):
+    response = _post(
+        desk, patient, clinic, collect="on", method=cash.pk, key="a3", cash_paid="1449"
+    )
+    assert response.status_code == 200
+    assert not Appointment.objects.filter(patient=patient).exists()
+
+
+def test_discount_at_reception_then_cash(desk, clinic, patient, cash):
+    _post(
+        desk, patient, clinic, collect="on", method=cash.pk, key="a4",
+        discount="500", discount_reason="Welfare", cash_paid="1000",
+    )  # fmt: skip
+    invoice = _invoice(patient)
+    assert invoice.invoice_discount == Decimal("500")
+    assert invoice.cash_adjustment == 0
+    assert invoice.status == "paid"
+
+
+def test_papers_have_rx_and_refund_but_no_token_only_button(desk, clinic, patient, cash):
+    _post(desk, patient, clinic, collect="on", method=cash.pk, key="a5")
+    appt = Appointment.objects.get(patient=patient)
+    html = desk.get(f"/appointments/{appt.pk}/papers/?print=1").content.decode()
+    assert "Token only" not in html
+    assert "Print Rx" in html
+    assert "Refund" in html
+    assert "Now serving" in html
+    assert AUTO_PRINT_SLIPS in html
+    rx = desk.get(f"/appointments/{appt.pk}/papers/?part=rx").content.decode()
+    assert 'name="sd-print-dialog"' in rx

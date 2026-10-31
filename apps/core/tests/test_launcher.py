@@ -174,7 +174,7 @@ def test_finds_another_server_on_the_network(found, expected):
 
 def test_clients_may_keep_the_address_for_longer_than_the_default():
     info = mdns.Advertiser(80)._service_info(["192.168.1.50"])
-    assert info.host_ttl == mdns.HOST_TTL_SECONDS == 900
+    assert info.host_ttl == mdns.HOST_TTL_SECONDS == 4 * 3600
 
 
 def test_new_lan_address_is_allowed_without_a_restart(monkeypatch, settings):

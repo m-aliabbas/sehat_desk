@@ -84,6 +84,11 @@ PRD §9. Phases 12–14. PROJECT_NOTES §12–13.
 - Supplier ledger: the supplier page shows the account across branches; the full dated version with
   exports is report `supplier-statement` (tab on the purchasing screens, `apps/reports`).
 
+- Returns to supplier: `purchasing.return_to_supplier` (screen `supplier-returns`, tab on purchasing) works by supplier and
+  medicine with no purchase; it credits at batch cost. `PurchaseReturn.purchase` and `PurchaseReturnItem.purchase_item` may
+  be empty. `return_items` remains for a return from one purchase.
+- Till: `checkout(adjust_cash=True)` lets cash differ by the Billing limit (`billing.apply_cash_adjustment`).
+
 ## Permissions
 `pharmacy.sale`, `pharmacy.refund`, `pharmacy.discount`, `pharmacy.inventory.manage`,
 `billing.payment.collect`. Module switch: `pharmacy`.

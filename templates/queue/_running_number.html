@@ -1,0 +1,3 @@
+{# The number being seen now, so the patient can judge the wait. Context: now_serving, ahead #}
+<p class="mt-2 text-body font-bold">Now serving: <span class="font-mono">{{ now_serving|default:"not started" }}</span></p>
+<p class="text-label">{{ ahead }} patient{{ ahead|pluralize }} ahead of you</p>

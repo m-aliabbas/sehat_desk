@@ -3,6 +3,8 @@
 {# The empty prescription, on A5 paper. The token and fee slip print apart: appointments/papers.html. #}
 {% block title %}Prescription · {{ appt.number }}{% endblock %}
 {% block print_label %}Print prescription{% endblock %}
+{# Staff choose the printer for this one: always the browser's print window. #}
+{% block head_extra %}{{ block.super }}<meta name="sd-print-dialog" content="1">{% endblock %}
 {% block document %}
   {% print_layout "prescription" as L %}{% include "print/_layout_css.html" %}
   <section class="flex min-h-[185mm] flex-col">

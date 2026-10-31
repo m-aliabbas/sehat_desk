@@ -16,6 +16,7 @@ from django.db import IntegrityError, transaction
 from django.db.models import Count, Sum
 from django.utils import timezone
 
+from apps.core.dates import on_day
 from apps.core.db import locked
 from apps.core.models import next_number
 
@@ -88,7 +89,7 @@ def recalculate(invoice) -> Invoice:
     invoice.tax_total = sum((i.tax_amount for i in items), ZERO)
     lines = sum((i.line_total for i in items), ZERO)
     invoice.invoice_discount = min(to_money(invoice.invoice_discount), lines)
-    invoice.grand_total = lines - invoice.invoice_discount
+    invoice.grand_total = lines - invoice.invoice_discount + invoice.cash_adjustment
     invoice.save(
         update_fields=[
             "subtotal",
@@ -244,16 +245,21 @@ def set_line_discount(item, *, request, amount, reason) -> InvoiceItem:
 
 
 @transaction.atomic
-def set_invoice_discount(invoice, *, request, amount, reason, authorized_by=None) -> Invoice:
+def set_invoice_discount(
+    invoice, *, request, amount, reason, authorized_by=None, before_payment=False
+) -> Invoice:
     """authorized_by: a discount already approved elsewhere by a user holding the right
     permission (a pharmacy cart discount needs pharmacy.discount, checked by pharmacy/pos.py).
-    Without it the signed-in user needs billing.discount."""
+    Without it the signed-in user needs billing.discount.
+    before_payment: reception's visit fee is issued on booking, and can still be discounted until
+    money is taken on it."""
     if authorized_by is None:
         _require_discount_permission(request)
     invoice = _lock(invoice)
-    _require_draft(invoice)
+    if not (before_payment and invoice.status == Status.UNPAID and not invoice.amount_paid):
+        _require_draft(invoice)
     amount = to_money(amount)
-    lines = invoice.grand_total + invoice.invoice_discount
+    lines = invoice.grand_total + invoice.invoice_discount - invoice.cash_adjustment
     if amount < 0 or amount > lines:
         raise BillingError(f"The discount must be between 0 and {lines}.")
     check_discount_cap(invoice.organization, amount, lines)
@@ -367,6 +373,53 @@ def receive_payment(
     return payment
 
 
+def apply_cash_adjustment(invoice, *, cash_paid) -> Invoice:
+    """Close the small gap between the bill and the cash paid, within the Settings → Billing limit.
+    Call inside a transaction, before the payment that takes cash_paid."""
+    invoice = _lock(invoice)
+    if invoice.status == Status.DRAFT:
+        raise BillingError("Issue the invoice before adjusting it.")
+    cash_paid = to_money(cash_paid)
+    if cash_paid <= ZERO:
+        raise BillingError("Enter the cash paid.")
+    difference = cash_paid - invoice.balance_due
+    limit = settings_for(invoice.organization).cash_adjustment_limit
+    if abs(difference) > limit:
+        raise BillingError(
+            f"The cash paid is {abs(difference)} away from the {invoice.balance_due} due. "
+            f"Only {limit} can be adjusted."
+        )
+    invoice.cash_adjustment += difference
+    invoice.save(update_fields=["cash_adjustment", "updated_at"])
+    return recalculate(invoice)
+
+
+@transaction.atomic
+def settle_cash(
+    invoice, *, request, method, cash_paid, reference="", note="", idempotency_key=""
+) -> Payment:
+    """Take cash_paid and close the bill. Only cash can differ from the amount due."""
+    if idempotency_key:
+        done = Payment.objects.filter(
+            organization=request.organization, idempotency_key=idempotency_key
+        ).first()
+        if done:
+            return done
+    if to_money(cash_paid) != invoice.balance_due:
+        if method.code != "cash":
+            raise BillingError(f"{method.name} payments must match the amount due.")
+        invoice = apply_cash_adjustment(invoice, cash_paid=cash_paid)
+    return receive_payment(
+        invoice,
+        request=request,
+        method=method,
+        amount=cash_paid,
+        reference=reference,
+        note=note,
+        idempotency_key=idempotency_key,
+    )
+
+
 # --- Refunds -----------------------------------------------------------------------------------
 
 
@@ -449,13 +502,13 @@ def day_totals(branch, day: date | None = None) -> dict:
     from apps.ipd.models import AdmissionDeposit
 
     day = day or timezone.localdate()
-    payments = Payment.objects.filter(branch=branch, created_at__date=day).exclude(
+    payments = Payment.objects.filter(branch=branch, **on_day("created_at", day)).exclude(
         idempotency_key__startswith=DEPOSIT_PAYMENT_KEY_PREFIX
     )
-    refunds = Refund.objects.filter(branch=branch, created_at__date=day)
-    deposits = AdmissionDeposit.objects.filter(branch=branch, created_at__date=day)
+    refunds = Refund.objects.filter(branch=branch, **on_day("created_at", day))
+    deposits = AdmissionDeposit.objects.filter(branch=branch, **on_day("created_at", day))
     returns = AdmissionDeposit.objects.filter(
-        branch=branch, returned_at__date=day, returned_amount__gt=ZERO
+        branch=branch, **on_day("returned_at", day), returned_amount__gt=ZERO
     )
 
     by_method: dict = {}

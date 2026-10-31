@@ -10,6 +10,7 @@ from django.views.decorators.http import require_POST
 
 from apps.accounts.decorators import has_perm, permission_required
 from apps.audit import services as audit
+from apps.core.dates import on_day
 from apps.core.scoping import get_scoped_or_404, paginate, scoped
 from apps.encounters import services as encounter_services
 from apps.encounters.models import Encounter
@@ -76,7 +77,7 @@ def procedure_list(request):
         )
     day = request.GET.get("date", "")
     try:
-        qs = qs.filter(created_at__date=date.fromisoformat(day)) if day else qs
+        qs = qs.filter(**on_day("created_at", date.fromisoformat(day))) if day else qs
     except ValueError:
         day = ""
     return render(

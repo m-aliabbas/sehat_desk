@@ -13,6 +13,7 @@ from django.views.decorators.http import require_GET, require_POST
 from apps.accounts.decorators import has_perm, permission_required
 from apps.appointments.models import Appointment
 from apps.audit import services as audit
+from apps.core.dates import on_day
 from apps.core.forms import StyledFormMixin
 from apps.core.scoping import get_scoped_or_404, scoped
 from apps.lab import services as lab_services
@@ -69,7 +70,7 @@ def workspace(request):
                 "waiting": queue_services.waiting(queue)[:8],
                 "waiting_count": queue_services.waiting(queue).count(),
                 "completed_today": mine.filter(
-                    status=Status.COMPLETED, completed_at__date=today
+                    status=Status.COMPLETED, **on_day("completed_at", today)
                 ).count(),
                 "drafts": mine.filter(status=Status.DRAFT).order_by("-updated_at"),
                 "follow_ups": services.follow_ups(doctor),
@@ -171,7 +172,7 @@ def _workspace_context(request, encounter, form=None):
         vitals_services.valid_for(patient, request.organization)
         .filter(
             Q(encounter=encounter)
-            | Q(recorded_at__date=timezone.localtime(encounter.started_at).date())
+            | Q(**on_day("recorded_at", timezone.localtime(encounter.started_at).date()))
         )
         .select_related("recorded_by")[:5]
     )

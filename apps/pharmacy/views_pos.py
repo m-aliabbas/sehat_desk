@@ -22,6 +22,7 @@ from apps.accounts.models import User
 from apps.audit import services as audit
 from apps.billing import services as billing
 from apps.billing.models import to_money
+from apps.core.dates import in_days, on_day
 from apps.core.scoping import get_scoped_or_404, scoped
 from apps.core.security import same_origin_frame
 from apps.masterdata.models import DoctorProfile
@@ -114,7 +115,7 @@ def _cart_context(request):
 def _today(request):
     return (
         scoped(PharmacySale, request)
-        .filter(status=Status.COMPLETED, completed_at__date=timezone.localdate())
+        .filter(status=Status.COMPLETED, **on_day("completed_at", timezone.localdate()))
         .aggregate(n=Count("id"), total=Sum("grand_total"))
     )
 
@@ -524,7 +525,12 @@ def pay(request):
     if request.method == "POST":
         try:
             unprescribed = pos.rx_only_without_prescription(cart)
-            sale = pos.checkout(cart, request=request, payments=_payment_rows(request))
+            sale = pos.checkout(
+                cart,
+                request=request,
+                payments=_payment_rows(request),
+                adjust_cash=request.POST.get("adjust_cash") == "1",
+            )
         except pos.PosError as err:
             error = err.message
         else:
@@ -535,6 +541,13 @@ def pay(request):
                 summary=f"{sale.number} {sale.grand_total} invoice {sale.invoice.number}"
                 + (f" for {sale.prescription.number}" if sale.prescription_id else ""),
             )
+            if sale.invoice.cash_adjustment:
+                audit.record(
+                    request,
+                    "billing.cash_adjustment",
+                    sale.invoice,
+                    summary=f"{sale.invoice.number}: {sale.invoice.cash_adjustment}",
+                )
             for line in unprescribed:
                 audit.record(
                     request,
@@ -561,6 +574,7 @@ def pay(request):
             "totals": pos.totals(cart),
             "problems": pos.checkout_problems(cart),
             "methods": billing.active_methods(request.organization),
+            "cash_limit": billing.settings_for(request.organization).cash_adjustment_limit,
             "error": error,
             "breadcrumbs": _crumbs({"label": "Take payment"}),
         },
@@ -655,7 +669,7 @@ def rx_queue(request):
             "waiting_count": waiting.count(),
             "partial_count": waiting.filter(dispense_status=Prescription.Dispense.PARTIAL).count(),
             "today_count": scoped(Prescription, request)
-            .filter(sent_to_pharmacy_at__date=today)
+            .filter(**on_day("sent_to_pharmacy_at", today))
             .count(),
             "visits": pos.visits_without_rx(request, q=q)[:50],
             "breadcrumbs": _crumbs({"label": "Prescriptions"}),
@@ -767,10 +781,8 @@ def sale_list(request):
             | Q(patient__name_search__icontains=" ".join(q.lower().split()))
         )
     else:
-        sales = sales.filter(completed_at__date__gte=start, completed_at__date__lte=end)
-    returns = scoped(PharmacySaleReturn, request).filter(
-        created_at__date__gte=start, created_at__date__lte=end
-    )
+        sales = sales.filter(**in_days("completed_at", start, end))
+    returns = scoped(PharmacySaleReturn, request).filter(**in_days("created_at", start, end))
     return render(
         request,
         "pharmacy/pos/sale_list.html",

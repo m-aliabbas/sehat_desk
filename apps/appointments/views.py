@@ -2,6 +2,7 @@
 
 import uuid
 from datetime import date, datetime, time, timedelta
+from decimal import Decimal
 
 from django import forms
 from django.contrib import messages
@@ -24,6 +25,8 @@ from apps.patients import services as patient_services
 from apps.patients.forms import PatientForm
 from apps.patients.models import Patient
 from apps.patients.services import own_doctor_only
+from apps.printing import direct as printing_direct
+from apps.queue import services as queue_services
 from apps.vitals import services as vitals_services
 from apps.vitals.forms import VitalsForm
 
@@ -281,6 +284,9 @@ class VisitForm(StyledFormMixin, forms.Form):
     method = forms.ModelChoiceField(queryset=PaymentMethod.objects.none(), required=False)
     reference = forms.CharField(max_length=80, required=False)
     key = forms.CharField(max_length=40, required=False)
+    discount = forms.DecimalField(min_value=0, max_digits=12, decimal_places=2, required=False)
+    discount_reason = forms.CharField(max_length=200, required=False)
+    cash_paid = forms.DecimalField(min_value=0, max_digits=12, decimal_places=2, required=False)
 
     def __init__(self, *args, request, **kwargs):
         super().__init__(*args, **kwargs)
@@ -384,6 +390,9 @@ def visit_new(request):
                         method=c["method"],
                         reference=c["reference"],
                         key=c["key"],
+                        cash_paid=c["cash_paid"],
+                        discount=c["discount"] or 0,
+                        discount_reason=c["discount_reason"],
                     )
             except (
                 services.BookingError,
@@ -404,9 +413,7 @@ def visit_new(request):
                 if visit.token:
                     audit.record(request, "queue.issue", visit.token, summary=visit.token.label)
                 if visit.payment:
-                    audit.record(
-                        request, "billing.payment", visit.invoice, summary=visit.payment.number
-                    )
+                    _audit_fee(request, visit.invoice, visit.payment)
                 return redirect(f"{reverse('appointments:papers', args=[appt.pk])}?print=1")
 
     patient = None
@@ -453,6 +460,8 @@ def visit_context(request, *, form=None, patient_form=None, vitals_form=None, ne
         "today": today,
         "tomorrow": today + timedelta(days=1),
         "can_collect": has_perm(request, visits.COLLECT),
+        "can_discount": has_perm(request, "billing.discount"),
+        "cash_limit": billing_services.settings_for(request.organization).cash_adjustment_limit,
         "can_vitals": has_perm(request, "vitals.record"),
         "can_register": has_perm(request, "patient.create"),
         "idempotency_key": request.POST.get("key") or uuid.uuid4().hex,
@@ -480,14 +489,17 @@ def papers(request, pk):
     due = bool(invoice and invoice.balance_due)
     wants_print = request.GET.get("print") == "1"
     rx_only = request.GET.get("part") == "rx"
-    has_slip = bool(invoice or getattr(appt, "token", None))
+    token = getattr(appt, "token", None)
+    has_slip = bool(invoice or token)
+    token_printers = printing_direct.printers_for(request.organization)
     return render(
         request,
         "appointments/papers_rx.html" if rx_only else "appointments/papers.html",
         {
             "appt": appt,
             "patient": appt.patient,
-            "token": getattr(appt, "token", None),
+            "token": token,
+            **(queue_services.position(token) if token else {}),
             "invoice": invoice,
             "items": invoice.items.all() if invoice else [],
             "vitals": vitals_services.summary(latest, appt.patient) if latest else [],
@@ -496,6 +508,12 @@ def papers(request, pk):
             "other_bills": other_bills,
             "due": due,
             "can_collect": has_perm(request, visits.COLLECT),
+            "can_discount": has_perm(request, "billing.discount"),
+            "can_refund": has_perm(request, "billing.refund"),
+            "token_printers": token_printers,
+            "token_printer": printing_direct.chosen(request),
+            "can_set_printers": has_perm(request, "admin.organization.manage"),
+            "cash_limit": billing_services.settings_for(request.organization).cash_adjustment_limit,
             "methods": billing_services.active_methods(request.organization),
             "key": uuid.uuid4().hex,
             "auto_print": wants_print
@@ -503,6 +521,32 @@ def papers(request, pk):
             "billing_settings": billing_services.settings_for(request.organization),
         },
     )
+
+
+def _audit_fee(request, invoice, payment):
+    invoice.refresh_from_db()
+    audit.record(request, "billing.payment", invoice, summary=payment.number)
+    if invoice.invoice_discount:
+        audit.record(
+            request,
+            "billing.discount",
+            invoice,
+            summary=f"{invoice.invoice_discount}: {invoice.discount_reason}",
+        )
+    if invoice.cash_adjustment:
+        audit.record(
+            request,
+            "billing.cash_adjustment",
+            invoice,
+            summary=f"{invoice.number}: {invoice.cash_adjustment}",
+        )
+
+
+def _money(value):
+    try:
+        return Decimal(value) if str(value or "").strip() else None
+    except ArithmeticError:
+        raise billing_services.BillingError("Enter valid amounts.") from None
 
 
 @require_POST
@@ -526,11 +570,14 @@ def collect(request, pk):
             method=method,
             reference=request.POST.get("reference", ""),
             key=request.POST.get("key", ""),
+            cash_paid=_money(request.POST.get("cash_paid")),
+            discount=_money(request.POST.get("discount")) or 0,
+            reason=request.POST.get("discount_reason", ""),
         )
     except (billing_services.BillingError, services.BookingError) as err:
         messages.error(request, err.message)
         return redirect("appointments:papers", pk=pk)
-    audit.record(request, "billing.payment", invoice, summary=payment.number)
+    _audit_fee(request, invoice, payment)
     return redirect(f"{reverse('appointments:papers', args=[pk])}?print=1")
 
 

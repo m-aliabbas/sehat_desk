@@ -229,3 +229,84 @@ def test_other_hospital_cannot_see_or_change_a_station(admin_client, org, db):
     station = PrintStation.objects.create(organization=other, name="Theirs")
     assert "Theirs" not in admin_client.get("/settings/printers/").content.decode()
     assert admin_client.post(f"/settings/printers/{station.pk}/delete/").status_code == 404
+
+
+# --- The server prints slips itself -----------------------------------------------------------
+def _fake_printer():
+    """A network receipt printer: keeps what it is sent."""
+    import socket
+    import threading
+
+    server = socket.create_server(("127.0.0.1", 0))
+    got = []
+
+    def serve():
+        conn, _ = server.accept()
+        with conn:
+            while data := conn.recv(65536):
+                got.append(data)
+        server.close()
+
+    threading.Thread(target=serve, daemon=True).start()
+    return server.getsockname()[1], got
+
+
+def _job(client, paper="thermal"):
+    return client.post(
+        "/print/jobs/",
+        json.dumps({"paper": paper, "html": "<html><head></head><body>Slip</body></html>"}),
+        content_type="application/json",
+    ).json()
+
+
+def test_thermal_goes_to_the_token_printer(admin_client, org, monkeypatch):
+    from apps.printing import direct
+    from apps.printing.models import TokenPrinter
+
+    TokenPrinter.objects.create(organization=org, name="Desk", address="10.0.0.9")
+    sent = []
+    monkeypatch.setattr(direct, "send", lambda printer, html: sent.append(html) or "")
+    assert _job(admin_client) == {"queued": False, "direct": True, "printer": "Desk", "error": ""}
+    assert _job(admin_client, "a5") == {"queued": False}
+    assert len(sent) == 1
+
+
+def test_each_pc_chooses_when_there_are_two_printers(admin_client, org, monkeypatch):
+    from apps.printing import direct
+    from apps.printing.models import TokenPrinter
+
+    monkeypatch.setattr(direct, "send", lambda printer, html: "")
+    TokenPrinter.objects.create(organization=org, name="One", address="10.0.0.1")
+    two = TokenPrinter.objects.create(organization=org, name="Two", address="10.0.0.2")
+    assert _job(admin_client) == {"queued": False}
+    admin_client.post("/print/token-printer/", {"printer": two.pk, "next": "/"})
+    assert _job(admin_client)["printer"] == "Two"
+
+
+def test_page_cannot_reach_files_or_network(org, monkeypatch):
+    from apps.printing import direct
+    from apps.printing.models import TokenPrinter
+    from print_helper import render
+
+    seen = {}
+    monkeypatch.setattr(render, "run_job", lambda paper, html, send: seen.update(html=html))
+    printer = TokenPrinter(organization=org, name="Desk", address="10.0.0.9")
+    assert direct.send(printer, "<html><head></head></html>") == ""
+    assert "default-src 'none'" in seen["html"]
+
+
+def test_real_slip_reaches_a_network_printer(org):
+    from apps.printing import direct
+    from apps.printing.models import TokenPrinter
+    from print_helper import render
+
+    if not render.find_browser():
+        pytest.skip("needs Edge or Chrome")
+    port, got = _fake_printer()
+    printer = TokenPrinter(organization=org, name="Desk", address=f"127.0.0.1:{port}")
+    assert direct.send_test(printer) == ""
+    import time
+
+    time.sleep(0.2)
+    data = b"".join(got)
+    assert data.startswith(b"\x1b@") and data.endswith(b"\x1dV\x42\x40")
