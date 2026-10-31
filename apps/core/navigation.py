@@ -22,7 +22,7 @@ class NavItem:
 
 NAV_ITEMS = [
     NavItem("dashboard", "Dashboard", "home", url_name="core:dashboard"),
-    NavItem("reception", "Reception & tokens", "ticket", "queue:desk", ("queue.manage",)),
+    NavItem("reception", "Reception", "ticket", "queue:desk", ("queue.manage",)),
     NavItem("vitals", "Vitals station", "heart-pulse", "vitals:station", ("vitals.record",)),
     NavItem(
         "appointments", "Appointments", "calendar", "appointments:calendar", ("appointment.view",)
@@ -131,19 +131,19 @@ ADMIN_SIDEBAR = (
     "more",
     "settings",
 )
-ADMIN_LABELS = {"dashboard": "Overview", "reception": "Reception", "laboratory": "Lab"}
+ADMIN_LABELS = {"dashboard": "Overview"}
 
 # Each module keeps one colour everywhere, like colour-coded bins (.tint-* in static/src/app.css).
 NAV_COLORS = {
     "dashboard": "blue",
     "reception": "teal",
-    "vitals": "red",
+    "vitals": "blue",
     "appointments": "purple",
     "patients": "blue",
     "opd": "green",
     "ipd": "green",
     "nursing": "green",
-    "procedures": "red",
+    "procedures": "purple",
     "laboratory": "yellow",
     "pharmacy": "orange",
     "billing": "green",
@@ -192,14 +192,16 @@ def build_nav(request) -> list[dict]:
 
     items = [item for item in NAV_ITEMS if item_is_visible(item, request)]
     labels = {}
+    where = ""
     # Reception books from its own desk; the calendar is one link away from there.
     if "queue.manage" in getattr(request, "sd_perms", frozenset()):
         items = [i for i in items if i.key != "appointments"]
     if "admin.organization.manage" in getattr(request, "sd_perms", frozenset()):
         items = [i for key in ADMIN_SIDEBAR for i in items if i.key == key]
         labels = ADMIN_LABELS
-        # A screen opened from the All menu page keeps that button highlighted.
+        # A screen opened from the All menu keeps that button highlighted and names itself on it.
         if current_key and current_key not in {i.key for i in items}:
+            where = next((i.label for i in NAV_ITEMS if i.key == current_key), "")
             current_key = "more"
 
     return [
@@ -210,6 +212,7 @@ def build_nav(request) -> list[dict]:
             "color": NAV_COLORS.get(item.key, "neutral"),
             "url": item_url(item),
             "active": item.key == current_key,
+            "where": where if item.key == "more" else "",
             "coming_soon": item.url_name is None,
         }
         for item in items
@@ -227,7 +230,7 @@ _NAV_KEY_BY_SECTION = {
     "organizations:settings": "settings",
     "organizations:preferences": "settings",
     "queue:walk": "reception",
-    "appointments:visit": "reception",
+    "appointments:visit-new": "reception",
     "billing:ledger": "finance",
     "queue:counters": "reception",
     "queue:counter": "reception",

@@ -5,7 +5,7 @@
 {% block page_subtitle %}Control access by role, branch and assigned care responsibilities.{% endblock %}
 {% block content %}
 {% include "partials/settings_tabs.html" %}
-<form method="post" class="card" x-data="{ dirty: false }" @change="dirty = true">
+<form method="post" class="card" x-data="{ dirty: false, mod: '{{ groups.0.0|escapejs }}' }" @change="dirty = true">
   {% csrf_token %}
   <div class="card-header">
     <div>
@@ -14,6 +14,9 @@
     </div>
     <button type="submit" class="btn btn-primary" :disabled="!dirty">Save permissions</button>
   </div>
+  <nav class="mb-3 flex flex-wrap gap-1" aria-label="Permission groups">
+    {% for module, rows in groups %}<button type="button" class="settings-sub" :aria-current="mod === '{{ module|escapejs }}' ? 'page' : null" @click="mod = '{{ module|escapejs }}'">{{ module }}</button>{% endfor %}
+  </nav>
   <div class="table-wrap">
     <table class="table">
       <thead>
@@ -24,9 +27,8 @@
       </thead>
       <tbody>
         {% for module, rows in groups %}
-          <tr><td colspan="{{ roles|length|add:1 }}" class="bg-page/60 py-2 text-label font-semibold tracking-wide text-muted uppercase">{{ module }}</td></tr>
           {% for row in rows %}
-            <tr>
+            <tr x-show="mod === '{{ module|escapejs }}'">
               <td><span class="font-medium">{{ row.perm.label }}</span><span class="block font-mono text-label text-muted">{{ row.perm.code }}</span></td>
               {% for cell in row.cells %}
                 <td class="text-center">

@@ -35,7 +35,7 @@
       @patient-picked="patientId = $event.detail.id; patientLabel = $event.detail.label; search = ''; refreshSlots(); $nextTick(() => { if (!doctor) document.getElementById('doctor-search')?.focus(); else $refs.save.focus(); })"
       @keydown.f2.window.prevent="patientId = ''; mode = 'find'; $nextTick(() => document.getElementById('patient-search').focus())"
       @keydown.f3.window.prevent="doctorId = ''; setTimeout(() => document.getElementById('doctor-search')?.focus())"
-      @keydown.f4.window.prevent="pickTime = !pickTime; time = ''; refreshSlots()"
+      @keydown.alt.t.window.prevent="pickTime = !pickTime; time = ''; refreshSlots()"
       @keydown.f8.window.prevent="$refs.save.click()"
       @slot-picked.window="time = $event.detail"
       @fee-suggested.window="fee = $event.detail"
@@ -180,7 +180,7 @@
   <aside class="space-y-6">
     <section class="card xl:sticky xl:top-20">
       <h2 class="section-title mb-4">Fee and papers</h2>
-      <p class="flex items-baseline justify-between text-body"><span class="text-muted">Doctor's fee</span><span class="text-[22px] font-bold">{{ organization.currency }} <span x-text="fee || '—'"></span></span></p>
+      <p class="flex items-baseline justify-between text-body"><span class="text-muted">Doctor's fee</span><span class="text-[22px] font-bold">{{ organization.currency }} <span x-text="fee ? Number(fee).toLocaleString() : '—'"></span></span></p>
       {% if can_collect and prefs.opd_collect_fee_upfront %}
       <label class="mt-4 flex items-center gap-2 text-body">
         <input type="checkbox" class="checkbox" name="collect" x-model="collect">
@@ -193,7 +193,7 @@
             {% for m in methods %}<option value="{{ m.pk }}" {% if form.method.value|stringformat:"s" == m.pk|stringformat:"s" %}selected{% endif %}>{{ m.name }}</option>{% endfor %}
           </select>
         </div>
-        <div class="field">
+        <div class="field" x-data x-init="const m = document.getElementById('id_method'); const f = () => { $el.hidden = /cash/i.test(m?.selectedOptions[0]?.text || ''); }; m?.addEventListener('change', f); f()">
           <label class="field-label" for="id_reference">Reference <span class="text-label text-muted">(not for cash)</span></label>
           <input id="id_reference" name="reference" class="input" maxlength="80" value="{{ form.reference.value|default:'' }}">
         </div>
@@ -208,7 +208,7 @@
       </ul>
       <p class="mt-4 text-label text-muted" x-show="!isToday" x-cloak>Pre-booking. The token and prescription print when the patient arrives.</p>
       <button type="submit" x-ref="save" class="btn btn-primary mt-5 w-full" :disabled="(mode === 'find' && !patientId) || !doctorId || (pickTime && !time)" x-text="isToday ? 'Save and print (F8)' : 'Save booking (F8)'"></button>
-      <p class="mt-3 flex flex-wrap gap-x-3 text-label text-muted" aria-label="Keyboard shortcuts"><span><kbd class="font-mono font-semibold text-ink">F2</kbd> patient</span><span><kbd class="font-mono font-semibold text-ink">F3</kbd> doctor</span><span><kbd class="font-mono font-semibold text-ink">F4</kbd> time</span><span><kbd class="font-mono font-semibold text-ink">Alt+V</kbd> vitals</span><span><kbd class="font-mono font-semibold text-ink">Alt+J</kbd> next section</span><span><kbd class="font-mono font-semibold text-ink">Enter</kbd> pick first</span></p>
+      <p class="mt-3 flex flex-wrap gap-x-3 text-label text-muted" aria-label="Keyboard shortcuts"><span><kbd class="font-mono font-semibold text-ink">F2</kbd> patient</span><span><kbd class="font-mono font-semibold text-ink">F3</kbd> doctor</span><span><kbd class="font-mono font-semibold text-ink">Alt+T</kbd> time</span><span><kbd class="font-mono font-semibold text-ink">Alt+V</kbd> vitals</span><span><kbd class="font-mono font-semibold text-ink">Alt+J</kbd> next section</span><span><kbd class="font-mono font-semibold text-ink">Enter</kbd> pick first</span></p>
     </section>
   </aside>
 </form>

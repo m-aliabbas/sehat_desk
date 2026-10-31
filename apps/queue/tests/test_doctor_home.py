@@ -1,4 +1,4 @@
-"""The doctor's home: their queue, one Next button, and only their own patients."""
+"""The doctor's queue: one Next button, and only their own patients."""
 
 import pytest
 from django.urls import reverse
@@ -31,7 +31,7 @@ def _token(make_request, admin_user, patient, doctor):
 
 def test_home_sends_a_doctor_to_their_queue(doc_client):
     response = doc_client.get(reverse("core:dashboard"))
-    assert response.status_code == 302 and response.url == reverse("queue:doctor")
+    assert response.status_code == 302 and response.url == reverse("encounters:workspace")
 
 
 def test_queue_shows_counters_and_next_button(

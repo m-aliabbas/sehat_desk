@@ -12,7 +12,7 @@ Phase 6. Tokens per branch, department and day (A-001...). PROJECT_NOTES §11.
 - waiting → called → in_consultation → completed (skip/requeue, cancel from any open state).
   The linked appointment follows.
 - A doctor has at most one called/in-consultation token at a time.
-- `queue:doctor` is a doctor's home (`core._work_screen`): counters, current patient, waiting list,
+- `queue:doctor` is the doctor's full queue (their home is `encounters:workspace`, `core._work_screen`): counters, current patient, waiting list,
   patients checked today and reports received today (lab released today for orders they asked for,
   procedures finished today that they performed or added). Reports need `consultation.view`.
 - "Checked · Next patient" (`queue:complete-next`, views.`complete_and_next`) closes the visit and

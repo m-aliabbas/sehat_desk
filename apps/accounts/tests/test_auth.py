@@ -96,6 +96,15 @@ def test_multi_branch_user_lands_on_workspace_choice(client, make_user, branch2)
     assert login(client, "dr").url == reverse("accounts:workspace")
 
 
+def test_chosen_branch_is_remembered_on_this_computer(client, make_user, branch2):
+    make_user("doctor", username="dr")  # all branches
+    login(client, "dr")
+    client.post("/workspace/switch/", {"branch": branch2.pk})
+    client.post("/accounts/logout/")
+    assert login(client, "dr").url == reverse("core:dashboard")
+    assert client.session["sd_branch_id"] == branch2.pk
+
+
 def test_single_branch_user_goes_to_dashboard(client, make_user, branch, branch2):
     make_user("doctor", username="dr", branch=branch)
     assert login(client, "dr").url == reverse("core:dashboard")

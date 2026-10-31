@@ -19,5 +19,6 @@
     <select name="kind" class="select" aria-label="Movement type"><option value="">All movements</option>{% for v, l in kinds %}<option value="{{ v }}" {% if kind == v %}selected{% endif %}>{{ l }}</option>{% endfor %}</select>
   </form>
   {% include "pharmacy/_ledger_table.html" %}
+  {% include "components/pagination.html" %}
 </section>
 {% endblock %}

@@ -1,14 +1,14 @@
 {% extends "layouts/app.html" %}
 {% load ui %}
 {% block title %}{% if view == "outstanding" %}Outstanding invoices{% else %}Invoice register{% endif %}{% endblock %}
-{% block page_title %}{% if view == "outstanding" %}Outstanding invoices{% else %}Invoice register{% endif %}{% endblock %}
+{% block page_title %}{% if view == "outstanding" %}Outstanding invoices{% else %}Invoices{% endif %}{% endblock %}
 {% block page_subtitle %}Track invoiced amounts, payments, and outstanding balances.{% endblock %}
 {% block page_actions %}
   <a href="{% url 'billing:payment-list' %}" class="btn btn-secondary">Daily payments</a>
   {% if can_collect %}<a href="{% url 'billing:invoice-create' %}" class="btn btn-primary">{% icon "plus" "h-4 w-4" %} New invoice</a>{% endif %}
 {% endblock %}
 {% block content %}
-<div class="mb-6 grid gap-4 md:grid-cols-3">
+<div class="mb-6 grid gap-3 md:grid-cols-2">
   <a href="{% url 'billing:payment-list' %}" class="stat-card bg-mint hover:ring-2 hover:ring-teal/20">
     <p class="text-body text-ink">Today's collection</p>
     <p class="mt-2 text-[28px] font-bold text-ink">{{ organization.currency }} {{ today.net|floatformat:"0g" }}</p>
@@ -19,11 +19,6 @@
     <p class="mt-2 text-[28px] font-bold text-ink">{{ organization.currency }} {{ outstanding_total|floatformat:"0g" }}</p>
     <p class="text-label text-muted">{{ outstanding_count }} invoice{{ outstanding_count|pluralize }} unpaid or part-paid</p>
   </a>
-  <div class="stat-card bg-blue-soft">
-    <p class="text-body text-ink">Branch</p>
-    <p class="mt-2 text-[22px] font-bold text-ink">{{ request.branch.name }}</p>
-    <p class="text-label text-muted">Invoices and payments are kept per branch</p>
-  </div>
 </div>
 
 <section class="card">
@@ -55,7 +50,7 @@
             <td class="text-right font-semibold">{{ inv.balance_due|floatformat:"2g" }}</td>
             <td>{% status_chip inv.status inv.get_status_display %}</td>
             <td class="text-right whitespace-nowrap">
-              {% if can_collect and inv.is_outstanding %}<a href="{% url 'billing:invoice-detail' inv.pk %}" class="btn btn-primary btn-sm">Collect</a>{% endif %}
+              {% if can_collect and inv.is_outstanding %}<a href="{% url 'billing:invoice-pay' inv.pk %}" class="btn btn-primary btn-sm">Collect</a>{% endif %}
               <a href="{% url 'billing:invoice-detail' inv.pk %}" class="btn btn-ghost btn-sm">Open</a>
             </td>
           </tr>

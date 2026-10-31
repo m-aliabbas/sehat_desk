@@ -67,17 +67,28 @@ def health_ready(request: HttpRequest) -> JsonResponse:
 
 
 def _work_screen(request, features) -> str | None:
-    """Pharmacy and reception staff start where they work; everyone else gets the dashboard."""
+    """Everyone starts on the desk they work at. Only admins and mixed roles get the dashboard."""
     from apps.patients.services import own_doctor_only
 
     if own_doctor_only(request):
-        return "queue:doctor"
-    if has_perm(request, "admin.organization.manage") or has_perm(request, "consultation.view"):
+        return "encounters:workspace"
+    if has_perm(request, "admin.organization.manage"):
+        return None
+    if features["nursing"] and has_perm(request, "nursing.notes"):
+        return "nursing:workspace"
+    if has_perm(request, "consultation.view"):
         return None
     if features["pharmacy"] and has_perm(request, "pharmacy.sale"):
         return "pharmacy:pos"
     if has_perm(request, "queue.manage") and has_perm(request, "appointment.manage"):
         return "queue:desk"
+    if features["lab"] and any(
+        has_perm(request, code)
+        for code in ("lab.sample.collect", "lab.result.enter", "lab.result.verify")
+    ):
+        return "lab:worklist"
+    if has_perm(request, "billing.payment.collect"):
+        return "billing:invoice-list"
     return None
 
 
@@ -95,7 +106,7 @@ def dashboard(request: HttpRequest) -> HttpResponse:
 
     features = enabled_features(request.organization)
     home = _work_screen(request, features)
-    if home and (home == "queue:doctor" or request.GET.get("view") != "overview"):
+    if home and (home == "encounters:workspace" or request.GET.get("view") != "overview"):
         return redirect(home)  # a doctor never gets the hospital-wide numbers
     today = timezone.localdate()
     ctx = {"today": today}
@@ -625,13 +636,15 @@ def menu(request):
     from apps.organizations.forms import ModulesForm
     from apps.organizations.models import preferences_for
 
-    from .menu_hub import build_hub
+    from .menu_hub import menu_page
 
+    groups, common = menu_page(request)
     return render(
         request,
         "core/menu.html",
         {
-            "groups": build_hub(request),
+            "groups": groups,
+            "common": common,
             "modules_form": ModulesForm(instance=preferences_for(request.organization)),
         },
     )

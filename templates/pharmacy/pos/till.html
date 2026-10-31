@@ -1,7 +1,7 @@
 {% extends "layouts/app.html" %}
 {% load ui %}
 {% block title %}Point of sale{% endblock %}
-{% block page_title %}Pharmacy point of sale{% endblock %}
+{% block page_title %}Pharmacy{% endblock %}
 {% block page_subtitle %}{{ current_branch.name }} · {{ request.user.get_full_name|default:request.user.username }} · today {{ today.n }} sale{{ today.n|pluralize }}, {{ organization.currency }} {{ today.total|default:0|floatformat:"2g" }}{% endblock %}
 {% block page_actions %}
   <a href="{% url 'pharmacy:rx-queue' %}" class="btn btn-secondary">Prescriptions{% if rx_waiting %} <span class="chip chip-warning ml-1">{{ rx_waiting }}</span>{% endif %}</a>

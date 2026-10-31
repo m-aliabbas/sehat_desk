@@ -196,3 +196,15 @@ def test_inventory_permissions(client, make_user, product):
     assert client.get(reverse("pharmacy:dashboard")).status_code == 403
     client.force_login(make_user("cashier"))
     assert client.get(reverse("pharmacy:receive")).status_code == 403
+
+
+def test_dashboard_panel_stops_at_twenty_and_links_to_the_full_list(client, pharmacist, org):
+    for n in range(25):
+        Product.objects.create(
+            organization=org, sku=f"LOW-{n}", brand_name=f"Low {n}", reorder_level=5,
+        )  # fmt: skip
+    client.force_login(pharmacist)
+    response = client.get(reverse("pharmacy:dashboard"))
+    assert len(response.context["low"]) == 20
+    assert response.context["low_count"] == 25
+    assert "See all 25" in response.content.decode()

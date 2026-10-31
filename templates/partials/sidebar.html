@@ -35,7 +35,7 @@
            class="nav-link nav-link-boxed {% if item.active %}nav-link-active{% endif %}"
            {% if item.active %}aria-current="page"{% endif %}>
           <span class="tint tint-{{ item.color }}">{% icon item.icon "h-4 w-4" %}</span>
-          <span class="sidebar-text flex-1 truncate font-medium">{{ item.label }}</span>
+          <span class="sidebar-text {% if item.where %}flex-none{% else %}flex-1 truncate{% endif %} font-medium">{{ item.label }}</span>{% if item.where %}<span class="sidebar-text min-w-0 flex-1 truncate text-label">{{ item.where }}</span>{% endif %}
           <span class="sidebar-text">{% icon "chevron-right" "h-4 w-4" %}</span>
         </a>
       </div>

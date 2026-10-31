@@ -11,7 +11,7 @@ workspace (branch) picker. PRD §17. PROJECT_NOTES §9.
   `super_admin_count` / `is_super_admin`.
 - `middleware.py` — sets `request.organization`, `request.branch`, `request.sd_perms`.
 - `decorators.py` — `permission_required(*codes, any_of=False)`, `workspace_exempt`, `has_perm`.
-- `views_auth.py` (login, setup, passwords, branch pick), `views_roles.py` (permission matrix),
+- `views_auth.py` (login, setup, passwords, branch pick; a chosen branch is remembered per computer in a signed cookie, so the picker shows only once), `views_roles.py` (permission matrix),
   `views_staff.py` (staff directory).
 
 ## Rules

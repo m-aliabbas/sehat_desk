@@ -21,25 +21,25 @@
   <a href="#expired" class="stat-card bg-red-soft hover:ring-2 hover:ring-red/20"><p class="text-body text-ink">Expired in stock</p><p class="mt-2 text-[28px] font-bold text-red">{{ expired_count }}</p><p class="text-label text-muted">Batches to write off — never sold</p></a>
 </div>
 
-<div class="grid gap-6 xl:grid-cols-3">
+<div class="grid items-start gap-6 xl:grid-cols-3">
   <section class="card">
-    <h2 class="section-title mb-3">Low stock</h2>
-    <ul class="divide-y divide-line">
-      {% for p in low %}<li class="flex items-center justify-between gap-2 py-2"><a href="{% url 'pharmacy:product-detail' p.pk %}" class="font-medium hover:underline">{{ p.display_name }}</a><span class="chip {% if p.stock == 0 %}chip-danger{% else %}chip-warning{% endif %}">{{ p.stock }} / {{ p.reorder_level }}</span></li>
+    <div class="mb-2 flex items-center justify-between gap-2"><h2 class="section-title">Low stock</h2>{% if low_count %}<a href="{% url 'pharmacy:product-list' %}?filter=low" class="text-label font-medium text-teal-deep hover:underline">See all {{ low_count }} →</a>{% endif %}</div>
+    <ul class="max-h-80 divide-y divide-line overflow-y-auto">
+      {% for p in low %}<li class="flex items-center justify-between gap-2 py-1"><a href="{% url 'pharmacy:product-detail' p.pk %}" class="font-medium hover:underline">{{ p.display_name }}</a><span class="chip {% if p.stock == 0 %}chip-danger{% else %}chip-warning{% endif %}">{{ p.stock }} / {{ p.reorder_level }}</span></li>
       {% empty %}<li class="py-2 text-label text-muted">Nothing below its reorder level.</li>{% endfor %}
     </ul>
   </section>
   <section class="card" id="near-expiry">
-    <h2 class="section-title mb-3">Near expiry</h2>
-    <ul class="divide-y divide-line">
-      {% for b in near %}<li class="py-2"><a href="{% url 'pharmacy:product-detail' b.product_id %}" class="font-medium hover:underline">{{ b.product.display_name }}</a><p class="text-label text-muted">Batch {{ b.batch_number }} · {{ b.quantity_available }} units · <span class="{% if b.days_to_expiry <= 30 %}font-semibold text-red{% else %}text-amber{% endif %}">expires {{ b.expiry_date|date:"d M Y" }} ({{ b.days_to_expiry }} d)</span></p></li>
+    <div class="mb-2 flex items-center justify-between gap-2"><h2 class="section-title">Near expiry</h2>{% if near_count %}{% if "reports.view" in sd_perms or can_manage %}<a href="{% url 'reports:report' 'expiry' %}" class="text-label font-medium text-teal-deep hover:underline">See all {{ near_count }} →</a>{% endif %}{% endif %}</div>
+    <ul class="max-h-80 divide-y divide-line overflow-y-auto">
+      {% for b in near %}<li class="py-1"><a href="{% url 'pharmacy:product-detail' b.product_id %}" class="font-medium hover:underline">{{ b.product.display_name }}</a><p class="text-label text-muted">Batch {{ b.batch_number }} · {{ b.quantity_available }} units · <span class="{% if b.days_to_expiry <= 30 %}font-semibold text-red{% else %}text-amber{% endif %}">expires {{ b.expiry_date|date:"d M Y" }} ({{ b.days_to_expiry }} d)</span></p></li>
       {% empty %}<li class="py-2 text-label text-muted">No batches expiring soon.</li>{% endfor %}
     </ul>
   </section>
   <section class="card" id="expired">
-    <h2 class="section-title mb-3">Expired stock</h2>
-    <ul class="divide-y divide-line">
-      {% for b in expired %}<li class="py-2"><a href="{% url 'pharmacy:product-detail' b.product_id %}" class="font-medium hover:underline">{{ b.product.display_name }}</a><p class="text-label text-red">Batch {{ b.batch_number }} · {{ b.quantity_available }} units · expired {{ b.expiry_date|date:"d M Y" }}</p></li>
+    <div class="mb-2 flex items-center justify-between gap-2"><h2 class="section-title">Expired stock</h2>{% if expired_count %}{% if "reports.view" in sd_perms or can_manage %}<a href="{% url 'reports:report' 'expiry' %}" class="text-label font-medium text-teal-deep hover:underline">See all {{ expired_count }} →</a>{% endif %}{% endif %}</div>
+    <ul class="max-h-80 divide-y divide-line overflow-y-auto">
+      {% for b in expired %}<li class="py-1"><a href="{% url 'pharmacy:product-detail' b.product_id %}" class="font-medium hover:underline">{{ b.product.display_name }}</a><p class="text-label text-red">Batch {{ b.batch_number }} · {{ b.quantity_available }} units · expired {{ b.expiry_date|date:"d M Y" }}</p></li>
       {% empty %}<li class="py-2 text-label text-muted">No expired stock on the shelf.</li>{% endfor %}
     </ul>
   </section>

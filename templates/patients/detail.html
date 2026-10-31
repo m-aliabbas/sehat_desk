@@ -1,15 +1,17 @@
 {% extends "layouts/app.html" %}
 {% load ui vitals %}
 {% block title %}{{ patient.full_name }}{% endblock %}
-{% block page_title %}Patient overview{% endblock %}
-{% block page_subtitle %}A complete patient record, connected across departments.{% endblock %}
+{% block page_title %}{{ patient.full_name }}{% endblock %}
+{% block page_subtitle %}<span class="font-mono">{{ patient.mrn }}</span>{% endblock %}
 {% block page_actions %}
   <a href="{% url 'patients:slip' patient.pk %}" class="btn btn-secondary" target="_blank">Print slip</a>
   {% if "billing.view" in sd_perms %}<a href="{% url 'billing:patient-ledger' patient.pk %}" class="btn btn-secondary" target="_blank">Ledger</a>{% endif %}
-  {% if can_edit %}<a href="{% url 'patients:edit' patient.pk %}" class="btn btn-secondary">Edit details</a>{% endif %}
+  {% if can_edit %}<a href="{% url 'patients:edit' patient.pk %}" class="btn btn-secondary" data-panel>Edit details</a>{% endif %}
   {% if can_consult %}<form method="post" action="{% url 'encounters:start' %}">{% csrf_token %}<input type="hidden" name="patient" value="{{ patient.pk }}"><input type="hidden" name="back" value="{{ request.get_full_path }}"><button class="btn btn-primary">{% icon "stethoscope" "h-4 w-4" %} Start consultation</button></form>{% endif %}
   {% if can_add_procedure and patient.is_active %}<a href="{% url 'procedures:procedure-create' %}?patient={{ patient.pk }}" class="btn btn-secondary">{% icon "plus" "h-4 w-4" %} Add procedure</a>{% endif %}
-  {% if can_book %}<a href="{% url 'appointments:book' %}?patient={{ patient.pk }}" class="btn btn-primary">{% icon "calendar" "h-4 w-4" %} Book appointment</a>{% endif %}
+  {% if can_book %}<a href="{% url 'appointments:visit-new' %}?patient={{ patient.pk }}" class="btn btn-primary">{% icon "calendar" "h-4 w-4" %} New booking</a>{% endif %}
+  {% if features.lab and "lab.order.create" in sd_perms and patient.is_active %}<a href="{% url 'lab:order-create' %}?patient={{ patient.pk }}" class="btn btn-secondary">{% icon "flask" "h-4 w-4" %} Lab order</a>{% endif %}
+  {% if "billing.payment.collect" in sd_perms and patient.is_active %}<a href="{% url 'billing:invoice-create' %}?patient={{ patient.pk }}" class="btn btn-secondary">{% icon "credit-card" "h-4 w-4" %} Invoice</a>{% endif %}
   {% if current_admission %}<a href="{% url 'ipd:admission-detail' current_admission.pk %}" class="btn btn-secondary">{% icon "bed" "h-4 w-4" %} Inpatient chart</a>
   {% elif can_admit and patient.is_active %}<a href="{% url 'ipd:admit' %}?patient={{ patient.pk }}" class="btn btn-secondary">{% icon "bed" "h-4 w-4" %} Admit</a>{% endif %}
 {% endblock %}

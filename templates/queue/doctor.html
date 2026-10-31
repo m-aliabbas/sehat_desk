@@ -1,7 +1,7 @@
 {% extends "layouts/app.html" %}
 {% load ui %}
 {% block title %}Doctor patient queue{% endblock %}
-{% block page_title %}Doctor patient queue{% endblock %}
+{% block page_title %}Patient queue{% endblock %}
 {% block page_subtitle %}{{ organization.name }} · {{ current_branch.name }}{% if doctor %} · {{ doctor }}{% endif %}{% endblock %}
 {% block page_actions %}
   {% if all_doctors %}

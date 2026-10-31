@@ -7,7 +7,15 @@ from django.urls import reverse
 
 from apps.masterdata.models import Service
 
-SIDEBAR = ["Overview", "Inventory", "Reports", "Finance & P&L", "Reception", "Procedures", "Lab"]
+SIDEBAR = [
+    "Overview",
+    "Inventory",
+    "Reports",
+    "Finance & P&L",
+    "Reception",
+    "Procedures",
+    "Laboratory",
+]
 
 
 def _sidebar_labels(html):
@@ -33,7 +41,7 @@ def test_other_roles_keep_their_menu(client, make_user):
     labels = _sidebar_labels(
         client.get(reverse("core:dashboard") + "?view=overview").content.decode()
     )
-    assert "Reception & tokens" in labels
+    assert "Reception" in labels
     assert "Appointments" not in labels  # booked from the reception desk
     assert "Settings" not in labels
 
@@ -41,7 +49,7 @@ def test_other_roles_keep_their_menu(client, make_user):
 def test_every_tile_opens_for_super_admin(admin_client):
     html = admin_client.get(reverse("core:menu")).content.decode()
     content = html.split("</aside>")[1]
-    urls = set(re.findall(r'<a href="(/[^"]+)" class="flex items-center gap-3', content))
+    urls = set(re.findall(r'<a href="(/[^"]+)" data-label=', content))
     assert len(urls) > 20
     for url in urls:
         assert admin_client.get(url.replace("&amp;", "&"), follow=True).status_code == 200, url
@@ -120,3 +128,17 @@ def test_existing_hospital_admin_role_gets_sidebar_access(org):
     module = import_module("apps.accounts.migrations.0002_hospital_admin_sidebar_access")
     module.grant(apps, None)
     assert role.permissions.filter(code="lab.catalog.manage").exists()
+
+
+def test_sidebar_screens_are_only_listed_while_searching(admin_client):
+    context = admin_client.get(reverse("core:menu")).context
+    tiles = {t["label"]: t for g in context["groups"] for t in g["tiles"]}
+    assert tiles["Reception"]["in_sidebar"]  # in the sidebar, so the page need not list it twice
+    assert not tiles["Roles"]["in_sidebar"]
+    labels = [c["label"] for c in context["common"]]
+    assert "Patients" in labels and "Reception" not in labels
+
+
+def test_ctrl_k_still_finds_a_screen_that_is_in_the_sidebar(admin_client):
+    html = admin_client.get(reverse("search:suggest"), {"q": "reception"}).content.decode()
+    assert reverse("queue:desk") in html

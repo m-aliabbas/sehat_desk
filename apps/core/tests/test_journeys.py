@@ -70,7 +70,13 @@ def test_role_journey(client, make_user, doctor, role):
 def test_admin_journey_reaches_every_settings_tab(client, admin_user):
     _sign_in(client, admin_user.username)
     html = client.get(reverse("organizations:hospital")).content.decode()
-    tabs = re.findall(r'<a class="tab" href="([^"]+)"', html)
-    assert len(tabs) >= 12
-    for url in tabs:
+    groups = re.findall(r'<a class="tab" href="([^"]+)"', html)
+    assert len(groups) == 5
+    pages = set()
+    for url in groups:
+        group = client.get(url)
+        assert group.status_code == 200, url
+        pages |= set(re.findall(r'<a class="settings-sub" href="([^"]+)"', group.content.decode()))
+    assert len(pages) >= 17  # every page is two clicks away and none is off screen
+    for url in pages:
         assert client.get(url).status_code == 200, url

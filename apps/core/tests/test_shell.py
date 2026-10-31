@@ -42,7 +42,8 @@ def test_login_then_dashboard(client, user):
         reverse("accounts:login"), {"username": "reception1", "password": PASSWORD}, follow=True
     )
     assert response.status_code == 200
-    assert b"Reception &amp; token desk" in response.content  # reception starts at the desk
+    # reception starts at the desk
+    assert b'<h1 class="page-title">Reception</h1>' in response.content
 
 
 def test_logout_requires_post(client, user):
@@ -167,3 +168,23 @@ def test_status_chip_maps_status_and_escapes_label():
 
 def test_icon_unknown_name_renders_nothing():
     assert Template('{% load ui %}{% icon "nope" %}').render(Context()) == ""
+
+
+@pytest.mark.parametrize(
+    ("role", "home"),
+    [
+        ("nurse", "nursing:workspace"),
+        ("lab", "lab:worklist"),
+        ("cashier", "billing:invoice-list"),
+    ],
+)
+def test_each_desk_role_starts_on_its_desk(client, make_user, role, home):
+    client.force_login(make_user(role))
+    response = client.get("/")
+    assert response.status_code == 302
+    assert response.url == reverse(home)
+
+
+def test_every_app_page_has_a_place_for_back_and_breadcrumbs(admin_client):
+    html = admin_client.get(reverse("billing:invoice-list")).content.decode()
+    assert 'id="page-trail"' in html

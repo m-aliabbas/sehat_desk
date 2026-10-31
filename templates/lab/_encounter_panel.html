@@ -21,7 +21,7 @@
   <details class="mt-4 border-t border-line pt-4" {% if not lab_orders %}open{% endif %}>
     <summary class="cursor-pointer text-body font-semibold text-teal-deep">{% icon "plus" "inline h-4 w-4" %} Order tests</summary>
     <form method="post" action="{% url 'lab:encounter-order' encounter.pk %}" class="mt-3">{% csrf_token %}
-      {% include "lab/_test_picker.html" %}
+      {% include "lab/_test_picker.html" with compact=True %}
       <div class="mt-3 grid gap-4 md:grid-cols-[200px_1fr_auto] md:items-end">
         <div class="field"><label class="field-label" for="lab-priority">Priority</label><select id="lab-priority" name="priority" class="select"><option value="routine">Routine</option><option value="urgent">Urgent</option><option value="stat">STAT</option></select></div>
         <div class="field"><label class="field-label" for="lab-notes">Clinical notes for the lab</label><input id="lab-notes" name="clinical_notes" class="input" maxlength="300" placeholder="e.g. Fever 5 days, ? typhoid"></div>

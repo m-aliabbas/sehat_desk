@@ -14,9 +14,9 @@
   </div>
 
   {# Allergy context is always visible while prescribing. #}
-  <div class="mb-4 flex flex-wrap items-center gap-2">
+  <div class="{% if patient.allergy_status != 'unknown' and not rx_allergies %}hidden{% else %}mb-4 flex flex-wrap items-center gap-2{% endif %}">
     <span class="text-label font-semibold text-muted uppercase">Allergies</span>
-    {% if patient.allergy_status == "unknown" %}<span class="chip chip-warning">Not asked yet — ask before prescribing</span>{% elif patient.allergy_status == "none" and not rx_allergies %}<span class="chip chip-success">No known allergies</span>{% endif %}
+    {% if patient.allergy_status == "unknown" %}<span class="chip chip-warning">Not asked yet — ask before prescribing</span>{% endif %}
     {% for al in rx_allergies %}<span class="chip chip-danger">{{ al.substance }}</span>{% endfor %}
   </div>
 

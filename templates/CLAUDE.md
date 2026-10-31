@@ -26,7 +26,11 @@ must work offline on the hospital LAN (no CDNs, fonts or icons from other hosts;
 
 ## Sidebar
 `partials/sidebar.html` pins `settings` to the bottom and shows `more` (All menu) as a separate
-button. That page is `core/menu.html`, built from `apps/core/menu_hub.py`. Colours per module are
+button, which also names the current screen when that screen is not in the admin sidebar. That page is `core/menu.html`, built from
+`apps/core/menu_hub.py`: one screen of names under dark group bars, a search box that also searches descriptions (Enter opens the first match,
+arrows walk the list), and a top row of pinned, then recent, then common screens (Enter or 1 to 6 with the box empty; star or P pins; per person on this computer).
+A screen already in the sidebar shows there only while searching (`menu_page`), and Ctrl+K still finds everything. Keep a group to about seven tiles, and name groups by what people look for.
+Settings pages share `partials/settings_tabs.html`: five groups, then the pages in the current group (`settings-sub`). Colours per module are
 `NAV_COLORS` in `apps/core/navigation.py`.
 Below 768px it is a drawer. From 768px it is full or an icon rail (`html[data-nav="rail"]`, CSS at the end
 of `app.css`): the rail by default below 1280px; the topbar button switches it, remembered in `localStorage`
@@ -34,6 +38,13 @@ of `app.css`): the rail by default below 1280px; the topbar button switches it, 
 
 Ctrl+K search also offers screens: `find_screens` in `apps/core/menu_hub.py` matches the All menu's tiles the user may
 open. A new screen people need goes in `HUB_GROUPS`, so it shows in both.
+
+## Screen density
+Pages are compact by default, from shared CSS: `stat-card` is one short strip (label and number on a line), so do not give it big padding or a big number.
+Tables show one status chip colour only for exceptions: a chip most rows share becomes plain words (`chip-quiet`, `quietChips` in `app.js`).
+Row buttons and the word Open appear on the row you point at. Clicking a read-only row opens its main link. Keep a screen's first rows in the first view.
+A summary panel inside a page shows at most 20 rows in a short scrolling box, with a "See all N" link to the full list (`pharmacy/dashboard.html`).
+Every page has `#page-trail` (`sdTrail` in `app.js`): Back to the page you came from, with its filters and scroll, then Home and breadcrumbs. Pages with no `breadcrumbs` context get crumbs from the active sidebar item and the page title. A saved form page leaves the trail (`FORM_PAGE`).
 
 ## Styling
 - Use the component classes in `static/src/app.css`: `btn btn-primary|secondary|danger|ghost`,
@@ -65,7 +76,7 @@ open. A new screen people need goes in `HUB_GROUPS`, so it shows in both.
 - Number boxes have no spinner arrows (`app.css`); table inputs are compact. Entry screens: one line per
   record, Enter moves on, F8 saves, no second row of settings.
 - Reception's booking form is one partial, `appointments/_visit_form.html`, included on the desk. It
-  runs by keyboard: Enter picks and moves on, F2 patient, F3 doctor, F4 time, F8 save and print. Keep
+  runs by keyboard: Enter picks and moves on, F2 patient, F3 doctor, Alt+T time, F8 save and print. Keep
   new entry screens usable the same way: focus moves to the next field, no popups or extra pages.
 - `static/js/app.js` turns every `select.select` into the one dropdown: a type-to-search box with a floating list; the
   real select stays, hidden, in the form. Nothing typed starts on the current value, so Enter keeps it and moves on.
@@ -87,6 +98,11 @@ open. A new screen people need goes in `HUB_GROUPS`, so it shows in both.
 - A save button below the window in a form that starts on screen gets `save-bar` (`sdStickySave`), no template change. Tab stays inside any open
   `role=dialog` or `role=alertdialog`.
 - A table of 12+ rows with no search box or pagination on the page gets a filter box (`addFilter`, Alt+F). A table of 50+ tick boxes is one Tab stop; arrows walk it.
+- Side panel (`openSide` in `app.js`): a link ending `/edit/`, `/pay/` or `/results/` inside `#main`, a row pencil, or any link with `data-panel` opens its page beside the list, with no view change.
+  The view stays a normal page: errors re-render in the panel; a redirect closes it, reloads the list and keeps the toast; a print page or sign-in opens normally. A page with an inline script (JSON data scripts are fine) opens as a full page.
+  `data-panel="off"` opts out. Esc asks first if something was typed. A screen with its own action bar marks it `data-page-actions`, so no second sticky save bar is added.
+- Consultation (`encounters/detail.html`): patient strip stays in view, note on the left, orders in tabs on the right, sign bar always visible. It uses the icon rail (`nav_mode` block in `layouts/app.html`). `lab/_test_picker.html` with `compact=True` lists a test only while typing or once ticked.
+- Hold Alt to see menu numbers for Alt + 1 to 9.
 - Any `title` shows as an instant hint on hover or keyboard focus (`sd-tip`, end of `app.js`). Add a `title` to any column or label
   that needs explaining. `data-ref-low` / `data-ref-high` on a number box add a Low or High word to its label as you type.
 - Row buttons: `data-edit="url"` and `data-remove="url"` on a `<tr>` add small pencil and bin buttons (keys E and Delete). Write them

@@ -1,7 +1,7 @@
 {% extends "layouts/app.html" %}
 {% load ui pharmacy %}
 {% block title %}Products{% endblock %}
-{% block page_title %}Medicine &amp; product catalogue{% endblock %}
+{% block page_title %}Products{% endblock %}
 {% block page_subtitle %}Stock shown for {{ current_branch.name }} (saleable, unexpired batches).{% endblock %}
 {% block page_actions %}{% if can_manage %}<a href="{% url 'pharmacy:receive' %}" class="btn btn-secondary">Receive stock</a><a href="{% url 'pharmacy:uom' %}" class="btn btn-secondary">UoM</a><a href="{% url 'pharmacy:barcodes' %}" class="btn btn-secondary">Barcodes</a><a href="{% url 'pharmacy:categories' %}" class="btn btn-secondary">Categories &amp; tax</a><a href="{% url 'pharmacy:product-create' %}" class="btn btn-secondary">Full form</a><a href="{% url 'pharmacy:product-bulk' %}" class="btn btn-primary">{% icon "plus" "h-4 w-4" %} Add products</a>{% endif %}{% endblock %}
 {% block content %}

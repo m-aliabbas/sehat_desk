@@ -525,12 +525,25 @@ const sdTables = (() => {
     ["Alt + V", "First vitals box"],
     ["Alt + J / Alt + K", "Next or previous section of a form"],
     ["[  ]", "Previous or next page of a list"],
-    ["Alt + 1 to 9", "Open a menu item, top to bottom"],
+    ["Alt + ←", "Back to the previous page"],
+    ["Alt + ↑", "Up one level, to the page above this one"],
+    ["Alt + 1 to 9", "Open a menu item. Hold Alt to see the numbers"],
     ["/ or Ctrl + K", "Search patients and records, or type a screen's name to go there"],
     ["Ctrl + B", "Show or hide menu names"],
     ["Esc", "Close the popup"],
     ["? or Ctrl + /", "This list"],
   ];
+  // Hold Alt: each menu item shows its number, so Alt + number needs no memorising.
+  const menuNumbers = (on) => document.documentElement.classList.toggle("alt-held", on);
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Alt") return;
+    document.querySelectorAll(".sidebar-nav a.nav-link").forEach((a, i) => {
+      if (i < 9) a.dataset.key = i + 1;
+    });
+    menuNumbers(true);
+  });
+  document.addEventListener("keyup", (e) => e.key === "Alt" && menuNumbers(false));
+  window.addEventListener("blur", () => menuNumbers(false));
   const rows = (table) => [...table.tBodies].flatMap((b) => [...b.rows]).filter((r) => !isBlank(r));
   const isBlank = (tr) => tr.cells.length === 1 && tr.cells[0].colSpan > 1;
   const clean = (text) => (text || "").replace(/\s+/g, " ").trim();
@@ -578,6 +591,8 @@ const sdTables = (() => {
     const first = rows(table).find((r) => r.tabIndex === -1);
     if (first) first.tabIndex = 0;
     oneTabStop(table);
+    quietChips(table);
+    markRowLinks(table);
     fit(table);
     const wrap = holder(table);
     let width = wrap.clientWidth;
@@ -629,6 +644,38 @@ const sdTables = (() => {
     });
   }
 
+  // A status most rows share says nothing: it turns into plain words, and only exceptions keep their colour.
+  function quietChips(table) {
+    const body = rows(table);
+    if (body.length < 5) return;
+    const byColumn = new Map();
+    body.forEach((tr) => {
+      [...tr.cells].forEach((td, col) => {
+        td.querySelectorAll(".chip").forEach((chip) => {
+          if (!byColumn.has(col)) byColumn.set(col, new Map());
+          const same = byColumn.get(col);
+          const text = clean(chip.textContent);
+          same.set(text, [...(same.get(text) || []), chip]);
+        });
+      });
+    });
+    byColumn.forEach((same) => {
+      const chips = [...same.values()].flat();
+      same.forEach((group) => {
+        if (group.length / chips.length < 0.6 || group.length / body.length < 0.6) return;
+        group.filter((c) => !c.matches(".chip-warning, .chip-danger")).forEach((c) => c.classList.add("chip-quiet"));
+      });
+    });
+  }
+  // Clicking anywhere on a read-only row opens it; its "Open" word then only shows on the row you point at.
+  function markRowLinks(table) {
+    rows(table).forEach((tr) => {
+      if (editable(tr) || !mainLink(tr)) return;
+      tr.dataset.rowLink = "1";
+      [...tr.querySelectorAll("a")].filter((a) => clean(a.textContent) === "Open").forEach((a) => a.classList.add("row-open-link"));
+    });
+  }
+
   // Hide columns that do not fit: first and last data columns and actions go last or never.
   function fit(table) {
     const head = table.tHead?.rows[0];
@@ -666,18 +713,18 @@ const sdTables = (() => {
 
   // ---- Popup ----
   let modal = null;
-  function openPanel(title, wide) {
+  function openPanel(title, wide, side) {
     closeModal();
     const box = document.createElement("div");
-    box.className = "fixed inset-0 z-50 flex items-center justify-center p-4";
+    box.className = side ? "fixed inset-0 z-50 flex justify-end" : "fixed inset-0 z-50 flex items-center justify-center p-4";
     box.innerHTML = `<div class="overlay" data-close></div>
-      <div class="modal-panel z-50 flex max-h-[90vh] flex-col ${wide ? "max-w-5xl" : "max-w-2xl"}" role="dialog" aria-modal="true" aria-label="Details">
+      <div class="modal-panel z-50 flex flex-col ${side ? "panel-side" : `max-h-[90vh] ${wide ? "max-w-5xl" : "max-w-2xl"}`}" role="dialog" aria-modal="true" aria-label="Details">
         <div class="mb-4 flex items-start justify-between gap-4"><h2 class="section-title"></h2>
           <div class="flex shrink-0 items-center gap-2" data-tools><button type="button" class="btn btn-ghost btn-icon btn-sm" data-close aria-label="Close">✕</button></div></div>
         <div class="row-modal-body min-h-0 flex-1 overflow-y-auto" tabindex="-1"></div></div>`;
     box.querySelector("h2").textContent = title;
     box.addEventListener("click", (e) => {
-      if (e.target.closest("[data-close]")) closeModal();
+      if (e.target.closest("[data-close]")) askClose();
     });
     // Before #overlay-root so popups opened from inside it still land on top.
     const root = document.getElementById("overlay-root");
@@ -692,6 +739,16 @@ const sdTables = (() => {
     modal = null;
     box.remove();
     if (from?.isConnected && shown(from)) from.focus();
+  }
+  // Typed work in the side panel is not thrown away by a stray Esc or click outside.
+  function askClose() {
+    if (!modal?.dirty) return closeModal();
+    const m = modal;
+    return Alpine.store("confirm")
+      .ask({ title: "Discard what you typed?", message: "This form has not been saved.", actionLabel: "Discard", danger: true })
+      .then((ok) => {
+        if (ok && modal === m) closeModal();
+      });
   }
   // A cell's words without its buttons, such as "+ batch".
   function cellText(el) {
@@ -764,7 +821,7 @@ const sdTables = (() => {
       const main = page.querySelector("#main");
       if (!response.ok || !main) return go();
       if (modal !== m) return undefined; // closed while loading
-      main.querySelector('nav[aria-label*="readcrumb"]')?.remove();
+      main.querySelector("#page-trail")?.remove();
       m.body.replaceChildren(...main.childNodes);
       const open = document.createElement("a");
       open.href = link.href;
@@ -779,6 +836,139 @@ const sdTables = (() => {
     }
     return undefined;
   }
+  // ---- Side panel: edit, collect and enter results beside the list, without leaving it ----
+  // Links only need to match PANEL_PATHS or carry data-panel. Ctrl+click still opens the full page, and a
+  // page the panel cannot host (its own inline script, or no #main) simply opens normally.
+  const PANEL_PATHS = /\/(edit|pay|results)\/?$/;
+  const panelWorthy = (a) => {
+    if (!a?.getAttribute || a.target === "_blank" || a.hasAttribute("download") || a.dataset.panel === "off") return false;
+    if (a.dataset.panel !== undefined || a.matches("a.row-btn")) return true;
+    const href = a.getAttribute("href") || "";
+    return href.startsWith("/") && PANEL_PATHS.test(href.split("?")[0]) && Boolean(a.closest("#main"));
+  };
+  function fillSide(m, html, url) {
+    const page = new DOMParser().parseFromString(html, "text/html");
+    const main = page.querySelector("#main");
+    if (!main || main.querySelector("script:not([src]):not([type=\"application/json\"])")) {
+      window.location.assign(url);
+      return false;
+    }
+    main.querySelector("#page-trail")?.remove();
+    main.querySelector('nav[aria-label="Settings sections"]')?.remove();
+    const heading = main.querySelector("h1.page-title");
+    if (heading?.textContent.trim()) m.box.querySelector("h2").textContent = heading.textContent.trim();
+    heading?.remove();
+    m.url = url;
+    m.dirty = false;
+    m.body.replaceChildren(...main.childNodes);
+    window.htmx?.process(m.body);
+    setTimeout(() => {
+      sdFocusFirst(m.body);
+      sdStickySave(m.body);
+    }, 60);
+    return true;
+  }
+  async function openSide(link, title) {
+    const m = openPanel(title || "Loading", true, true);
+    m.body.innerHTML = '<div class="skeleton h-40"></div>';
+    m.body.focus();
+    const url = link.href;
+    const tools = m.box.querySelector("[data-tools]");
+    const full = Object.assign(document.createElement("a"), { href: url, className: "btn btn-secondary btn-sm", textContent: "Open full page" });
+    full.dataset.panel = "off";
+    tools.prepend(full);
+    m.body.addEventListener("input", () => (m.dirty = true));
+    m.body.addEventListener("click", (e) => {
+      const a = e.target.closest("a[href]");
+      if (a && /^(cancel|close|back)$/i.test(a.textContent.trim())) {
+        e.preventDefault();
+        askClose();
+      }
+    });
+    m.body.addEventListener("submit", (e) => sideSubmit(e, m));
+    try {
+      const response = await fetch(url, { credentials: "same-origin" });
+      if (modal === m) {
+        if (response.ok) fillSide(m, await response.text(), response.url);
+        else window.location.assign(url);
+      }
+    } catch (err) {
+      window.location.assign(url);
+    }
+  }
+  // Toasts Django rendered into the page we followed the save to; they would be lost with that page.
+  function keptToasts(html) {
+    const found = [...html.matchAll(/toasts\.push\(\{ level: '(\w+)', message: '((?:[^'\\]|\\.)*)' \}\)/g)];
+    return found.map(([, level, text]) => ({ level, message: text.replace(/\\u([0-9a-fA-F]{4})/g, (_, h) => String.fromCharCode(parseInt(h, 16))).replace(/\\(.)/g, "$1") }));
+  }
+  async function sideSubmit(e, m) {
+    const form = e.target;
+    if (form.hasAttribute("hx-post") || form.hasAttribute("hx-get") || form.target === "_blank") return;
+    const source = e.submitter?.dataset.confirm ? e.submitter : form;
+    if (source.dataset.confirm && form.dataset.confirmed !== "1") return; // the confirm step submits it again
+    e.preventDefault();
+    const get = (form.method || "get").toLowerCase() === "get";
+    // A form with no action posts to its own page, which here is the panel's, not the list behind it.
+    const action = e.submitter?.getAttribute("formaction") || form.getAttribute("action") || m.url;
+    const target = new URL(action, m.url).href;
+    const data = new FormData(form, e.submitter || undefined);
+    const button = e.submitter;
+    if (button) button.disabled = true;
+    try {
+      const response = get
+        ? await fetch(`${target.split("?")[0]}?${new URLSearchParams(data)}`, { credentials: "same-origin" })
+        : await fetch(target, { method: "post", body: data, credentials: "same-origin" });
+      const html = await response.text();
+      if (modal !== m) return;
+      if (!response.ok) {
+        window.dispatchEvent(new CustomEvent("toast", { detail: { level: "danger", message: "That did not save. Please try again." } }));
+        return;
+      }
+      if (get || !response.redirected) {
+        fillSide(m, html, response.url); // shows the form's errors, or the filtered view
+        return;
+      }
+      if (!new DOMParser().parseFromString(html, "text/html").querySelector("#main")) {
+        window.location.assign(response.url); // a print page or the sign-in page
+        return;
+      }
+      try {
+        sessionStorage.setItem("sd-toasts", JSON.stringify(keptToasts(html)));
+      } catch (err) { /* the toast is only a convenience */ }
+      m.dirty = false;
+      closeModal();
+      window.location.reload();
+    } catch (err) {
+      window.dispatchEvent(new CustomEvent("toast", { detail: { level: "danger", message: "Cannot reach the SehatDesk server. Your typing is still here." } }));
+    } finally {
+      if (button?.isConnected) button.disabled = false;
+    }
+  }
+  window.addEventListener("load", () => {
+    try {
+      const kept = JSON.parse(sessionStorage.getItem("sd-toasts") || "[]");
+      sessionStorage.removeItem("sd-toasts");
+      kept.forEach((t) => window.dispatchEvent(new CustomEvent("toast", { detail: t })));
+    } catch (err) { /* nothing kept */ }
+  });
+  document.addEventListener("click", (e) => {
+    if (e.defaultPrevented || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
+    const a = e.target.closest?.("a[href]");
+    if (a) {
+      if (!panelWorthy(a) || a.closest(".panel-side [data-tools]")) return;
+      e.preventDefault();
+      openSide(a, a.closest("tr") ? rowTitle(a.closest("tr")) : a.textContent.trim());
+      return;
+    }
+    // A click on the row itself, not on a control or a text selection, opens the row's main link.
+    const tr = e.target.closest?.("tr[data-row-link]");
+    if (!tr || e.target.closest("button, input, select, textarea, label, summary, .row-expand") || String(window.getSelection())) return;
+    const link = mainLink(tr);
+    if (!link) return;
+    if (panelWorthy(link)) openSide(link, rowTitle(tr));
+    else window.location.assign(link.href);
+  });
+
   // Tables inside a popup get the look but not a second expand column.
   const prepareInPopup = (t) => t.setAttribute("data-plain", "");
   function openRow(tr) {
@@ -904,7 +1094,7 @@ const sdTables = (() => {
       else openRow(tr);
     } else if (e.key.toLowerCase() === "e" && tr.dataset.edit) { // Caps Lock too
       e.preventDefault();
-      window.location.assign(tr.dataset.edit);
+      openSide({ href: new URL(tr.dataset.edit, window.location.href).href }, rowTitle(tr));
     } else if (e.key === " ") {
       e.preventDefault();
       openRow(tr);
@@ -986,7 +1176,7 @@ const sdTables = (() => {
       if (key === "escape" || (ctrl && key === "e")) {
         e.preventDefault();
         e.stopPropagation();
-        closeModal();
+        askClose();
         return;
       }
       if (key === "enter" && modal.moved.length && el.matches("input, select")) {
@@ -1209,8 +1399,10 @@ document.addEventListener("htmx:afterSettle", (e) => {
 
 // ---- A long form keeps its save button in view ------------------------------------------
 // Only when the form starts on screen and its button is below the window. action-bar does this by hand.
-const sdStickySave = () => {
-  document.querySelectorAll("#main form").forEach((form) => {
+const sdStickySave = (root = document.getElementById("main")) => {
+  // A screen with its own always-visible action bar needs no second bar: the two would cover each other.
+  if (!root || root.querySelector("[data-page-actions]")) return;
+  root.querySelectorAll("form").forEach((form) => {
     const saves = [...form.querySelectorAll("button.btn-primary")].filter((b) => b.offsetParent !== null);
     const save = saves[saves.length - 1];
     if (!save || save.closest(".action-bar, .save-bar, table")) return;
@@ -1226,8 +1418,8 @@ const sdStickySave = () => {
     bar.classList.add("save-bar");
   });
 };
-document.addEventListener("DOMContentLoaded", () => setTimeout(sdStickySave, 80));
-document.addEventListener("htmx:afterSettle", () => setTimeout(sdStickySave, 80));
+document.addEventListener("DOMContentLoaded", () => setTimeout(() => sdStickySave(), 80));
+document.addEventListener("htmx:afterSettle", () => setTimeout(() => sdStickySave(), 80));
 
 // ---- A value outside its reference range says so as you type ----------------------------
 document.addEventListener("input", (e) => {
@@ -1285,4 +1477,109 @@ document.addEventListener("input", (e) => {
     if (e.target.matches?.("[title]")) show(e.target);
   });
   ["focusout", "scroll", "click", "keydown"].forEach((name) => document.addEventListener(name, hide, true));
+})();
+
+// ---- Back and breadcrumbs: every page says where you came from and what is above it ----------
+// Each browser tab keeps its own trail. Coming back to a page returns to its filters and scroll position.
+// A form page that has been saved leaves the trail, so Back never returns to a form already sent.
+(() => {
+  const box = document.getElementById("page-trail");
+  const KEY = "sd-trail";
+  const FORM_PAGE = /\/(new|edit|create|book|register|visit|walk-in|admit|pay|results)\/?$/;
+  const read = (key, fallback) => {
+    try {
+      return JSON.parse(sessionStorage.getItem(key)) ?? fallback;
+    } catch (e) {
+      return fallback;
+    }
+  };
+  const write = (key, value) => {
+    try {
+      sessionStorage.setItem(key, JSON.stringify(value));
+    } catch (e) { /* no trail: Back falls back to the page above */ }
+  };
+  if (!box) {
+    if (location.pathname.includes("/login")) write(KEY, []);
+    return;
+  }
+  const path = location.pathname;
+  const title = (document.querySelector("h1.page-title")?.textContent || document.title.split("·")[0]).trim();
+  let trail = read(KEY, []);
+  const posted = read("sd-trail-posted", false);
+  const cameBack = read("sd-trail-back", false);
+  write("sd-trail-posted", false);
+  write("sd-trail-back", false);
+  const top = trail[trail.length - 1];
+  if (posted && top && top.path !== path && FORM_PAGE.test(top.path)) trail.pop();
+  const seen = trail.findIndex((t) => t.path === path);
+  const y = seen >= 0 ? trail[seen].y : 0;
+  if (seen >= 0) trail = trail.slice(0, seen);
+  trail.push({ path, url: path + location.search, title, y: 0 });
+  trail = trail.slice(-20);
+  write(KEY, trail);
+  if (cameBack && y) window.addEventListener("load", () => window.scrollTo(0, y));
+  window.addEventListener("pagehide", () => {
+    const now = read(KEY, []);
+    if (now.length) now[now.length - 1].y = window.scrollY;
+    write(KEY, now);
+  });
+  document.addEventListener("submit", (e) => {
+    const form = e.target;
+    if ((form.method || "").toLowerCase() === "post" && !form.hasAttribute("hx-post")) write("sd-trail-posted", true);
+  }, true);
+
+  const crumbLink = (label, url) => Object.assign(document.createElement("a"), { href: url, textContent: label, className: "hover:text-teal-deep hover:underline" });
+  const chevron = '<svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>';
+  const addCrumb = (ol, node, last) => {
+    const li = document.createElement("li");
+    li.className = "flex items-center gap-1";
+    li.append(node);
+    if (!last) li.insertAdjacentHTML("beforeend", chevron);
+    return li;
+  };
+  const home = document.querySelector(".sidebar-brand a[href]");
+  const atHome = home && home.pathname === path;
+  let nav = box.querySelector('nav[aria-label="Breadcrumb"]');
+  if (!nav && !atHome) {
+    nav = document.createElement("nav");
+    nav.setAttribute("aria-label", "Breadcrumb");
+    nav.innerHTML = '<ol class="flex flex-wrap items-center gap-1 text-label text-muted"></ol>';
+    const ol = nav.firstChild;
+    const section = document.querySelector(".sidebar a[aria-current=page]");
+    if (section && section.pathname !== path) {
+      const label = section.getAttribute("aria-label") || section.textContent.trim();
+      ol.append(addCrumb(ol, crumbLink(label, section.href)));
+    }
+    const here = Object.assign(document.createElement("span"), { textContent: title, className: "text-ink" });
+    here.setAttribute("aria-current", "page");
+    ol.append(addCrumb(ol, here, true));
+    box.append(nav);
+  }
+  const ol = nav?.querySelector("ol");
+  if (ol && home && !atHome) ol.prepend(addCrumb(ol, crumbLink("Home", home.href)));
+
+  // The page above: the last crumb with a link.
+  const crumbs = ol ? [...ol.querySelectorAll("a[href]")] : [];
+  const parent = crumbs[crumbs.length - 1];
+  const previous = trail[trail.length - 2];
+  const target = previous ? previous.url : parent?.getAttribute("href");
+  const name = previous ? previous.title : parent?.textContent.trim();
+  if (target && name) {
+    const back = document.createElement("a");
+    back.href = target;
+    back.className = "btn btn-secondary btn-sm max-w-xs";
+    back.dataset.panel = "off";
+    back.title = "Back (Alt + ←)";
+    back.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg><span class="truncate"></span>';
+    back.lastChild.textContent = `Back to ${name}`;
+    back.addEventListener("click", () => write("sd-trail-back", true));
+    box.prepend(back);
+  }
+  document.addEventListener("keydown", (e) => {
+    if (!e.altKey || e.ctrlKey || e.metaKey || !parent) return;
+    if (e.key === "ArrowUp") {
+      e.preventDefault();
+      parent.click();
+    }
+  });
 })();

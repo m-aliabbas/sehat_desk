@@ -35,6 +35,9 @@ MANAGE = "pharmacy.inventory.manage"
 VIEW = (MANAGE, "pharmacy.sale")
 
 
+DASHBOARD_PANEL_ROWS = 20
+
+
 def _crumbs(*extra):
     return [{"label": "Inventory", "url": reverse("pharmacy:dashboard")}, *extra]
 
@@ -42,9 +45,10 @@ def _crumbs(*extra):
 @require_GET
 @permission_required(*VIEW, any_of=True)
 def dashboard(request):
-    low = list(stock.low_stock(request.branch, request.organization)[:20])
-    near = list(stock.near_expiry(request.branch)[:20])
-    expired = list(stock.expired(request.branch)[:20])
+    # A glance only: each panel stops at this many and links to its full list.
+    low = list(stock.low_stock(request.branch, request.organization)[:DASHBOARD_PANEL_ROWS])
+    near = list(stock.near_expiry(request.branch)[:DASHBOARD_PANEL_ROWS])
+    expired = list(stock.expired(request.branch)[:DASHBOARD_PANEL_ROWS])
     return render(
         request,
         "pharmacy/dashboard.html",
@@ -782,7 +786,8 @@ def ledger(request):
         request,
         "pharmacy/ledger.html",
         {
-            "transactions": txns[:300],
+            "transactions": (page := paginate(request, txns)),
+            "page_obj": page,
             "kinds": StockTransaction.Kind.choices,
             "kind": kind,
             "q": q,

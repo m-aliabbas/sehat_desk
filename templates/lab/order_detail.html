@@ -25,8 +25,8 @@
       <h2 class="section-title mb-4">Samples</h2>
       <ul class="divide-y divide-line">
         {% for s in samples %}
-        <li class="flex flex-wrap items-start justify-between gap-3 py-3 {% if s.status == 'rejected' %}opacity-70{% endif %}">
-          <div>
+        <li class="grid gap-3 py-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start {% if s.status == 'rejected' %}opacity-70{% endif %}">
+          <div class="min-w-0">
             <p><span class="font-mono font-semibold">{{ s.accession }}</span> · {{ s.get_sample_type_display }} {% status_chip s.status s.get_status_display %}</p>
             <p class="text-label text-muted">{% for i in s.items.all %}{{ i.test_name }}{% if not forloop.last %}, {% endif %}{% endfor %}</p>
             {% if s.collected_at %}<p class="text-label text-muted">Collected {{ s.collected_at|date:"d M, H:i" }} by {{ s.collected_by }}</p>{% endif %}

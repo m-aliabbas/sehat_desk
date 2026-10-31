@@ -1,6 +1,6 @@
 {% load ui %}
 {# Context: breadcrumbs = [{"label": ..., "url": ... or None}, ...]; the last entry is the current page #}
-<nav aria-label="Breadcrumb" class="mb-3">
+<nav aria-label="Breadcrumb">
   <ol class="flex flex-wrap items-center gap-1 text-label text-muted">
     {% for crumb in breadcrumbs %}
       <li class="flex items-center gap-1">

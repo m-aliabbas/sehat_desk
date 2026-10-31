@@ -21,6 +21,13 @@ from .forms import LoginForm, SetupForm, StyledPasswordChangeForm, StyledSetPass
 from .middleware import HAD_SESSION_COOKIE, SESSION_BRANCH_KEY
 from .models import User
 
+BRANCH_COOKIE_SALT = "sd-branch"
+BRANCH_COOKIE_AGE = 60 * 60 * 24 * 365
+
+
+def _branch_cookie(user) -> str:
+    return f"sd_branch_{user.pk}"
+
 
 def setup_needed() -> bool:
     return not User.objects.exists()
@@ -90,9 +97,16 @@ class LoginView(auth_views.LoginView):
         url = self.get_redirect_url()
         if url:
             return url
-        # Several branches: let the user pick where they are working today.
-        if len(services.accessible_branches(self.request.user)[:2]) > 1:
-            return reverse_lazy("accounts:workspace")
+        branches = list(services.accessible_branches(self.request.user))
+        if len(branches) > 1:
+            # This computer already knows the branch: go straight to work. Otherwise ask once.
+            remembered = self.request.get_signed_cookie(
+                _branch_cookie(self.request.user), default=None, salt=BRANCH_COOKIE_SALT
+            )
+            branch = next((b for b in branches if str(b.id) == remembered), None)
+            if branch is None:
+                return reverse_lazy("accounts:workspace")
+            self.request.session[SESSION_BRANCH_KEY] = branch.id
         return reverse_lazy("core:dashboard")
 
 
@@ -207,4 +221,15 @@ def switch_branch(request):
     next_url = request.POST.get("next", "")
     if not url_has_allowed_host_and_scheme(next_url, {request.get_host()}):
         next_url = reverse_lazy("core:dashboard")
-    return redirect(next_url)
+    response = redirect(next_url)
+    if branch is not None:
+        # Remembered on this computer: only a convenience, the middleware re-checks access.
+        response.set_signed_cookie(
+            _branch_cookie(request.user),
+            str(branch.id),
+            salt=BRANCH_COOKIE_SALT,
+            max_age=BRANCH_COOKIE_AGE,
+            httponly=True,
+            samesite="Lax",
+        )
+    return response

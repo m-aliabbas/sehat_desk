@@ -1,7 +1,7 @@
 {% extends "layouts/app.html" %}
 {% load ui %}
 {% block title %}Reception &amp; tokens{% endblock %}
-{% block page_title %}Reception &amp; token desk{% endblock %}
+{% block page_title %}Reception{% endblock %}
 {% block page_subtitle %}Patient, doctor, save: the token, fee slip and empty prescription print by themselves.{% endblock %}
 {% block page_actions %}
   {% if features.lab %}<a href="{% url 'lab:tests' %}" class="btn btn-secondary">Lab tests</a>{% endif %}
