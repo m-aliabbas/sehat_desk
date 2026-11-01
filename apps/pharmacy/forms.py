@@ -1,6 +1,8 @@
 from decimal import Decimal
 
 from django import forms
+from django.core.validators import MaxLengthValidator
+from django.urls import reverse
 from django.utils import timezone
 
 from apps.core.forms import StyledFormMixin
@@ -8,6 +10,7 @@ from apps.core.scoping import scoped
 from apps.organizations import field_rules
 from apps.prescriptions.models import Medicine
 
+from . import scan
 from .models import Product, ProductCategory, StockTransaction, Vendor
 from .packing import packing_text, parse_packing
 
@@ -16,6 +19,11 @@ LEVELS = [("box", "box"), ("pack", "pack"), ("unit", "unit")]
 
 class ProductForm(StyledFormMixin, forms.ModelForm):
     # The price someone typed, at whichever size they typed it: cost_per / price_per say which.
+    remember = {
+        "strength": "pharmacy.Product.strength",
+        "manufacturer": "pharmacy.Product.manufacturer",
+    }
+
     pack_cost = forms.DecimalField(label="Buy price", min_value=0, max_digits=12,
                                    decimal_places=2, required=False)  # fmt: skip
     pack_price = forms.DecimalField(label="Sell price", min_value=0, max_digits=12,
@@ -84,7 +92,24 @@ class ProductForm(StyledFormMixin, forms.ModelForm):
         self.fields["pack_unit"].widget.attrs["list"] = "pack-names"
         self.fields["box_unit"].widget.attrs["list"] = "pack-names"
         # A scanner ends with Enter; that must not submit the form half filled.
-        self.fields["barcode"].widget.attrs["@keydown.enter.prevent"] = ""
+        barcode = self.fields["barcode"]
+        barcode.widget.attrs["@keydown.enter.prevent"] = ""
+        # A QR code is far longer than the code kept from it, and maxlength would cut it off.
+        barcode.widget.attrs.pop("maxlength", None)
+        barcode.validators = [
+            v for v in barcode.validators if not isinstance(v, MaxLengthValidator)
+        ]
+        scan_url = reverse("pharmacy:scan-read")
+        barcode.widget.attrs.update(
+            {
+                "data-scan": "fill",
+                "data-scan-url": scan_url,
+                "data-scan-self": self.instance.pk or "",
+            }
+        )
+        self.fields["brand_name"].widget.attrs.update(
+            {"data-scan": "detect", "data-scan-url": scan_url}
+        )
         if self.instance.pk:
             return
         self.fields["category"].widget.attrs["@change"] = "applyCategory($event.target.value)"
@@ -121,9 +146,15 @@ class ProductForm(StyledFormMixin, forms.ModelForm):
         return name or Product.PACK_FOR_UNIT.get(unit, "strip")
 
     def clean_barcode(self):
-        return self._unique(
-            "barcode", self.cleaned_data["barcode"].strip(), "Another product has this barcode."
+        code = scan.parse(self.cleaned_data["barcode"]).code
+        if len(code) > Product._meta.get_field("barcode").max_length:
+            raise forms.ValidationError("This code is too long to keep as a barcode.")
+        same = Product.objects.filter(
+            organization=self.organization, barcode__in=scan.code_variants(code)
         )
+        if same.exclude(pk=self.instance.pk).exists():
+            raise forms.ValidationError("Another product has this barcode.")
+        return code
 
     def clean(self):
         data = super().clean()

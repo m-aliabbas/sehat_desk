@@ -20,7 +20,7 @@
         <thead><tr><th scope="col">Token</th><th scope="col">Patient</th><th scope="col">Clinic</th><th scope="col">Arrival</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
         <tbody>
           {% for t in open_tokens %}
-            <tr>
+            <tr {% if t.priority == "emergency" %}class="bg-red-soft"{% endif %}>
               <td class="whitespace-nowrap"><span class="font-mono text-section-title font-bold">{{ t.label }}</span>{% if t.priority != "normal" %}<span class="ml-2 chip {% if t.priority == 'emergency' %}chip-danger{% else %}chip-warning{% endif %}">{{ t.get_priority_display }}</span>{% endif %}</td>
               <td><a href="{% url 'patients:detail' t.patient_id %}" class="font-medium hover:underline">{{ t.patient.full_name }}</a><p class="font-mono text-label text-muted">{{ t.patient.mrn }}</p></td>
               <td>{{ t.doctor|default:"Any doctor" }}<p class="text-label text-muted">{{ t.department }}{% if t.room %} · {{ t.room }}{% endif %}</p></td>

@@ -20,7 +20,7 @@ from apps.core.labels import LABEL_PAPERS, label_paper
 from apps.core.scoping import get_scoped_or_404, paginate, scoped
 from apps.organizations.models import preferences_for
 
-from . import barcodes, catalog, pricing, stock, views_purchasing
+from . import barcodes, catalog, pricing, scan, stock, views_purchasing
 from .forms import BatchActionForm, ProductForm, ReceiveForm
 from .models import (
     InventoryBatch,
@@ -82,8 +82,7 @@ def product_list(request):
         .order_by("brand_name", "strength")
     )
     if q:
-        for word in q.split():
-            products = products.filter(search_text__contains=word)
+        products = scan.search_products(products, q)
     if filt == "low":
         products = stock.low_stock(request.branch, request.organization)
     elif filt == "out":
@@ -195,11 +194,16 @@ def product_suggest(request):
     """Search box for purchase entry. An exact barcode or SKU comes back alone, for scanners."""
     q = request.GET.get("q", "").strip()
     qs = scoped(Product, request).filter(is_active=True)
-    exact = list(qs.filter(barcode__iexact=q)) or list(qs.filter(sku__iexact=q)) if q else []
-    matches = exact or (list(qs.filter(search_text__contains=q.lower())[:8]) if len(q) >= 2 else [])
+    read = scan.parse(q)
+    exact = scan.find_products(qs, read)
+    words = read.name if read.structured else q
+    matches = exact or (
+        list(qs.filter(search_text__contains=words.lower())[:8]) if len(words) >= 2 else []
+    )
     return JsonResponse(
         {
             "exact": bool(exact),
+            "scan": read.as_dict() if read.structured else None,
             "results": [
                 {
                     "id": p.pk,
@@ -215,6 +219,20 @@ def product_suggest(request):
                 }
                 for p in matches
             ],
+        }
+    )
+
+
+@require_GET
+@permission_required(*VIEW, any_of=True)
+def scan_read(request):
+    """What a scanned code holds, and which products already have it, for any scan box."""
+    read = scan.parse(request.GET.get("code", ""))
+    hits = scan.find_products(scoped(Product, request), read)
+    return JsonResponse(
+        {
+            "scan": read.as_dict(),
+            "products": [{"id": p.pk, "name": p.display_name} for p in hits],
         }
     )
 
@@ -377,10 +395,10 @@ def barcodes_page(request):
         audit.record(request, "product.barcodes", request.organization, summary=f"generated={made}")
         messages.success(request, f"{made} barcodes generated.")
         return redirect("pharmacy:barcodes")
-    q = request.GET.get("q", "").strip().lower()
+    q = request.GET.get("q", "").strip()
     rows = products.order_by("brand_name", "strength")
     if q:
-        rows = rows.filter(search_text__contains=q)
+        rows = scan.search_products(rows, q)
     page = paginate(request, rows)
     for product in page:
         product.label_count = max(product.stock // product.pack_size, 0)
@@ -778,7 +796,7 @@ def ledger(request):
     if kind:
         txns = txns.filter(kind=kind)
     if q:
-        txns = txns.filter(product__search_text__contains=q)
+        txns = txns.filter(product__in=scan.search_products(scoped(Product, request), q))
     if start:
         txns = txns.filter(**in_days("created_at", start))
     if end:

@@ -34,5 +34,6 @@
   {% if result.totals %}<tfoot><tr>{% for c in result.columns %}<td {% if c.kind != "text" and c.kind != "date" and c.kind != "datetime" %}class="num"{% endif %}>{% if c.key in result.totals %}{{ result.totals|cell:c }}{% endif %}</td>{% endfor %}</tr></tfoot>{% endif %}
 </table>
 {% if result.note %}<p class="muted">{{ result.note }}</p>{% endif %}
+{% include "print/_credit.html" %}
 </body>
 </html>

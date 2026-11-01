@@ -287,6 +287,7 @@ class VisitForm(StyledFormMixin, forms.Form):
     discount = forms.DecimalField(min_value=0, max_digits=12, decimal_places=2, required=False)
     discount_reason = forms.CharField(max_length=200, required=False)
     cash_paid = forms.DecimalField(min_value=0, max_digits=12, decimal_places=2, required=False)
+    emergency = forms.BooleanField(required=False)
 
     def __init__(self, *args, request, **kwargs):
         super().__init__(*args, **kwargs)
@@ -348,6 +349,9 @@ def visit_new(request):
     patient_form.fields["cnic"].required = field_rules.is_required(
         request.organization, "visit.cnic"
     )
+    if request.POST.get("emergency"):  # no time to ask: the details can be added afterwards
+        patient_form.fields["phone"].required = False
+        patient_form.fields["cnic"].required = False
     want_vitals = bool(post) and can_vitals and _has_vitals(request)
     vitals_form = VitalsForm(post if want_vitals else None, prefix="v")
 
@@ -393,6 +397,7 @@ def visit_new(request):
                         cash_paid=c["cash_paid"],
                         discount=c["discount"] or 0,
                         discount_reason=c["discount_reason"],
+                        emergency=c["emergency"],
                     )
             except (
                 services.BookingError,
@@ -491,6 +496,7 @@ def papers(request, pk):
     rx_only = request.GET.get("part") == "rx"
     token = getattr(appt, "token", None)
     has_slip = bool(invoice or token)
+    emergency = appt.visit_type == Appointment.VisitType.EMERGENCY  # treated first, paid later
     token_printers = printing_direct.printers_for(request.organization)
     return render(
         request,
@@ -517,7 +523,7 @@ def papers(request, pk):
             "methods": billing_services.active_methods(request.organization),
             "key": uuid.uuid4().hex,
             "auto_print": wants_print
-            and (rx_only or (prefs.opd_auto_print and has_slip and not due)),
+            and (rx_only or (prefs.opd_auto_print and has_slip and (not due or emergency))),
             "billing_settings": billing_services.settings_for(request.organization),
         },
     )

@@ -1,0 +1,17 @@
+{# Prescription header, blank or written. Context: L, doctor, branch, token (optional) #}
+<header class="flex items-start justify-between gap-4 border-b border-ink pb-3 {% if L.doctor_side == 'right' %}flex-row-reverse{% endif %}">
+  <div class="{% if L.doctor_side == 'center' %}flex-1 text-center{% elif L.doctor_side == 'right' %}text-right{% endif %}">
+    <p class="text-[18px] font-bold">{{ doctor }}</p>
+    {% if L.show_qualifications %}<p class="text-label">{{ doctor.qualifications }}{% if doctor.specialty %} · {{ doctor.specialty }}{% endif %}</p>{% endif %}
+    <p class="text-label">{{ doctor.department }}{% if doctor.registration_number and L.show_registration %} · PMDC {{ doctor.registration_number }}{% endif %}</p>
+  </div>
+  <div class="{% if L.doctor_side == 'right' %}text-left{% else %}text-right{% endif %}">
+    {% if L.show_header %}
+    {% if request.organization.logo and L.show_logo %}<img src="{{ request.organization.logo.url }}" alt="" class="{% if L.doctor_side != 'right' %}ml-auto{% endif %} object-contain" style="height:{{ L.logo_mm }}mm;width:{{ L.logo_mm }}mm">{% endif %}
+    <p class="font-semibold">{{ request.organization.name }}</p>
+    <p class="text-label">{{ branch.name }}{% if branch.phone %} · {{ branch.phone }}{% endif %}</p>
+    {% if L.header_text %}<p class="text-label whitespace-pre-line">{{ L.header_text }}</p>{% endif %}
+    {% endif %}
+    {% if token %}{% include "print/_emergency_mark.html" %}<p class="print-token mt-1">{{ token.label }}</p>{% endif %}
+  </div>
+</header>

@@ -1,4 +1,5 @@
 {% extends "print/a4.html" %}
+{% block credit %}{% endblock %}
 {% block title %}Barcode labels{% endblock %}
 {% block page_size %}{% if paper %}{{ paper.width }} {{ paper.height }}{% else %}A4{% endif %}{% endblock %}
 {% block page_margin %}{% if paper %}0{% else %}12mm{% endif %}{% endblock %}

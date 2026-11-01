@@ -1,8 +1,21 @@
-{# {% include "print/_thermal_header.html" with org=request.organization branch=payment.branch unit="Pharmacy" doc_title="Payment receipt" %} #}
-<div class="text-center">
-  <p class="font-bold">{{ org.name }}</p>
-  <p class="text-label text-muted">{{ branch.name }}{% if unit %} · {{ unit }}{% endif %}</p>
-  {% with phone=branch.phone|default:org.phone %}{% if phone %}<p class="text-[10px] text-muted">{{ phone }}</p>{% endif %}{% endwith %}
+{% comment %}
+  The one header on the 80 mm roll: fee slip, token, receipts. L (Settings → Print layouts) is optional.
+  Context: org, branch, unit, doc_title, no_rule, full (name, branch, address and phone on their own lines).
+{% endcomment %}
+{% if not L or L.show_header %}<div class="text-center">
+  {% if org.logo %}{% if not L %}<img src="{{ org.logo.url }}" alt="" class="mx-auto object-contain" style="height:12mm;width:12mm">{% elif L.show_logo %}<img src="{{ org.logo.url }}" alt="" class="mx-auto object-contain" style="height:{{ L.logo_mm }}mm;width:{{ L.logo_mm }}mm">{% endif %}{% endif %}
+  {% if full %}
+  <p class="mt-1 text-[18px] leading-tight font-bold">{{ org.name }}</p>
+  <p class="text-body">({{ branch.name }}{% if unit %} · {{ unit }}{% endif %})</p>
+  {% with address=branch.address|default:org.address phone=branch.phone|default:org.phone %}
+  {% if address %}<p class="text-label">{{ address }}</p>{% endif %}
+  {% if phone %}<p class="text-label">Phone: {{ phone }}</p>{% endif %}
+  {% endwith %}
+  {% else %}
+  <p class="text-body font-bold">{{ org.name }}</p>
+  <p class="text-label">{{ branch.name }}{% if unit %} · {{ unit }}{% endif %}{% with phone=branch.phone|default:org.phone %}{% if phone %} · {{ phone }}{% endif %}{% endwith %}</p>
+  {% endif %}
+  {% if L.header_text %}<p class="text-label whitespace-pre-line">{{ L.header_text }}</p>{% endif %}
   {% if doc_title %}<p class="mt-2 text-label font-semibold uppercase">{{ doc_title }}</p>{% endif %}
-</div>
-<hr class="my-3 border-dashed border-line">
+</div>{% endif %}
+{% if not no_rule %}<hr class="my-3 border-dashed border-line">{% endif %}

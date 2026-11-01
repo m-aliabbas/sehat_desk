@@ -1,6 +1,6 @@
 # apps/queue — Reception counters and OPD tokens
 
-Phase 6. Tokens per branch, department and day (A-001...). PROJECT_NOTES §11.
+Phase 6. Tokens per branch, department and day (A-001...). Emergency tokens number per branch and day (E-001...); a department whose letter is E uses EP. PROJECT_NOTES §11.
 
 ## Files
 - `services.py` — `issue_token`, `queue_for`, `waiting`, `current_for`, `call_next`, `call`,

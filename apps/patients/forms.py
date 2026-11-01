@@ -29,6 +29,11 @@ QUICK_FIELDS = {"full_name", "gender", "date_of_birth", "phone", "cnic"}
 
 
 class PatientForm(StyledFormMixin, forms.ModelForm):
+    remember = {
+        "city": "patients.Patient.city",
+        "emergency_contact_relation": "patients.Patient.emergency_contact_relation",
+    }
+
     age_years = forms.IntegerField(
         label="Age (years)",
         required=False,
@@ -121,6 +126,8 @@ class PatientForm(StyledFormMixin, forms.ModelForm):
         dob = self.cleaned_data.get("date_of_birth")
         if dob and dob > date.today():
             raise forms.ValidationError("Date of birth cannot be in the future.")
+        if dob and dob.year < date.today().year - 130:
+            raise forms.ValidationError("Check the year of birth: that is over 130 years ago.")
         return dob
 
     def clean(self):

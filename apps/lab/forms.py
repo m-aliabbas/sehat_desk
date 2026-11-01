@@ -50,6 +50,8 @@ class LabOrderForm(StyledFormMixin, forms.Form):
 
 
 class LabTestForm(StyledFormMixin, forms.ModelForm):
+    remember = {"unit": "lab.LabTest.unit", "method": "lab.LabTest.method"}
+
     class Meta:
         model = LabTest
         fields = [

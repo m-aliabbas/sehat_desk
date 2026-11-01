@@ -20,6 +20,8 @@ class BedChoiceField(forms.ModelChoiceField):
 
 
 class WardForm(StyledFormMixin, forms.ModelForm):
+    remember = {"floor": "ipd.Ward.floor"}
+
     class Meta:
         model = Ward
         fields = ["name", "code", "kind", "floor", "department", "sort_order", "is_active"]
@@ -66,6 +68,8 @@ class BedStatusForm(StyledFormMixin, forms.Form):
 
 
 class AdmissionForm(StyledFormMixin, forms.Form):
+    remember = {"attendant_relation": "ipd.Admission.attendant_relation"}
+
     doctor = forms.ModelChoiceField(queryset=DoctorProfile.objects.none(), label="Admitting doctor")
     department = forms.ModelChoiceField(queryset=Department.objects.none())
     bed = BedChoiceField(queryset=Bed.objects.none(), label="Ward / room / bed")

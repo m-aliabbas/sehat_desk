@@ -41,7 +41,7 @@
     {% if can_discount %}
         <div class="grid grid-cols-2 gap-3">
           <div class="field"><label class="field-label" for="id_discount">Discount</label><input id="id_discount" name="discount" type="number" min="0" step="0.01" class="input" x-model="discount" autocomplete="off"></div>
-          <div class="field" x-show="parseFloat(discount) > 0" x-cloak><label class="field-label" for="id_discount_reason">Reason</label><input id="id_discount_reason" name="discount_reason" class="input" maxlength="200" value=""></div>
+          <div class="field" x-show="parseFloat(discount) > 0" x-cloak><label class="field-label" for="id_discount_reason">Reason</label><input id="id_discount_reason" name="discount_reason" class="input" maxlength="200" list="discount-reasons" autocomplete="off" value="">{% discount_reason_list %}</div>
         </div>
         {% endif %}
         <div class="field" x-show="isCash"><label class="field-label" for="id_cash_paid">Cash paid <span class="text-label text-muted">(blank = exact)</span></label><input id="id_cash_paid" type="number" min="0" step="0.01" class="input" x-model="cash" autocomplete="off"></div>
@@ -72,7 +72,8 @@
     <div class="thermal-next-slip" data-slip-copy>{% include "appointments/_fee_copy.html" with copy_label="Office copy" L=FL %}</div>
     {% endif %}
   {% elif token %}
-  <p class="text-center font-mono text-[44px] font-bold">{{ token.label }}</p>
+  {% include "print/_emergency_mark.html" %}
+  <p class="print-token text-center">{{ token.label }}</p>
   <div class="text-center">{% include "queue/_running_number.html" %}</div>
   <p class="text-center">{{ patient.full_name }} · {{ appt.doctor }}</p>
   {% endif %}

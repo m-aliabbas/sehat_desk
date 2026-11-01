@@ -9,6 +9,7 @@
   {% if invoice.patient_id %}<a href="{% url 'billing:patient-ledger' invoice.patient_id %}" target="_blank" rel="noopener" class="btn btn-secondary">Patient ledger</a>{% endif %}
 {% endblock %}
 {% block content %}
+{% discount_reason_list %}
 {% if new_receipt %}
   <div class="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-control bg-mint p-4 text-teal-deep" role="status">
     <p class="flex items-center gap-2 font-medium">{% icon "check-circle" "h-5 w-5" %} {{ new_receipt.number }} · {{ organization.currency }} {{ new_receipt.amount|floatformat:"2g" }} received by {{ new_receipt.method }}.</p>
@@ -80,7 +81,7 @@
                   <form method="post" action="{% url 'billing:invoice-discount' invoice.pk %}" class="absolute right-0 z-20 mt-1 w-72 space-y-3 rounded-card border border-line bg-white p-4 shadow-lg">
                     {% csrf_token %}<input type="hidden" name="item" value="{{ item.pk }}">
                     <div class="field"><label class="field-label" for="ld-{{ item.pk }}">Amount off (max {{ item.gross|floatformat:"2g" }})</label><input id="ld-{{ item.pk }}" name="amount" type="number" min="0" step="0.01" max="{{ item.gross|stringformat:'s' }}" value="{{ item.discount|stringformat:'s' }}" class="input"></div>
-                    <div class="field"><label class="field-label" for="lr-{{ item.pk }}">Reason</label><input id="lr-{{ item.pk }}" name="reason" maxlength="200" value="{{ item.discount_reason }}" class="input" placeholder="e.g. Staff family"></div>
+                    <div class="field"><label class="field-label" for="lr-{{ item.pk }}">Reason</label><input id="lr-{{ item.pk }}" name="reason" maxlength="200" value="{{ item.discount_reason }}" class="input" data-list="discount-reasons" role="combobox" autocomplete="off" placeholder="e.g. Staff family"></div>
                     <button class="btn btn-primary btn-sm w-full">Apply</button>
                   </form>
                 </details>
@@ -105,7 +106,7 @@
           <form method="post" action="{% url 'billing:invoice-discount' invoice.pk %}" class="mt-3 space-y-3">
             {% csrf_token %}
             <div class="field"><label class="field-label" for="inv-disc">Amount off the total</label><input id="inv-disc" name="amount" type="number" min="0" step="0.01" value="{{ invoice.invoice_discount|stringformat:'s' }}" class="input"></div>
-            <div class="field"><label class="field-label" for="inv-disc-reason">Reason <span class="text-red">*</span></label><input id="inv-disc-reason" name="reason" maxlength="200" value="{{ invoice.discount_reason }}" class="input" placeholder="e.g. Welfare case approved by admin"></div>
+            <div class="field"><label class="field-label" for="inv-disc-reason">Reason <span class="text-red">*</span></label><input id="inv-disc-reason" name="reason" maxlength="200" value="{{ invoice.discount_reason }}" class="input" data-list="discount-reasons" role="combobox" autocomplete="off" placeholder="e.g. Welfare case approved by admin"></div>
             <button class="btn btn-secondary btn-sm">Apply discount</button>
           </form>
         </details>

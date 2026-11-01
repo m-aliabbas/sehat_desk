@@ -11,6 +11,7 @@ draft ──issue──▶ unpaid ──pay──▶ partially_paid ──pay─
 from datetime import date
 from decimal import Decimal
 
+from django.apps import apps
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.db.models import Count, Sum
@@ -245,18 +246,51 @@ def set_line_discount(item, *, request, amount, reason) -> InvoiceItem:
 
 
 @transaction.atomic
+def discount_reasons(organization, limit=60) -> list[str]:
+    """Reasons typed before, on any bill, invoice line or pharmacy sale, newest first."""
+    seen: dict[str, str] = {}
+    for model in (Invoice, InvoiceItem, apps.get_model("pharmacy", "PharmacySale")):
+        org_filter = (
+            {"invoice__organization": organization}
+            if model is InvoiceItem
+            else {"organization": organization}
+        )
+        rows = (
+            model.objects.filter(**org_filter)
+            .exclude(discount_reason="")
+            .order_by("-pk")
+            .values_list("discount_reason", flat=True)[:300]
+        )
+        for reason in rows:
+            seen.setdefault(reason.strip().lower(), reason.strip())
+    return list(seen.values())[:limit]
+
+
+@transaction.atomic
+def discount_when_collecting(invoice, *, request, amount, reason) -> Invoice:
+    """The discount on a Collect payment screen. If it leaves nothing to pay, the bill is closed."""
+    if invoice.status == Status.DRAFT:
+        invoice = issue(invoice, request=request)
+    invoice = set_invoice_discount(
+        invoice, request=request, amount=amount, reason=reason, before_payment=True
+    )
+    invoice.status = _status_from_money(invoice)
+    invoice.save(update_fields=["status", "updated_at"])
+    return invoice
+
+
 def set_invoice_discount(
     invoice, *, request, amount, reason, authorized_by=None, before_payment=False
 ) -> Invoice:
     """authorized_by: a discount already approved elsewhere by a user holding the right
     permission (a pharmacy cart discount needs pharmacy.discount, checked by pharmacy/pos.py).
     Without it the signed-in user needs billing.discount.
-    before_payment: reception's visit fee is issued on booking, and can still be discounted until
-    money is taken on it."""
+    before_payment: whoever collects can still discount an issued bill, down to what has already
+    been paid (reception's visit fee, any Collect payment screen)."""
     if authorized_by is None:
         _require_discount_permission(request)
     invoice = _lock(invoice)
-    if not (before_payment and invoice.status == Status.UNPAID and not invoice.amount_paid):
+    if not (before_payment and invoice.status in Invoice.OUTSTANDING_STATUSES):
         _require_draft(invoice)
     amount = to_money(amount)
     lines = invoice.grand_total + invoice.invoice_discount - invoice.cash_adjustment
@@ -265,6 +299,10 @@ def set_invoice_discount(
     check_discount_cap(invoice.organization, amount, lines)
     if amount > 0 and not reason.strip():
         raise BillingError("Give a reason for the discount.")
+    if lines - amount + invoice.cash_adjustment < invoice.amount_paid:
+        raise BillingError(
+            f"{invoice.amount_paid} is already paid: the discount cannot go below it."
+        )
     invoice.invoice_discount = amount
     invoice.discount_reason = reason.strip()[:200] if amount else ""
     invoice.discount_by = (authorized_by or request.user) if amount else None

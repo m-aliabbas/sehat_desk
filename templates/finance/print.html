@@ -25,5 +25,6 @@
 </header>
 {% if cards %}<div class="cards">{% for c in cards %}<div><span class="muted">{{ c.label }}</span><b>{{ c.value|floatformat:"2g" }}</b></div>{% endfor %}</div>{% endif %}
 {% for table in tables %}{% include "finance/_table.html" %}{% endfor %}
+{% include "print/_credit.html" %}
 </body>
 </html>

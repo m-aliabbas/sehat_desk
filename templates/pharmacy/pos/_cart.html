@@ -10,7 +10,7 @@
             <td class="relative" colspan="{% if can_discount %}7{% else %}6{% endif %}">
               <div class="flex items-center gap-2">
                 <label class="sr-only" for="pos-search">Scan a barcode or search a medicine</label>
-                <input id="pos-search" form="pos-add-form" name="q" type="search" autocomplete="off" autofocus class="input flex-1"
+                <input id="pos-search" data-scan form="pos-add-form" name="q" type="search" autocomplete="off" autofocus class="input flex-1"
                        placeholder="Scan, or type a medicine. 3*name adds three."
                        hx-get="{% url 'pharmacy:pos-search' %}" hx-trigger="input changed delay:200ms" hx-target="#pos-results" hx-swap="innerHTML" hx-include="this, #pos-return-flag"
                        @keydown.down.prevent="document.querySelector('#pos-results button:not([disabled])')?.focus()"

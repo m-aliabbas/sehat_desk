@@ -1,12 +1,12 @@
 {# Patient picker results. Clicking a row dispatches "patient-picked" with the patient's details. #}
 {% if results %}
-  <ul class="divide-y divide-line overflow-hidden rounded-card border border-line bg-white shadow-lg" role="listbox">
+  <ul class="pick-list" role="listbox">
     {% for p in results %}
       <li role="option">
-        <button type="button" class="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-mint/50"
+        <button type="button" class="pick-row"
                 @click="$dispatch('patient-picked', { id: {{ p.pk }}, label: '{{ p.full_name|escapejs }} · {{ p.mrn|escapejs }}' })">
-          <span><span class="font-medium">{{ p.full_name }}</span><span class="block text-label text-muted">{{ p.age_label }} · {{ p.get_gender_display }} · {{ p.phone_display }}</span></span>
-          <span class="font-mono text-label text-muted">{{ p.mrn }}</span>
+          <span class="pick-title">{{ p.full_name }}</span><span class="pick-side">{{ p.mrn }}</span>
+          <span class="pick-sub">{{ p.age_label }} · {{ p.get_gender_display }}</span><span class="pick-side-sub">{{ p.phone_display }}</span>
         </button>
       </li>
     {% endfor %}

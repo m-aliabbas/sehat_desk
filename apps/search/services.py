@@ -149,11 +149,9 @@ def _medicines(request, q, limit):
     words = _words(q)
     if any(c in held for c in PRODUCT_VIEW):
         from apps.pharmacy.models import Product
+        from apps.pharmacy.scan import search_products
 
-        qs = scoped(Product, request)
-        for w in words:
-            qs = qs.filter(search_text__contains=w)
-        qs = qs | scoped(Product, request).filter(Q(sku__iexact=q) | Q(barcode=q))
+        qs = search_products(scoped(Product, request), q)
         return [
             Hit(
                 title=p.display_name,

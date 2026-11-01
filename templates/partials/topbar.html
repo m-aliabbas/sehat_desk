@@ -102,6 +102,7 @@
           <p class="text-label text-muted">{{ request.user.designation|default:request.user.get_username }}</p>
         </div>
         {% if "admin.users.view" in sd_perms %}<a href="{% url 'accounts:staff-detail' request.user.pk %}" class="nav-link">{% icon "user" "h-4 w-4" %} My profile</a>{% endif %}
+        <a href="{% url 'core:drafts' %}" class="nav-link">{% icon "inbox" "h-4 w-4" %} My drafts</a>
         <a href="{% url 'accounts:password-change' %}" class="nav-link">{% icon "lock" "h-4 w-4" %} Change password</a>
         {% if branches|length > 1 %}<a href="{% url 'accounts:workspace' %}" class="nav-link">{% icon "building" "h-4 w-4" %} Choose workspace</a>{% endif %}
         <form method="post" action="{% url 'accounts:logout' %}">

@@ -5,6 +5,7 @@
   List views must call .active(). The default manager returns archived rows too.
 """
 
+from django.conf import settings
 from django.db import models, transaction
 from django.db.models import F
 from django.utils import timezone
@@ -120,3 +121,28 @@ class ErrorReport(models.Model):
 
     def __str__(self):
         return f"{self.get_source_display()} {self.error_type} at {self.path}"
+
+
+class FormDraft(TimeStampedModel):
+    """A form someone was filling in and has not saved. Only its owner sees it; nothing reads it
+    into a real record until they press Restore on that form and save. Old ones are removed."""
+
+    organization = models.ForeignKey(
+        "organizations.Organization", on_delete=models.CASCADE, related_name="+"
+    )
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="+")
+    path = models.CharField(max_length=300)
+    form_key = models.CharField(max_length=200)
+    title = models.CharField(max_length=200, blank=True)
+    data = models.JSONField(default=dict)
+
+    class Meta:
+        ordering = ["-updated_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "path", "form_key"], name="uniq_form_draft_per_user"
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.user_id} {self.path}"

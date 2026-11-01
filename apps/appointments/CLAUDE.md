@@ -22,6 +22,7 @@ Doctor slots, booking, rescheduling and appointment status. PRD §4. PROJECT_NOT
   walk-in. Future dates get no token or invoice until `arrive`, unless the fee is paid in advance.
 - A doctor can have several clinics a day (`DoctorSchedule.shift`); use `schedules_for`.
 - `register_visit` is all-or-nothing, including any new patient made on the same screen.
+- Emergency (`emergency=True`, F4 on the desk form): today, now, no slot or leave check, visit type emergency, `E-` token first in the queue. Phone and CNIC are optional, the fee may stay unpaid, and the papers still print by themselves.
 
 ## Permissions
 `appointment.view`, `appointment.manage`.

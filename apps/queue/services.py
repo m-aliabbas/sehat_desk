@@ -62,9 +62,14 @@ def issue_token(*, request, patient, department, doctor=None, appointment=None, 
     if open_token:
         raise QueueError(f"{patient.full_name} already holds token {open_token.label} here.")
 
-    number = next_number(
-        request.organization, f"token:{request.branch.pk}:{department.pk}:{today:%Y%m%d}"
-    )
+    # Emergencies have their own numbers across the branch: E-001, E-002. A department whose own
+    # letter is E gets EP, so E- on a slip always means an emergency.
+    if priority == QueueToken.Priority.EMERGENCY:
+        scope, letters = "E", "E"
+    else:
+        scope = department.pk
+        letters = "EP" if department.token_letters.upper() == "E" else department.token_letters
+    number = next_number(request.organization, f"token:{request.branch.pk}:{scope}:{today:%Y%m%d}")
     sched = schedule_for(doctor, request.branch, today, at=_now_time()) if doctor else None
     token = QueueToken.objects.create(
         organization=request.organization,
@@ -75,7 +80,7 @@ def issue_token(*, request, patient, department, doctor=None, appointment=None, 
         patient=patient,
         appointment=appointment,
         number=number,
-        label=f"{department.token_letters}-{number:03d}",
+        label=f"{letters}-{number:03d}",
         room=sched.room if sched else "",
         priority=priority,
         issued_by=request.user,

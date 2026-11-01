@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.contrib.auth.decorators import login_not_required
 from django.urls import include, path, re_path
 from django.views.static import serve
 
@@ -28,10 +29,12 @@ urlpatterns = [
     path("", include("apps.printing.urls")),
     path("", include("apps.core.urls")),
     # Uploaded files (logos now, documents later). There is no separate web server on the
-    # hospital machine, so Django serves them, and LoginRequiredMiddleware keeps them private.
-    # Only logos are served here. Patient photos and documents go through permission-checked views.
+    # hospital machine, so Django serves them. Only logos are served here, open to all because the
+    # sign-in page shows them. Patient photos and documents go through permission-checked views.
     re_path(
-        r"^media/(?P<path>organization-logos/.*)$", serve, {"document_root": settings.MEDIA_ROOT}
+        r"^media/(?P<path>organization-logos/.*)$",
+        login_not_required(serve),
+        {"document_root": settings.MEDIA_ROOT},
     ),
 ]
 

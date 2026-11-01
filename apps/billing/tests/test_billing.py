@@ -1,7 +1,9 @@
+import uuid
 from datetime import time
 from decimal import Decimal
 
 import pytest
+from django.urls import reverse
 from django.utils import timezone
 
 from apps.appointments.models import Appointment
@@ -472,3 +474,61 @@ def test_payment_list_shows_deposits_and_marks_applied_payments(
     assert "Deposit balances returned" in body and "−1,500.00" in body
     assert "Deposit applied · counted when taken" in body
     assert r.context["totals"]["net"] == D("1500")
+
+
+def _collect(client, inv, cash, **extra):
+    data = {"method": cash.pk, "key": uuid.uuid4().hex, **extra}
+    return client.post(reverse("billing:invoice-pay", args=[inv.pk]), data)
+
+
+def test_discount_with_reason_on_collect_payment(admin_client, bill_request, patient, cash):
+    inv = services.issue(
+        _invoice(bill_request, patient, ("Consultation", "1000", 1)), request=bill_request
+    )
+    _collect(admin_client, inv, cash, amount="800", discount="200", discount_reason="Staff family")
+    inv.refresh_from_db()
+    assert inv.status == Invoice.Status.PAID and inv.amount_paid == D("800")
+    assert inv.invoice_discount == D("200") and inv.discount_reason == "Staff family"
+    assert inv.discount_by == bill_request.user
+
+
+def test_discount_needs_a_reason_and_refused_discount_takes_no_money(
+    admin_client, bill_request, patient, cash
+):
+    inv = services.issue(
+        _invoice(bill_request, patient, ("Consultation", "1000", 1)), request=bill_request
+    )
+    response = _collect(admin_client, inv, cash, amount="800", discount="200")
+    assert b"Give a reason" in response.content
+    inv.refresh_from_db()
+    assert inv.amount_paid == 0 and inv.invoice_discount == 0
+
+
+def test_discount_after_part_payment_stops_at_what_is_paid(
+    admin_client, bill_request, patient, cash
+):
+    inv = services.issue(
+        _invoice(bill_request, patient, ("Consultation", "1000", 1)), request=bill_request
+    )
+    services.receive_payment(inv, request=bill_request, method=cash, amount="600")
+    response = _collect(admin_client, inv, cash, amount="1", discount="500", discount_reason="x")
+    assert b"already paid" in response.content
+    inv.refresh_from_db()
+    assert inv.invoice_discount == 0
+    _collect(admin_client, inv, cash, discount="400", discount_reason="Welfare")
+    inv.refresh_from_db()
+    assert inv.status == Invoice.Status.PAID and inv.amount_paid == D("600")
+
+
+def test_collecting_without_the_discount_right_cannot_discount(
+    client, make_user, bill_request, patient, cash
+):
+    inv = services.issue(
+        _invoice(bill_request, patient, ("Consultation", "1000", 1)), request=bill_request
+    )
+    client.force_login(make_user("pharmacy"))
+    page = client.get(reverse("billing:invoice-pay", args=[inv.pk]))
+    assert b'name="discount"' not in page.content
+    _collect(client, inv, cash, amount="500", discount="500", discount_reason="x")
+    inv.refresh_from_db()
+    assert inv.invoice_discount == 0 and inv.amount_paid == 0

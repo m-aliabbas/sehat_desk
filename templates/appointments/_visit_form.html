@@ -1,7 +1,7 @@
 {% load ui %}
 {# The booking form, on the reception desk and alone when a save is refused. Context: appointments.views.visit_context #}
 {{ doctors|json_script:"doctor-data" }}
-<form method="post" action="{% url 'appointments:visit-new' %}" class="grid gap-4 xl:grid-cols-3" novalidate
+<form method="post" action="{% url 'appointments:visit-new' %}" class="grid gap-4 xl:grid-cols-3" novalidate data-draft="off"
       x-data="{
         mode: '{% if new_mode %}new{% else %}find{% endif %}',
         patientId: '{{ form.patient.value|default:'' }}',
@@ -21,6 +21,12 @@
         fee: '',
         collect: {% if form.is_bound %}{{ form.collect.value|yesno:'true,false' }}{% else %}true{% endif %},
         showVitals: true,
+        emergency: {% if form.emergency.value %}true{% else %}false{% endif %},
+        toggleEmergency() {
+          this.emergency = !this.emergency;
+          if (this.emergency) { this.date = this.today; this.pickTime = false; this.time = ''; }
+          this.$nextTick(() => { this.collect = !this.emergency; this.refreshSlots(); document.getElementById(this.mode === 'new' ? 'id_new-full_name' : (this.patientId ? 'doctor-search' : 'patient-search'))?.focus(); });
+        },
         get matches() {
           const q = this.doctorQuery.trim().toLowerCase();
           return this.doctors.filter(d => !q || (d.name + ' ' + d.dept).toLowerCase().includes(q)).slice(0, 8);
@@ -37,6 +43,7 @@
       @keydown.f3.window.prevent="doctorId = ''; setTimeout(() => document.getElementById('doctor-search')?.focus())"
       @keydown.alt.t.window.prevent="pickTime = !pickTime; time = ''; refreshSlots()"
       @keydown.f8.window.prevent="$refs.save.click()"
+      @keydown.f4.window.prevent="toggleEmergency()"
       @slot-picked.window="time = $event.detail"
       @fee-suggested.window="fee = $event.detail"
       @keydown.enter="if ($event.target.tagName === 'INPUT') $event.preventDefault()">
@@ -47,6 +54,13 @@
   <input type="hidden" name="time" :value="pickTime ? time : ''">
   <input type="hidden" name="shift" :value="shift" id="visit-shift">
   <input type="hidden" name="key" value="{{ idempotency_key }}">
+  <input type="hidden" name="emergency" :value="emergency ? '1' : ''">
+
+  <div class="flex flex-wrap items-center justify-between gap-3 rounded-control border p-3 xl:col-span-3" :class="emergency ? 'border-red bg-red-soft' : 'border-line bg-white'">
+    <p class="text-body" x-show="!emergency">Normal visit. For an emergency press <kbd class="font-mono font-semibold">F4</kbd>.</p>
+    <p class="text-body font-bold text-red" x-show="emergency" x-cloak>EMERGENCY: E- token, seen first, today, now. Pick the patient and doctor, then F8. Phone and CNIC can wait; the fee can be taken later.</p>
+    <button type="button" class="btn btn-sm" :class="emergency ? 'btn-secondary' : 'btn-danger'" @click="toggleEmergency()" x-text="emergency ? 'Back to normal visit (F4)' : 'Emergency (F4)'"></button>
+  </div>
 
   <div class="space-y-6 xl:col-span-2">
     {% for e in form.non_field_errors %}{% include "components/alert.html" with level="danger" title="Could not save the visit" message=e %}{% endfor %}
@@ -114,12 +128,12 @@
                  @keydown.up.prevent="doctorIndex = Math.max(doctorIndex - 1, 0)"
                  @keydown.enter.prevent="if (matches[doctorIndex]) chooseDoctor(matches[doctorIndex])"
                  @keydown.escape="doctorOpen = false">
-          <ul x-show="doctorOpen && matches.length" x-cloak class="absolute z-20 mt-1 w-full divide-y divide-line overflow-hidden rounded-card border border-line bg-white shadow-lg" role="listbox">
+          <ul x-show="doctorOpen && matches.length" x-cloak class="pick-list absolute z-20 mt-1 w-full" role="listbox">
             <template x-for="(d, i) in matches" :key="d.id">
               <li role="option" :aria-selected="i === doctorIndex">
-                <button type="button" class="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-mint/50" :class="i === doctorIndex && 'bg-mint/50'" @click="chooseDoctor(d)">
-                  <span><span class="font-medium" x-text="d.name"></span><span class="block text-label text-muted" x-text="d.dept + ' · ' + d.today"></span></span>
-                  <span class="text-label text-muted">{{ organization.currency }} <span x-text="d.fee"></span></span>
+                <button type="button" class="pick-row" @click="chooseDoctor(d)">
+                  <span class="pick-title" x-text="d.name"></span><span class="pick-side">{{ organization.currency }} <span x-text="d.fee"></span></span>
+                  <span class="pick-sub col-span-2" x-text="d.dept + ' · ' + d.today"></span>
                 </button>
               </li>
             </template>
@@ -128,7 +142,7 @@
         {% for e in form.doctor.errors %}<p class="field-error mt-2">{{ e }}</p>{% endfor %}
       </div>
 
-      <div class="mt-5 flex flex-wrap items-end gap-3">
+      <div class="mt-5 flex flex-wrap items-end gap-3" x-show="!emergency">
         <div class="flex gap-2" role="group" aria-label="Quick date">
           <button type="button" class="btn btn-sm" :class="date === today ? 'btn-primary' : 'btn-secondary'" @click="date = today; refreshSlots()">Today</button>
           <button type="button" class="btn btn-sm" :class="date === tomorrow ? 'btn-primary' : 'btn-secondary'" @click="date = tomorrow; refreshSlots()">Tomorrow</button>
@@ -146,7 +160,7 @@
       </div>
       {% for e in form.date.errors %}<p class="field-error mt-2">{{ e }}</p>{% endfor %}
 
-      <div class="mt-4 flex items-center justify-between gap-3 rounded-control bg-page p-3 text-body">
+      <div class="mt-4 flex items-center justify-between gap-3 rounded-control bg-page p-3 text-body" x-show="!emergency">
         <span><span class="text-muted">Time:</span> <span class="font-medium" x-text="timeLabel"></span></span>
         <button type="button" class="btn btn-ghost btn-sm" @click="pickTime = !pickTime; time = ''; refreshSlots()" x-text="pickTime ? 'Use automatic time' : 'Choose a time'"></button>
       </div>
@@ -202,7 +216,7 @@
         {% if can_discount %}
         <div class="grid grid-cols-2 gap-3">
           <div class="field"><label class="field-label" for="id_discount">Discount</label><input id="id_discount" name="discount" type="number" min="0" step="0.01" class="input" x-model="discount" autocomplete="off"></div>
-          <div class="field" x-show="parseFloat(discount) > 0" x-cloak><label class="field-label" for="id_discount_reason">Reason</label><input id="id_discount_reason" name="discount_reason" class="input" maxlength="200" value="{{ form.discount_reason.value|default:'' }}"></div>
+          <div class="field" x-show="parseFloat(discount) > 0" x-cloak><label class="field-label" for="id_discount_reason">Reason</label><input id="id_discount_reason" name="discount_reason" class="input" maxlength="200" data-list="discount-reasons" role="combobox" autocomplete="off" value="{{ form.discount_reason.value|default:'' }}">{% discount_reason_list %}</div>
         </div>
         {% endif %}
         <div class="field" x-show="isCash"><label class="field-label" for="id_cash_paid">Cash paid <span class="text-label text-muted">(blank = exact)</span></label><input id="id_cash_paid" type="number" min="0" step="0.01" class="input" x-model="cash" autocomplete="off"></div>
@@ -219,14 +233,14 @@
       {% endif %}
       <div class="field mt-4">
         <label class="field-label" for="id_reason">Reason for visit <span class="text-label text-muted">(optional)</span></label>
-        <input id="id_reason" name="reason" class="input" maxlength="200" value="{{ form.reason.value|default:'' }}">
+        <input id="id_reason" name="reason" class="input" maxlength="200" data-list="past-appointments-appointment-reason" role="combobox" autocomplete="off" value="{{ form.reason.value|default:'' }}">{% past_values "appointments.Appointment.reason" %}
       </div>
       <ul class="mt-4 space-y-1 text-label text-muted" x-show="isToday">
         <li>Prints by itself: token{% if prefs.opd_collect_fee_upfront %}, fee slip{% if prefs.opd_print_office_copy %} (patient and office copy){% endif %}{% endif %}.{% if prefs.opd_print_blank_prescription %} The prescription has its own button.{% endif %}</li>
       </ul>
       <p class="mt-4 text-label text-muted" x-show="!isToday" x-cloak>Pre-booking. The token and prescription print when the patient arrives.</p>
-      <button type="submit" x-ref="save" class="btn btn-primary mt-5 w-full" :disabled="(mode === 'find' && !patientId) || !doctorId || (pickTime && !time)" x-text="isToday ? 'Save and print (F8)' : 'Save booking (F8)'"></button>
-      <p class="mt-3 flex flex-wrap gap-x-3 text-label text-muted" aria-label="Keyboard shortcuts"><span><kbd class="font-mono font-semibold text-ink">F2</kbd> patient</span><span><kbd class="font-mono font-semibold text-ink">F3</kbd> doctor</span><span><kbd class="font-mono font-semibold text-ink">Alt+T</kbd> time</span><span><kbd class="font-mono font-semibold text-ink">Alt+V</kbd> vitals</span><span><kbd class="font-mono font-semibold text-ink">Alt+J</kbd> next section</span><span><kbd class="font-mono font-semibold text-ink">Enter</kbd> pick first</span></p>
+      <button type="submit" x-ref="save" class="btn btn-primary mt-5 w-full" :disabled="(mode === 'find' && !patientId) || !doctorId || (pickTime && !time)" x-text="emergency ? 'Save emergency and print (F8)' : (isToday ? 'Save and print (F8)' : 'Save booking (F8)')"></button>
+      <p class="mt-3 flex flex-wrap gap-x-3 text-label text-muted" aria-label="Keyboard shortcuts"><span><kbd class="font-mono font-semibold text-ink">F2</kbd> patient</span><span><kbd class="font-mono font-semibold text-ink">F3</kbd> doctor</span><span><kbd class="font-mono font-semibold text-ink">F4</kbd> emergency</span><span><kbd class="font-mono font-semibold text-ink">Alt+T</kbd> time</span><span><kbd class="font-mono font-semibold text-ink">Alt+V</kbd> vitals</span><span><kbd class="font-mono font-semibold text-ink">Alt+J</kbd> next section</span><span><kbd class="font-mono font-semibold text-ink">Enter</kbd> pick first</span></p>
     </section>
   </aside>
 </form>

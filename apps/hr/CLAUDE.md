@@ -8,10 +8,11 @@ Phases 34–35: attendance, pay profiles, doctor commission, payroll and staff l
 - `payroll.py` — `create_run`, `recalculate`, `set_adjustments`, `finalize`, `pay_staff`,
   `post_opening`, `balance`.
 - `signals.py` — invoice saves call `commission.sync_invoice` (billing does not import hr).
-- `models.py` — `AttendanceRecord`, `PayProfile`, `CommissionEarning` (append-only),
+- `models.py` — `AttendanceRecord`, `AttendanceSession`, `PayProfile`, `CommissionEarning` (append-only),
   `PayrollRun`, `Payslip`, `StaffLedgerEntry`.
 
 ## Rules
+- A person can check in and out several times a day: `AttendanceSession` holds each stretch, `AttendanceRecord` the first in and last out. The first arrival decides late; `hours` adds the stretches.
 - Commission rows are append-only: refunds/cancellations post negative adjustments.
 - Commission needs a fully paid invoice and `InvoiceItem.performed_by` with an active pay profile.
 - Absence deductions count only days explicitly marked absent.

@@ -1,6 +1,7 @@
 """Reception counters and OPD queue tokens.
 
-Token numbers run per branch, per department, per day (A-001, A-002, ...). A token sits in one
+Token numbers run per branch, per department, per day (A-001, A-002, ...); emergencies run per
+branch, per day (E-001, ...). A token sits in one
 doctor's queue, or in the department queue when no doctor is chosen. Counter IDs identify reception
 desks and never replace clinic token IDs (design kit data contracts).
 """
@@ -102,7 +103,7 @@ class QueueToken(BranchScopedModel):
         ordering = ["priority_rank", "queued_at"]
         constraints = [
             models.UniqueConstraint(
-                fields=["branch", "department", "date", "number"], name="uniq_token_number_per_day"
+                fields=["branch", "department", "date", "label"], name="uniq_token_label_per_day"
             )
         ]
         indexes = [

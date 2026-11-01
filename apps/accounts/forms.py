@@ -87,6 +87,8 @@ class SetupForm(StyledFormMixin, _PasswordPairMixin, forms.Form):
 
 
 class StaffForm(StyledFormMixin, forms.ModelForm):
+    remember = {"designation": "accounts.User.designation"}
+
     class Meta:
         model = User
         fields = [

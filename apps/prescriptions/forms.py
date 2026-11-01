@@ -41,6 +41,11 @@ class PrescriptionItemForm(StyledFormMixin, forms.Form):
 
 
 class MedicineForm(StyledFormMixin, forms.ModelForm):
+    remember = {
+        "strength": "prescriptions.Medicine.strength",
+        "manufacturer": "prescriptions.Medicine.manufacturer",
+    }
+
     class Meta:
         model = Medicine
         fields = ["brand_name", "generic_name", "strength", "form", "route", "manufacturer"]

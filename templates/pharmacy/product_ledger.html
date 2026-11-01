@@ -51,4 +51,5 @@
   <p class="mb-4 text-label text-muted">Prices per {{ product|unit_label }}. A price change moves no stock, so it does not change the balances above.</p>
   {% include "pharmacy/_price_changes.html" with changes=price_changes %}
 </section>
+<div class="hidden print:block">{% include "print/_credit.html" %}</div>
 {% endblock %}

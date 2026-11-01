@@ -472,3 +472,20 @@ def test_call_and_recall_buttons_work(
     assert admin_client.post(f"/queue/tokens/{token.pk}/recall/").status_code == 302
     token.refresh_from_db()
     assert token.call_count == 2
+
+
+def test_emergency_tokens_have_their_own_numbers_and_go_first(
+    desk_request, department, patient, org, branch
+):
+    from apps.patients.models import Patient
+
+    normal = services.issue_token(request=desk_request, patient=patient, department=department)
+    other = Patient.objects.create(
+        organization=org, registered_branch=branch, full_name="Second Patient", mrn="T-2"
+    )
+    urgent = services.issue_token(
+        request=desk_request, patient=other, department=department, priority="emergency"
+    )
+    assert urgent.label == "E-001"
+    assert normal.number == urgent.number == 1
+    assert services.waiting(QueueToken.objects.all()).first() == urgent

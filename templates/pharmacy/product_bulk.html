@@ -36,7 +36,7 @@
     <tbody>
       <template x-for="(r, i) in rows" :key="r.uid">
         <tr :class="i === 0 && 'entry-row'">
-          <td class="sheet-freeze"><input name="brand_name" class="input" autocomplete="off" placeholder="Panadol 500 mg" x-model="r.brand_name" aria-label="Name and strength"><p class="field-error px-2 pb-1" x-show="r.error" x-text="r.error"></p></td>
+          <td class="sheet-freeze"><input name="brand_name" data-scan="detect" data-scan-url="{% url 'pharmacy:scan-read' %}" class="input" autocomplete="off" placeholder="Panadol 500 mg" x-model="r.brand_name" aria-label="Name and strength"><p class="field-error px-2 pb-1" x-show="r.error" x-text="r.error"></p></td>
           <td><input name="generic_name" class="input" autocomplete="off" x-model="r.generic_name" aria-label="Generic"></td>
           <td><select name="category" class="select" x-model="r.category" @change="pickCategory(r)" aria-label="Category"><option value="">—</option>{% for c in categories %}<option value="{{ c.pk }}">{{ c.name }}</option>{% endfor %}</select></td>
           <td class="cell-detail"><input name="unit" data-list="unit-names" role="combobox" class="input" autocomplete="off" x-model="r.unit" aria-label="Smallest unit sold"></td>
@@ -48,7 +48,7 @@
           <td :title="perUnit(r) || 'Sell price of one ' + topName(r)"><span class="cell-unit" x-text="'/' + topName(r)"></span><input name="pack_price" type="number" min="0" step="0.01" class="input" autocomplete="off" x-model="r.pack_price" :aria-label="'Sell price of one ' + topName(r)"><input type="hidden" name="price_per" :value="level(r)"></td>
           {% if tax_rule != "hidden" %}<td{% if tax_rule != "required" %} class="cell-detail"{% endif %}><input name="tax_percent" type="number" min="0" step="0.01" class="input" autocomplete="off" x-model="r.tax_percent" aria-label="Tax percent"></td>{% else %}<input type="hidden" name="tax_percent" :value="r.tax_percent">{% endif %}
           <td class="cell-detail"><input name="reorder_packs" type="number" min="0" class="input" autocomplete="off" x-model="r.reorder_packs" aria-label="Reorder when this many packs are left"></td>
-          <td class="cell-detail"><input name="barcode" class="input" autocomplete="off" x-model="r.barcode" aria-label="Barcode" placeholder="Auto"></td>
+          <td class="cell-detail"><input name="barcode" data-scan="fill" data-scan-url="{% url 'pharmacy:scan-read' %}" class="input" autocomplete="off" x-model="r.barcode" aria-label="Barcode" placeholder="Auto"></td>
           <td><button type="button" tabindex="-1" class="sheet-remove" aria-label="Remove line" x-show="rows.length > 1 && r.brand_name" @click="rows.splice(i, 1)">{% icon "trash" "h-4 w-4" %}</button></td>
         </tr>
       </template>

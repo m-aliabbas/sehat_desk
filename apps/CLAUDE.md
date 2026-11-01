@@ -39,6 +39,9 @@ Each app has its own `CLAUDE.md` with its flow and rules. Open the one for the a
   A new URL namespace or nav entry for those modules must be added there.
 - **Portability:** ORM only, no raw SQLite SQL. `select_for_update(of=("self",))` is fine on both.
 
+## Remembered entries
+A typed-in category (city, floor, payee, manufacturer...) offers what this hospital typed before: `remember = {"field": "app.Model.field"}` on a `StyledFormMixin` form, rendered by `components/field.html`. The model must have `organization`. Discount reasons use `billing.services.discount_reasons` and `{% discount_reason_list %}`. Saved lists (departments, expense categories) stay master data.
+
 ## Tests
 - `pytest` from the repo root (skill: `sehatdesk-checks`). Each app has `tests/`; fixtures in the
   root `conftest.py`: `org`, `branch`, `branch2`, `make_user(role_key, branch=...)`, `admin_user`,

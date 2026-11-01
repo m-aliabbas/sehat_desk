@@ -23,11 +23,11 @@
         <tr>
           <td colspan="8" class="relative">
             <label class="sr-only" for="sr-search">Find medicine</label>
-            <input id="sr-search" x-ref="search" type="search" class="input" placeholder="Scan or type a medicine, Enter picks the first batch" autocomplete="off"
-                   x-model="q" @input.debounce.200ms="find()" @keydown.enter.prevent="pick(results[0])" @keydown.escape="results = []">
-            <ul x-show="results.length" x-cloak class="absolute left-0 z-30 mt-1 max-h-72 w-full overflow-y-auto rounded-control border border-line bg-white shadow-lg">
+            <input id="sr-search" x-ref="search" data-scan type="search" class="input" placeholder="Scan or type a medicine, Enter picks the first batch" autocomplete="off"
+                   x-model="q" @input.debounce.200ms="find()" @keydown.enter.prevent="await find(); pick(results[0])" @keydown.escape="results = []">
+            <ul x-show="results.length" x-cloak class="pick-list absolute left-0 z-30 mt-1 w-full">
               <template x-for="(r, i) in results" :key="r.id">
-                <li><button type="button" class="flex w-full justify-between gap-3 px-3 py-2 text-left hover:bg-mint" @click="pick(r)"><span class="font-medium" x-text="r.name"></span><span class="text-label text-muted" x-text="`${r.batch} · ${r.expiry} · ${r.available} ${r.unit}`"></span></button></li>
+                <li><button type="button" class="pick-row" @click="pick(r)"><span class="pick-title col-span-2" x-text="r.name"></span><span class="pick-sub col-span-2" x-text="`${r.batch} · ${r.expiry} · ${r.available} ${r.unit}`"></span></button></li>
               </template>
             </ul>
           </td>

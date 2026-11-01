@@ -18,9 +18,11 @@ must work offline on the hospital LAN (no CDNs, fonts or icons from other hosts;
   pagination, skeleton_table) and `partials/` (sidebar, topbar, breadcrumbs, toasts,
   confirm_dialog, settings_tabs, env_banner, license_contact).
 - Print pages are forced to black and white in `print/base.html`. Layout settings come from
-  `{% print_layout %}` + `print/_layout_css.html`. Paper may be 80 mm thermal per document. `print/_credit.html` is the vibeexe line, in both footers and the prescription.
+  `{% print_layout %}` + `print/_layout_css.html`. Paper may be 80 mm thermal per document. `print/_credit.html` is the "SehatDesk by Vibe.Exe" line: `print/base.html` puts it at the end of every document, and sticker labels turn it off with an empty `credit` block.
 - `print/thermal.html` (tokens, receipts): all text bold in Arial for thermal heads, 72 mm wide, no `@page` size or margin (the driver's roll, no browser header/footer); The fee slip prints each copy as its own job (`printSlips` in `papers.html`), so the printer cuts between them. Visit papers: `appointments/papers.html` (roll), `papers_rx.html` (A5, `?part=rx`).
 - Saving a visit prints slips by itself; the papers page has "Print Rx" (F9, always the print window via `sd-print-dialog`) and no token-only button.
+- One typeface on all paper (`print/base.html`), one roll header (`print/_thermal_header.html`), one prescription header (`print/_rx_header.html`), `print-token` for the token number, `print/_emergency_mark.html` on emergency papers. The blank Rx height is calculated to stay on one page.
+- The pharmacy sale receipt (`pharmacy/pos/receipt.html`) is a five-column slip: SN, product, rate, qty, amount, then totals, amount in words (`in_words` in `ui.py`) and how it was paid. No barcode or QR.
 - Print routing: `print/_router.html` + `static/js/print_router.js` replace `window.print` (loaded by `print/base.html`, reports and the product ledger; a new page that prints outside `print/base.html` must include it). Paper comes from `@page` or `<meta name="sd-paper">`. `apps/printing`.
 - Printing: `print/a4.html`, `print/a5.html`, `print/thermal.html` with `_letterhead`/`_footer`;
   staging prints are stamped "not a valid document".
@@ -109,8 +111,15 @@ Every page has `#page-trail` (`sdTrail` in `app.js`): Back to the page you came 
 - Row buttons: `data-edit="url"` and `data-remove="url"` on a `<tr>` add small pencil and bin buttons (keys E and Delete). Write them
   only inside the permission check. Add `data-remove-label`; `data-remove-reason` asks for a reason and posts it as `reason`. Removal
   always goes to a deactivate or cancel view; clinical and money records are never erased.
+- Entry grids (`entry-row` or `table.sheet`) fit the window (`sdFitGrids`, `grid-fits`): rows scroll inside the table, header and entry row stay, and the page does not grow. Their search list floats.
+- Drafts (`sdDrafts`, `apps/core/drafts.py`): any posting form with two or more boxes saves what is typed for its owner and offers Restore on return; My drafts is in the user menu. `data-draft="off"` opts out, htmx forms and passwords are skipped, and `rows`/`lines` in Alpine are kept.
+- Search dropdowns use `pick-list` and `pick-row` (`pick-title`, `pick-sub`, `pick-side`, `pick-side-sub`): 52 to 60px, two lines, mint with a teal edge on the keyboard's row. A new dropdown uses these.
 - Any table people scan or add into has a fixed first row, `<tr class="entry-row">`, and lines land below it (POS, stock grid, Add
   products). Forms that add a line, such as the invoice's, sit above the table. A new entry screen follows this.
+- Scan boxes: `<input data-scan>` (`sdScan` in `app.js`) keeps a scanner's group separator (Ctrl+]) and line breaks inside
+  a code, so one code stays one value; the server reads it with `pharmacy/scan.py`. `data-scan="fill"` (with `data-scan-url`)
+  swaps a QR code for its product code; `data-scan="detect"` on a name box hands a scanned code to the `barcode` box beside it.
+  Any new box that takes a product code uses this. Hardware scanners only; no camera.
 - `<input data-list="datalist-id">` is a free-text box with a dropdown that floats above scrolling tables
   (`sdCombo` in `app.js`). It opens on click, typing or Alt+Down. 
 - HTMX for partial updates (`hx-get`/`hx-post` return a partial; errors come back as a toast).

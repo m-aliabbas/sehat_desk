@@ -1,25 +1,20 @@
 {% load ui pharmacy %}
 {% if results %}
-  <ul class="divide-y divide-line overflow-hidden rounded-card border border-line bg-white shadow-lg" role="listbox">
+  <ul class="pick-list" role="listbox">
     {% for p in results %}
       <li role="option">
-        <button type="button" class="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-mint/50 disabled:cursor-not-allowed disabled:opacity-60"
+        <button type="button" class="pick-row"
                 hx-post="{% url 'pharmacy:pos-add' %}" hx-vals='{"product": "{{ p.pk }}"}' hx-include="#pos-qty, #pos-return-flag" hx-target="#pos-cart" hx-swap="outerHTML"
                 hx-on::after-request="const s = document.getElementById('pos-search'); s.value = ''; document.getElementById('pos-qty').value = 1; document.getElementById('pos-results').innerHTML = ''; s.focus()"
                 {% if not p.stock and not returning %}disabled{% endif %}>
-          <span>
-            <span class="font-medium">{{ p.display_name }}</span>{% if p.requires_prescription %} <span class="chip chip-warning">Rx only</span>{% endif %}
-            <span class="block text-label text-muted">{{ p.generic_name|default:"—" }} · {{ p.sku }}{% if p.barcode %} · {{ p.barcode }}{% endif %}</span>
-          </span>
-          <span class="text-right">
-            <span class="block font-semibold">{{ organization.currency }} {{ p.sale_price|floatformat:"2g" }} <span class="text-label font-normal text-muted">/ {{ p|unit_label }}</span></span>
-            {% if p.has_packs %}<span class="block text-label text-muted">{{ p.pack_price|floatformat:"2g" }} / {{ p|pack_label }} of {{ p.pack_size }}{% if not p.allow_loose_sale %} · whole {{ p|pack_label:2 }} only{% endif %}</span>{% endif %}
-            <span class="block text-label {% if not p.stock %}text-red{% elif p.reorder_level and p.stock <= p.reorder_level %}text-amber{% else %}text-muted{% endif %}">{% if p.stock %}{{ p.stock|in_packs:p }} in stock{% else %}Out of stock{% endif %}</span>
-          </span>
+          <span class="pick-title">{{ p.display_name }}{% if p.requires_prescription %} <span class="chip chip-warning">Rx only</span>{% endif %}</span>
+          <span class="pick-side">{{ organization.currency }} {{ p.sale_price|floatformat:"2g" }} <span class="text-label font-normal text-muted">/ {{ p|unit_label }}</span></span>
+          <span class="pick-sub">{{ p.generic_name|default:"—" }}{% if p.has_packs %} · {{ p.pack_price|floatformat:"2g" }} / {{ p|pack_label }} of {{ p.pack_size }}{% if not p.allow_loose_sale %} · whole {{ p|pack_label:2 }} only{% endif %}{% endif %}</span>
+          <span class="pick-side-sub {% if not p.stock %}text-red{% elif p.reorder_level and p.stock <= p.reorder_level %}text-amber{% endif %}">{% if p.stock %}{{ p.stock|in_packs:p }} in stock{% else %}Out of stock{% endif %}</span>
         </button>
       </li>
     {% endfor %}
   </ul>
 {% elif q|length >= 2 %}
-  <div class="rounded-card border border-line bg-white p-4 text-body text-muted shadow-lg">No product matches “{{ q }}”.</div>
+  <div class="rounded-control border border-edge bg-white p-3 text-body text-muted shadow-lg">No product matches “{{ q }}”.</div>
 {% endif %}

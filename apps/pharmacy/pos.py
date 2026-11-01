@@ -28,7 +28,7 @@ from apps.organizations import field_rules
 from apps.organizations.models import preferences_for
 from apps.prescriptions.models import Prescription, PrescriptionItem
 
-from . import stock
+from . import scan, stock
 from .models import (
     InventoryBatch,
     PharmacyCartReturn,
@@ -1014,16 +1014,37 @@ def settle_returns_only(sale, *, request) -> list:
 
 def search_products(request, q: str, limit=12):
     """Products for the POS search box: exact barcode/SKU first, then name words."""
-    q = q.strip().lower()
+    q = q.strip()
     qs = stock.products_with_stock(request.branch, request.organization).filter(is_active=True)
     if not q:
         return []
-    exact = list(qs.filter(barcode__iexact=q)) or list(qs.filter(sku__iexact=q))
-    if exact:
+    read = scan.parse(q)
+    if exact := scan.find_products(qs, read):
         return exact
-    for word in q.split():
+    if read.structured and not read.name:
+        return []
+    for word in (read.name if read.structured else q).lower().split():
         qs = qs.filter(search_text__contains=word)
     return list(qs.order_by("-stock", "brand_name")[:limit])
+
+
+def batch_for_scan(sale, product, read) -> tuple[InventoryBatch | None, str]:
+    """The batch of the pack in the pharmacist's hand, and a note if it cannot be used.
+    None means first-expiry-first. An expired pack is refused even if newer stock exists."""
+    if read.expired:
+        raise PosError(f"This pack of {product} expired on {read.expiry:%d %b %Y}. Do not sell it.")
+    if not read.batch or read.batch_is_guess:
+        return None, ""
+    lots = InventoryBatch.objects.filter(
+        branch=sale.branch, product=product, batch_number__iexact=read.batch
+    )
+    if lots.filter(expiry_date__lt=timezone.localdate()).exists():
+        raise PosError(f"Batch {read.batch} of {product} has expired. Do not sell it.")
+    in_cart = dict(sale.items.filter(product=product).values_list("batch_id", "quantity"))
+    for lot in stock.saleable(sale.branch, product).filter(pk__in=lots.values("pk")):
+        if lot.quantity_available > in_cart.get(lot.pk, 0):
+            return lot, ""
+    return None, f"Batch {read.batch} is not on this branch's stock. Sold from the first to expire."
 
 
 def rx_line_for(rx_item_id, sale) -> PrescriptionItem | None:

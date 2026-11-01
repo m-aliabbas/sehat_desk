@@ -154,10 +154,32 @@ class AttendanceRecord(BranchScopedModel):
         return self.SHORT.get(self.status, "")
 
     @property
+    def open_since(self):
+        """When the current stretch began, while still checked in."""
+        last = self.sessions.last()
+        return last.check_in if last else self.check_in
+
+    @property
     def hours(self):
-        if self.check_in and self.check_out:
-            return round((self.check_out - self.check_in).total_seconds() / 3600, 1)
-        return None
+        """Time actually in, over every in and out of the day."""
+        spans = [s for s in self.sessions.all() if s.check_out]
+        if not spans:
+            return None
+        return round(sum((s.check_out - s.check_in).total_seconds() for s in spans) / 3600, 1)
+
+
+class AttendanceSession(models.Model):
+    """One in and out. A person can leave and come back; the record keeps first in and last out."""
+
+    record = models.ForeignKey(AttendanceRecord, on_delete=models.CASCADE, related_name="sessions")
+    check_in = models.DateTimeField()
+    check_out = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["check_in"]
+
+    def __str__(self):
+        return f"{self.record_id} {self.check_in}"
 
 
 class PayrollRun(BranchScopedModel):

@@ -865,6 +865,8 @@ const sdTables = (() => {
     setTimeout(() => {
       sdFocusFirst(m.body);
       sdStickySave(m.body);
+      const page = new URL(url);
+      sdDrafts.attach(m.body, page.pathname + page.search);
     }, 60);
     return true;
   }
@@ -907,7 +909,8 @@ const sdTables = (() => {
     const source = e.submitter?.dataset.confirm ? e.submitter : form;
     if (source.dataset.confirm && form.dataset.confirmed !== "1") return; // the confirm step submits it again
     e.preventDefault();
-    const get = (form.method || "get").toLowerCase() === "get";
+    // getAttribute, not form.method: a box named "method" (the payment form) hides that property.
+    const get = (form.getAttribute("method") || "get").toLowerCase() === "get";
     // A form with no action posts to its own page, which here is the panel's, not the list behind it.
     const action = e.submitter?.getAttribute("formaction") || form.getAttribute("action") || m.url;
     const target = new URL(action, m.url).href;
@@ -937,7 +940,9 @@ const sdTables = (() => {
       } catch (err) { /* the toast is only a convenience */ }
       m.dirty = false;
       closeModal();
-      window.location.reload();
+      // A payment lands on the invoice, whose banner holds the receipt to print.
+      if (new URL(response.url).searchParams.has("receipt")) window.location.assign(response.url);
+      else window.location.reload();
     } catch (err) {
       window.dispatchEvent(new CustomEvent("toast", { detail: { level: "danger", message: "Cannot reach the SehatDesk server. Your typing is still here." } }));
     } finally {
@@ -1582,4 +1587,303 @@ document.addEventListener("input", (e) => {
       parent.click();
     }
   });
+})();
+
+// ---- Drafts: what is typed in a form is kept for its owner, so a stray Back or closed tab loses nothing ----
+// Any form that posts, with at least two boxes, on a page or in the side panel. data-draft="off" opts out; forms
+// sent by htmx are left alone. Nothing fills in by itself: the form offers Restore, and only saving makes a record.
+const sdDrafts = (() => {
+  const BASE = "/drafts/";
+  const SKIP_TYPES = new Set(["hidden", "password", "file", "submit", "button", "reset", "image"]);
+  const fields = (form) => [...form.elements].filter((el) => el.name && !el.disabled && !SKIP_TYPES.has(el.type) && el.tagName !== "BUTTON" && el.tagName !== "FIELDSET");
+  const csrf = (form) => form.querySelector("[name=csrfmiddlewaretoken]")?.value || "";
+  // Rows that exist only in Alpine (purchase items, stock grid): saved as the list they are drawn from.
+  const rowHolders = (form) => (window.Alpine ? [...form.querySelectorAll("[x-data]")].filter((el) => {
+    const d = window.Alpine.$data(el);
+    return Array.isArray(d.rows) || Array.isArray(d.lines);
+  }) : []);
+  const listOf = (d) => (Array.isArray(d.rows) ? "rows" : "lines");
+
+  function read(form) {
+    const values = {};
+    fields(form).forEach((el) => {
+      const value = el.type === "checkbox" || el.type === "radio" ? el.checked : el.value;
+      (values[el.name] ||= []).push(value);
+    });
+    const rows = rowHolders(form).map((el) => {
+      const d = window.Alpine.$data(el);
+      return JSON.parse(JSON.stringify(d[listOf(d)]));
+    });
+    return { values, rows };
+  }
+  async function write(form, data) {
+    rowHolders(form).forEach((el, i) => {
+      const d = window.Alpine.$data(el);
+      if (data.rows?.[i]) {
+        const list = listOf(d);
+        d[list] = data.rows[i];
+        if ("uid" in d) d.uid = data.rows[i].reduce((top, r) => Math.max(top, r.uid || 0), 0);
+      }
+    });
+    await new Promise((resolve) => window.Alpine ? window.Alpine.nextTick(resolve) : resolve());
+    const seen = {};
+    fields(form).forEach((el) => {
+      const i = (seen[el.name] = (seen[el.name] ?? -1) + 1);
+      const value = data.values?.[el.name]?.[i];
+      if (value === undefined) return;
+      if (el.type === "checkbox" || el.type === "radio") el.checked = value;
+      else el.value = value;
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+      el.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+  }
+  function post(url, body, beacon) {
+    const data = new URLSearchParams(body);
+    if (beacon) return navigator.sendBeacon(url, data);
+    return fetch(url, { method: "post", body: data, credentials: "same-origin" }).catch(() => null);
+  }
+  function note(form, parts) {
+    let box = form.querySelector(":scope > [data-draft-note]");
+    if (!box) {
+      box = document.createElement("div");
+      box.dataset.draftNote = "";
+      box.className = "mb-3 flex flex-wrap items-center gap-2 rounded-control bg-page p-2 text-label";
+      form.prepend(box);
+    }
+    box.replaceChildren(...parts);
+    return box;
+  }
+  const button = (text, css, onClick) => {
+    const b = Object.assign(document.createElement("button"), { type: "button", textContent: text, className: `btn btn-sm ${css}` });
+    b.addEventListener("click", onClick);
+    return b;
+  };
+  const words = (text) => Object.assign(document.createElement("span"), { textContent: text });
+
+  function attachForm(form, index, path, saved) {
+    if (form.dataset.draftReady) return;
+    form.dataset.draftReady = "1";
+    const key = form.getAttribute("action") ? `${index}:${new URL(form.getAttribute("action"), location.href).pathname}` : String(index);
+    const base = () => ({ path, form: key, csrfmiddlewaretoken: csrf(form) });
+    let timer = null;
+    let pending = false;
+    const body = () => ({ ...base(), title: document.querySelector(".panel-side h2")?.textContent.trim() || document.title.split("·")[0].trim(), data: JSON.stringify(read(form)) });
+    const flush = async () => {
+      clearTimeout(timer);
+      if (!pending) return;
+      pending = false;
+      const response = await post(`${BASE}save/`, body());
+      if (response?.ok && !form.querySelector("[data-draft-offer]")) {
+        const at = (await response.json()).saved;
+        note(form, [words(`Draft saved ${at}. Safe to leave and come back.`)]);
+      }
+    };
+    const discard = () => {
+      pending = false;
+      clearTimeout(timer);
+      return post(`${BASE}discard/`, base());
+    };
+    form.addEventListener("input", (e) => {
+      if (!e.isTrusted) return; // Restore and Alpine set boxes too; only real typing counts
+      pending = true;
+      clearTimeout(timer);
+      timer = setTimeout(flush, 1500);
+    });
+    form.addEventListener("change", (e) => {
+      if (!e.isTrusted) return;
+      pending = true;
+      clearTimeout(timer);
+      timer = setTimeout(flush, 1500);
+    });
+    // Rows added with a button or a scan are not typing into this form's boxes.
+    form.addEventListener("click", () => { if (rowHolders(form).length) { pending = true; clearTimeout(timer); timer = setTimeout(flush, 1500); } });
+    window.addEventListener("pagehide", () => {
+      if (pending) post(`${BASE}save/`, body(), true);
+    });
+    form.addEventListener("submit", () => {
+      pending = false;
+      clearTimeout(timer);
+      post(`${BASE}discard/`, base(), true);
+    });
+    if (saved) {
+      const offer = note(form, [
+        words(`You have an unsaved draft from ${saved.saved}.`),
+        button("Restore", "btn-primary", async () => {
+          await write(form, saved.data);
+          offer.remove();
+          delete offer.dataset.draftOffer;
+          sdFocusFirst(form);
+        }),
+        button("Discard", "btn-close", () => { discard(); offer.remove(); }),
+      ]);
+      offer.dataset.draftOffer = "";
+    }
+  }
+  async function attach(root, path) {
+    if (!root) return;
+    const forms = [...root.querySelectorAll("form")].filter((f) =>
+      (f.getAttribute("method") || "").toLowerCase() === "post" && f.dataset.draft !== "off" &&
+      !f.hasAttribute("hx-post") && fields(f).length >= 2);
+    if (!forms.length) return;
+    let saved = [];
+    try {
+      const r = await fetch(`${BASE}for-page/?path=${encodeURIComponent(path)}`, { credentials: "same-origin" });
+      if (r.ok) saved = (await r.json()).drafts;
+    } catch (err) { /* drafts are a convenience */ }
+    forms.forEach((form, i) => {
+      const action = form.getAttribute("action");
+      const key = action ? `${i}:${new URL(action, location.href).pathname}` : String(i);
+      attachForm(form, i, path, saved.find((d) => d.form === key));
+    });
+  }
+  document.addEventListener("DOMContentLoaded", () => setTimeout(() => attach(document.getElementById("main"), location.pathname + location.search), 120));
+  return { attach };
+})();
+
+// ---- Entry grids fit the window: rows scroll inside the table, totals and save buttons stay on screen ----
+const sdFitGrids = (() => {
+  const MIN = 240;
+  const grids = () => [...document.querySelectorAll("#main .table-wrap, #main .sheet-wrap")].filter((w) => w.querySelector(":scope .entry-row, :scope table.sheet"));
+  function fit() {
+    const main = document.getElementById("main");
+    const list = grids();
+    if (!main || !list.length || window.innerWidth < 768) {
+      list.forEach((w) => w.classList.remove("grid-fits"));
+      return;
+    }
+    const scrollY = window.scrollY;
+    list.forEach((wrap) => {
+      const inner = wrap.scrollTop;
+      wrap.classList.add("grid-fits");
+      wrap.style.setProperty("--fit", "0px");
+      // With the grid at nothing, what the rest of the page needs is what the grid cannot have.
+      const bottom = Math.max(...[...main.children].map((c) => c.getBoundingClientRect().bottom));
+      const pad = parseFloat(getComputedStyle(main).paddingBottom) || 0;
+      const footer = main.parentElement.getBoundingClientRect().bottom - main.getBoundingClientRect().bottom;
+      let room = window.innerHeight - (bottom + pad + footer + window.scrollY);
+      // A card stretched by its neighbour (the till's summary) has free room inside it too.
+      const card = wrap.closest(".card");
+      if (card?.lastElementChild) {
+        const padCard = parseFloat(getComputedStyle(card).paddingBottom) || 0;
+        room += Math.max(0, card.getBoundingClientRect().bottom - padCard - card.lastElementChild.getBoundingClientRect().bottom);
+      }
+      wrap.style.setProperty("--fit", `${Math.max(MIN, Math.floor(room))}px`);
+      wrap.scrollTop = inner;
+    });
+    window.scrollTo(0, scrollY);
+    place();
+  }
+  function place() {
+    document.querySelectorAll(".grid-fits .entry-row .absolute").forEach((el) => {
+      const box = el.parentElement.getBoundingClientRect();
+      const top = box.bottom + 4;
+      Object.assign(el.style, { left: `${box.left}px`, top: `${top}px`, width: `${box.width}px`, maxHeight: `${Math.max(120, window.innerHeight - top - 8)}px` });
+    });
+  }
+  const later = () => setTimeout(fit, 90);
+  document.addEventListener("DOMContentLoaded", later);
+  document.addEventListener("htmx:afterSettle", later);
+  window.addEventListener("resize", later);
+  document.addEventListener("scroll", place, { capture: true, passive: true });
+  document.addEventListener("focusin", place);
+  document.addEventListener("input", place);
+  return { fit };
+})();
+
+// Scan boxes: <input data-scan>. A scanner types fast and may send a group separator as Ctrl+] (which a
+// browser drops) or a line break inside a QR code (which looks like Enter). Keep both, so one code stays one
+// value. The server reads it (apps/pharmacy/scan.py). data-scan="fill" swaps a QR code for its product code;
+// data-scan="detect" is a name box that hands a scanned code to the barcode box beside it.
+const sdScan = (() => {
+  const GS = "\x1d";
+  const SCANNER_GAP = 40; // ms between keys; nobody types this fast
+  const SETTLE = 80; // ms to wait after a fast Enter, in case the code carries on
+  let lastKey = 0, fast = 0, held = null;
+  const LOOKS_CODED = /^\d{8,14}$|^\][A-Za-z]\d|^\(0[12]\)|^0[12]\d{14}|^https?:\/\/|\x1d|(gtin|ean|batch|lot|exp)[^:=]{0,12}[:=]/i;
+
+  function insert(box, text) {
+    box.setRangeText(text, box.value.length, box.value.length, "end");
+    box.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+  function toast(level, message) {
+    window.dispatchEvent(new CustomEvent("toast", { detail: { level, message } }));
+  }
+  function setBox(box, value) {
+    box.value = value;
+    box.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+  async function read(box) {
+    const code = box.value.trim();
+    if (code.length < 4 || box.dataset.scanRead === code) return;
+    let data;
+    try {
+      data = await fetch(`${box.dataset.scanUrl}?code=${encodeURIComponent(code)}`).then((r) => r.json());
+    } catch {
+      return; // the form still works: the server reads the code again on save
+    }
+    const scan = data.scan, around = box.closest("tr") || box.form;
+    const barcode = box.name === "barcode" ? box : around?.querySelector("[name=barcode]");
+    const nameBox = around?.querySelector("[name=brand_name]");
+    if (box.dataset.scan === "detect") setBox(box, "");
+    if (barcode && scan.code) {
+      setBox(barcode, scan.code);
+      barcode.dataset.scanRead = scan.code;
+    }
+    if (nameBox && !nameBox.value.trim() && scan.name) setBox(nameBox, scan.name);
+    const maker = around?.querySelector("[name=manufacturer]");
+    if (maker && !maker.value.trim() && scan.manufacturer) setBox(maker, scan.manufacturer);
+    const other = data.products.find((p) => String(p.id) !== box.dataset.scanSelf);
+    if (other) toast("warning", `This code is already on ${other.name}.`);
+    else if (scan.summary) toast("info", `Read ${scan.summary}.${scan.batch ? " Batch and expiry are entered when stock is received." : ""}`);
+  }
+  function enter(box) {
+    if (box.dataset.scan === "detect" && LOOKS_CODED.test(box.value.trim())) {
+      read(box).then(() => box.focus());
+      return true;
+    }
+    if (box.dataset.scan === "fill") read(box);
+    return false;
+  }
+  function finish(box) {
+    held = null;
+    if (enter(box)) return;
+    const again = new KeyboardEvent("keydown", { key: "Enter", code: "Enter", bubbles: true, cancelable: true });
+    // Enter sends a form only when a person presses it, so do what the browser would have done.
+    if (box.dispatchEvent(again)) box.form?.requestSubmit();
+  }
+  document.addEventListener("keydown", (e) => {
+    const box = e.target;
+    if (!e.isTrusted || !box.matches?.("input[data-scan]")) return;
+    const now = performance.now();
+    fast = now - lastKey < SCANNER_GAP ? fast + 1 : 0;
+    lastKey = now;
+    const separator = e.key === "GroupSeparator" || e.key === GS || (e.ctrlKey && !e.altKey && e.code === "BracketRight");
+    if (separator) {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      insert(box, GS);
+      return;
+    }
+    if (e.key === "Enter") {
+      if (fast >= 4) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        clearTimeout(held);
+        held = setTimeout(() => finish(box), SETTLE);
+      } else if (enter(box)) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+      }
+      return;
+    }
+    if (held && e.key.length === 1) {
+      clearTimeout(held); // more of the same code: that Enter was a line break inside it
+      held = null;
+      insert(box, GS);
+    }
+  }, true);
+  document.addEventListener("change", (e) => {
+    if (e.target.matches?.("input[data-scan='fill']")) read(e.target);
+  }, true);
+  return { read };
 })();

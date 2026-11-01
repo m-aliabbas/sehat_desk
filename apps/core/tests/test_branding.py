@@ -19,9 +19,10 @@ def test_home_link_shows_the_hospital_name(admin_client, org):
     assert "by vibe.exe" in brand
 
 
-def test_print_credit_on_invoice_footer_and_prescription_templates():
+def test_print_credit_on_every_document():
     from django.template.loader import get_template
 
-    for name in ("print/_footer.html", "print/_thermal_footer.html", "prescriptions/print.html"):
+    for name in ("print/base.html", "reports/print.html", "finance/print.html"):
         assert "print/_credit.html" in get_template(name).template.source
+    assert "SehatDesk by Vibe.Exe" in get_template("print/_credit.html").template.source
     assert "vibeexe.com" in get_template("print/_credit.html").template.source

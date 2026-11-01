@@ -1,25 +1,16 @@
 {# One copy of the doctor's fee invoice on the 80 mm roll. Context: copy_label, invoice, items, appt, patient, token, L #}
 <section class="text-label" style="font-size:{{ L.text_size }}%">
-  {% if L.show_header %}
-  <div class="text-center">
-    {% if request.organization.logo and L.show_logo %}<img src="{{ request.organization.logo.url }}" alt="" class="mx-auto object-contain" style="height:{{ L.logo_mm }}mm;width:{{ L.logo_mm }}mm">{% endif %}
-    <p class="text-body font-bold">{{ request.organization.name }}</p>
-    <p>{{ appt.branch.name }}{% if appt.branch.phone %} · {{ appt.branch.phone }}{% endif %}</p>
-    {% if L.header_text %}<p class="whitespace-pre-line">{{ L.header_text }}</p>{% endif %}
-  </div>
-  {% endif %}
+  {% include "print/_thermal_header.html" with org=request.organization branch=appt.branch no_rule=True %}
   <div class="mt-1 flex justify-between gap-2 border-b border-ink pb-1"><span class="font-bold uppercase">{{ copy_label }}</span><span class="font-mono">{{ invoice.number }}</span></div>
-  {% if token %}<p class="mt-1 text-center font-mono text-[26px] leading-none font-bold">{{ token.label }}</p>{% endif %}
+  {% if token %}{% include "print/_emergency_mark.html" %}<p class="print-token mt-1 text-center">{{ token.label }}</p>{% endif %}
   {% if token and show_running %}<div class="text-center">{% include "queue/_running_number.html" %}</div>{% endif %}
   <p class="mt-1 text-body font-semibold">{{ patient.full_name }}</p>
   <p>MRN {{ patient.mrn }}</p>
   <p>{{ appt.doctor }}</p>
   <p>{{ appt.date|date:"d M Y" }}, {{ appt.start_time|time:"H:i" }}{% if token and token.room %} · {{ token.room }}{% endif %}</p>
-  <table class="mt-1 w-full">
-    <tbody>
-      {% for item in items %}<tr class="border-b border-line"><td class="py-1">{{ item.description }}</td><td class="py-1 text-right align-top whitespace-nowrap">{{ item.line_total|floatformat:"2g" }}</td></tr>{% endfor %}
-    </tbody>
-  </table>
+  <div class="mt-1 border-t border-line pt-1">
+    {% for item in items %}<div class="flex justify-between gap-2"><span>{{ item.description }}</span><span class="whitespace-nowrap">{{ item.line_total|floatformat:"2g" }}</span></div>{% endfor %}
+  </div>
   {% if invoice.invoice_discount %}<div class="flex justify-between"><span>Discount</span><span>−{{ invoice.invoice_discount|floatformat:"2g" }}</span></div>{% endif %}
   <div class="mt-1 flex justify-between font-bold"><span>Total</span><span>{{ request.organization.currency }} {{ invoice.grand_total|floatformat:"2g" }}</span></div>
   {% if invoice.cash_adjustment %}<div class="flex justify-between"><span>Cash adjustment</span><span>{{ invoice.cash_adjustment|floatformat:"2g" }}</span></div>{% endif %}

@@ -4,16 +4,14 @@
 {% block body %}
 <main class="flex min-h-screen items-center justify-center p-4">
   <div class="w-full {% block width %}max-w-md{% endblock %}">
-    {% with org=public_organization %}
-    <div class="mb-8 flex items-center justify-center gap-2 text-ink">
-      {% if org.logo %}<img src="{{ org.logo.url }}" alt="" class="h-10 w-10 rounded-control object-contain">{% else %}<span class="shrink-0 text-teal">{% icon "heart-pulse" "h-10 w-10" %}</span>{% endif %}
-      <span class="flex min-w-0 flex-col leading-tight">
-        <span class="text-[28px] font-bold tracking-tight break-words">{{ org.name|default:"SehatDesk" }}</span>
-        <span class="text-label font-medium text-muted">by vibe.exe</span>
-      </span>
-    </div>
-    {% endwith %}
     <div class="card p-8">
+      {% with org=public_organization %}
+      <div class="mb-6 flex flex-col items-center gap-2 border-b border-line pb-6 text-center text-ink">
+        {% if org.logo %}<img src="{{ org.logo.url }}" alt="" class="h-16 w-16 object-contain">{% else %}<span class="text-teal">{% icon "heart-pulse" "h-12 w-12" %}</span>{% endif %}
+        <span class="text-[22px] leading-tight font-bold break-words">{{ org.name|default:"SehatDesk" }}</span>
+        <span class="text-label text-muted">by vibe.exe</span>
+      </div>
+      {% endwith %}
       {% block card %}{% endblock %}
     </div>
     {% block below %}{% endblock %}

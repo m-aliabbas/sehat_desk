@@ -9,7 +9,7 @@ from django.db.models import Count
 from apps.core.models import next_number
 from apps.prescriptions.models import Medicine
 
-from . import pricing
+from . import pricing, scan
 from .barcodes import new_barcode
 from .forms import ProductForm
 from .models import Product, ProductCategory, UnitOfMeasure
@@ -187,9 +187,9 @@ def add_many(rows, *, request, add_to_medicines=False, apply_rules=True):
                 for k, errs in form.errors.items()
                 for e in errs
             )
-        elif row["barcode"] and row["barcode"] in seen:
+        elif row["barcode"] and scan.code_key(row["barcode"]) in seen:
             errors[i] = "This barcode is on another row."
-        seen.add(row["barcode"])
+        seen.add(scan.code_key(row["barcode"]))
         forms.append(form)
     if errors or not rows:
         return [], errors

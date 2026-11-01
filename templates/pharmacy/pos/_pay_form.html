@@ -4,7 +4,9 @@
 {% for p in problems %}{% include "components/alert.html" with level="warning" message=p %}{% endfor %}
 <div class="mt-2 space-y-4"
      x-data="{
-       total: {{ totals.grand_total|stringformat:'s' }},
+       before: {{ totals.lines_total|stringformat:'s' }},
+       discount: '{% if cart.discount %}{{ cart.discount|stringformat:'s' }}{% endif %}',
+       get total() { return Math.max(0, Math.round((this.before - (parseFloat(this.discount) || 0)) * 100) / 100) },
        rows: [{ method: '{{ methods.0.pk }}', amount: '{{ totals.grand_total|stringformat:'s' }}', reference: '' }],
        refs: { {% for m in methods %}'{{ m.pk }}': {{ m.requires_reference|yesno:'true,false' }}{% if not forloop.last %}, {% endif %}{% endfor %} },
        tendered: '',
@@ -16,6 +18,7 @@
        get isCash() { return this.rows.length === 1 && this.cashIds.includes(this.rows[0].method) },
        get canAdjust() { return this.isCash && this.cash > 0 && this.gap !== 0 && Math.abs(this.gap) <= this.limit },
        get adjusting() { return this.canAdjust && (this.gap < 0 || this.keep) },
+       discounted() { if (this.rows.length === 1) this.rows[0].amount = this.total.toFixed(2); this.keep = false; this.syncCash() },
        syncCash() { if (this.isCash) this.rows[0].amount = (this.adjusting ? this.cash : this.total).toFixed(2) },
        get paid() { return this.rows.reduce((s, r) => s + (parseFloat(r.amount) || 0), 0) },
        get left() { return Math.round((this.total - this.paid) * 100) / 100 },
@@ -24,7 +27,7 @@
      }">
   <div class="flex items-baseline justify-between rounded-control bg-page p-3">
     <span class="text-body text-muted">{{ cart.bill_to }} · {{ totals.lines }} item{{ totals.lines|pluralize }}</span>
-    <span class="text-[28px] font-bold">{{ organization.currency }} {{ totals.grand_total|floatformat:"2g" }}</span>
+    <span class="text-[28px] font-bold" x-text="money(total)">{{ organization.currency }} {{ totals.grand_total|floatformat:"2g" }}</span>
   </div>
   <div class="flex items-end gap-3">
     <div class="flex-1">
@@ -33,6 +36,12 @@
     </div>
     <p class="flex-1 text-right text-body"><span class="block text-muted">Change</span><span class="text-[24px] font-bold" x-text="money(Math.max(cash - (parseFloat(rows[0].amount) || 0), 0))"></span></p>
   </div>
+  {% if can_discount %}
+  <div class="grid grid-cols-2 gap-3">
+    <div class="field"><label class="field-label" for="pay-discount">Discount</label><input id="pay-discount" name="discount" type="number" step="0.01" min="0" autocomplete="off" class="input" x-model="discount" @input="discounted()"></div>
+    <div class="field"><label class="field-label" for="pay-discount-reason">Reason</label>{% discount_reason_list %}<input id="pay-discount-reason" name="discount_reason" maxlength="200" class="input" data-list="discount-reasons" role="combobox" autocomplete="off" value="{{ cart.discount_reason }}" :required="parseFloat(discount) > 0"></div>
+  </div>
+  {% endif %}
   <input type="hidden" name="adjust_cash" :value="adjusting ? '1' : ''">
   <p x-show="canAdjust && gap < 0" x-cloak class="rounded-control bg-amber-soft p-2 text-body">Short by <b x-text="money(-gap)"></b>: the bill closes with this as an adjustment.</p>
   <label x-show="canAdjust && gap > 0" x-cloak class="flex items-center gap-2 text-body"><input type="checkbox" class="checkbox" tabindex="-1" x-model="keep" @change="syncCash()"> No change given: keep <b x-text="money(gap)"></b> as an adjustment</label>

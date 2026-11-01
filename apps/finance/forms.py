@@ -10,6 +10,8 @@ from .models import ExpenseCategory
 
 
 class ExpenseForm(StyledFormMixin, forms.Form):
+    remember = {"payee": "finance.Expense.payee"}
+
     date = forms.DateField(widget=forms.DateInput(attrs={"type": "date"}))
     category = forms.ModelChoiceField(queryset=ExpenseCategory.objects.none())
     segment = forms.ChoiceField(

@@ -41,6 +41,8 @@ class OrganizationForm(StyledFormMixin, forms.ModelForm):
 
 
 class BranchForm(StyledFormMixin, forms.ModelForm):
+    remember = {"city": "organizations.Branch.city"}
+
     class Meta:
         model = Branch
         fields = ["name", "code", "city", "phone", "address", "is_main"]

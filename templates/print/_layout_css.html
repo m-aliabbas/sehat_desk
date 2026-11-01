@@ -1,7 +1,7 @@
 {# Applies Settings → Print layouts. Context: L (organizations.PrintLayout). #}
 {% if L.paper == "thermal" %}<meta name="sd-paper" content="thermal">{% endif %}
 <style>
-  {% if L.paper == "thermal" %}@page { size: 80mm auto; margin: 4mm; }
+  {% if L.paper == "thermal" %}@page { size: auto; margin: 0; }
   .sheet { width: 80mm; max-width: 80mm; padding-left: 4mm; padding-right: 4mm; font-size: 11px; }
   .sheet table { width: 100%; table-layout: auto; }
   .sheet th, .sheet td { padding-left: 2px; padding-right: 2px; font-size: 9px; overflow-wrap: normal; }

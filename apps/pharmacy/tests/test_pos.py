@@ -439,3 +439,37 @@ def test_cash_adjustment_at_the_till(req, cash, panadol, stocked):
     assert sale.invoice.status == "paid"
     assert sale.invoice.cash_adjustment == -1
     assert sale.invoice.grand_total == total - 1
+
+
+def test_discount_with_reason_on_take_payment(client, pharmacist, panadol, stocked, cash):
+    client.force_login(pharmacist)
+    client.post(reverse("pharmacy:pos-add"), {"product": panadol.pk, "quantity": "4"})
+    client.post(reverse("pharmacy:pos-customer"), {"customer_name": "Walk-in Ali"})
+    cart = PharmacySale.objects.get(status=Status.OPEN)
+    assert b'name="discount"' in client.get(reverse("pharmacy:pos-pay")).content
+    total = pos.totals(cart)["grand_total"]
+    refused = client.post(
+        reverse("pharmacy:pos-pay"),
+        {"method_0": cash.pk, "amount_0": str(total - 1), "discount": "1"},
+    )
+    assert b"Give a reason" in refused.content
+    client.post(
+        reverse("pharmacy:pos-pay"),
+        {
+            "method_0": cash.pk,
+            "amount_0": str(total - 1),
+            "discount": "1",
+            "discount_reason": "Senior",
+        },
+    )
+    sale = PharmacySale.objects.exclude(status=Status.OPEN).get()
+    assert sale.invoice.invoice_discount == 1 and sale.invoice.discount_reason == "Senior"
+
+
+def test_amount_in_words():
+    from apps.core.templatetags.ui import in_words
+
+    assert in_words("375.00") == "three hundred seventy five"
+    assert in_words("150000") == "one lakh fifty thousand"
+    assert in_words("1250.50") == "one thousand two hundred fifty and paisa fifty"
+    assert in_words(0) == "zero"

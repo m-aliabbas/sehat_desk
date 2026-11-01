@@ -88,6 +88,11 @@ def test_check_in_and_out(make_request, make_user):
     assert rec.check_out
     with pytest.raises(attendance.AttendanceError, match="already checked out"):
         attendance.check_out(request=req)
+    first_in = rec.check_in
+    rec = attendance.check_in(request=req)  # back from a break, same record
+    assert rec.check_out is None and rec.check_in == first_in
+    rec = attendance.check_out(request=req)
+    assert rec.sessions.count() == 2 and rec.hours is not None
 
 
 def test_check_out_before_check_in_refused(make_request, make_user):

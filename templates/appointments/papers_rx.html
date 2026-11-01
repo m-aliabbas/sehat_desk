@@ -7,23 +7,9 @@
 {% block head_extra %}{{ block.super }}<meta name="sd-print-dialog" content="1">{% endblock %}
 {% block document %}
   {% print_layout "prescription" as L %}{% include "print/_layout_css.html" %}
-  <section class="flex min-h-[185mm] flex-col">
-    <header class="flex items-start justify-between gap-4 border-b border-ink pb-3 {% if L.doctor_side == 'right' %}flex-row-reverse{% endif %}">
-      <div class="{% if L.doctor_side == 'center' %}flex-1 text-center{% elif L.doctor_side == 'right' %}text-right{% endif %}">
-        <p class="text-[18px] font-bold">{{ appt.doctor }}</p>
-        {% if L.show_qualifications %}<p class="text-label">{{ appt.doctor.qualifications }}{% if appt.doctor.specialty %} · {{ appt.doctor.specialty }}{% endif %}</p>{% endif %}
-        <p class="text-label">{{ appt.department }}{% if appt.doctor.registration_number and L.show_registration %} · PMDC {{ appt.doctor.registration_number }}{% endif %}</p>
-      </div>
-      <div class="{% if L.doctor_side == 'right' %}text-left{% else %}text-right{% endif %}">
-        {% if L.show_header %}
-        {% if request.organization.logo and L.show_logo %}<img src="{{ request.organization.logo.url }}" alt="" class="{% if L.doctor_side != 'right' %}ml-auto{% endif %} object-contain" style="height:{{ L.logo_mm }}mm;width:{{ L.logo_mm }}mm">{% endif %}
-        <p class="font-semibold">{{ request.organization.name }}</p>
-        <p class="text-label">{{ appt.branch.name }}{% if appt.branch.phone %} · {{ appt.branch.phone }}{% endif %}</p>
-        {% if L.header_text %}<p class="text-label whitespace-pre-line">{{ L.header_text }}</p>{% endif %}
-        {% endif %}
-        {% if token %}<p class="mt-1 font-mono text-[22px] leading-none font-bold">{{ token.label }}</p>{% endif %}
-      </div>
-    </header>
+  {# Exactly one page: the height left inside the margins, less the credit line and a little room. #}
+  <section class="flex flex-col" style="min-height:calc(198mm - 2 * {{ L.margin_mm }}mm - {{ L.top_space_mm }}mm - {{ L.bottom_space_mm }}mm)">
+    {% include "print/_rx_header.html" with doctor=appt.doctor branch=appt.branch %}
     <section class="mt-3 grid grid-cols-2 gap-1 text-label">
       <p><span class="font-semibold">{{ patient.full_name }}</span></p>
       <p class="text-right">{{ appt.date|date:"d M Y" }}, {{ appt.start_time|time:"H:i" }}</p>

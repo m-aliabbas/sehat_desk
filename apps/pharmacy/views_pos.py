@@ -31,7 +31,7 @@ from apps.patients.models import Patient
 from apps.prescriptions.models import Prescription, PrescriptionItem
 from apps.prescriptions.services import allergy_conflicts
 
-from . import pos, stock
+from . import pos, scan, stock
 from .models import (
     InventoryBatch,
     PharmacyCartReturn,
@@ -120,13 +120,13 @@ def _today(request):
     )
 
 
-def _cart_reply(request, *, error="", success="", close_overlay=False):
+def _cart_reply(request, *, error="", success="", warning="", close_overlay=False):
     if request.htmx:
         response = render(request, "pharmacy/pos/_cart.html", _cart_context(request))
         events = {}
-        if error or success:
-            events["toast"] = {"level": "danger" if error else "success",
-                               "message": error or success}  # fmt: skip
+        if error or success or warning:
+            events["toast"] = {"level": "danger" if error else "warning" if warning else "success",
+                               "message": error or warning or success}  # fmt: skip
         if close_overlay:
             events["close-overlay"] = True
             response["HX-Retarget"] = "#pos-cart"
@@ -136,6 +136,8 @@ def _cart_reply(request, *, error="", success="", close_overlay=False):
         return response
     if error:
         messages.error(request, error)
+    elif warning:
+        messages.warning(request, warning)
     elif success:
         messages.success(request, success)
     return redirect("pharmacy:pos")
@@ -180,7 +182,7 @@ def search(request):
 def add(request):
     """Add a product (from a search result), or a scanned barcode/SKU (q)."""
     quantity = max(_int(request.POST.get("quantity"), 1), 1)
-    product = None
+    product = read = None
     typed = _QTY_PREFIX.match(request.POST.get("q", "").strip())
     if request.POST.get("product", "").isdigit():
         product = get_scoped_or_404(Product, request, pk=request.POST["product"])
@@ -188,14 +190,17 @@ def add(request):
         q = _QTY_PREFIX.sub("", request.POST["q"].strip())
         if typed:
             quantity = max(int(typed[1]), 1)
+        read = scan.parse(q)
         matches = pos.search_products(request, q)
-        exact = [p for p in matches if q.lower() in (p.barcode.lower(), p.sku.lower())]
+        codes = scan.code_variants(read.code)
+        exact = [p for p in matches if p.barcode in codes or p.sku.lower() == read.code.lower()]
         if len(exact) == 1 or len(matches) == 1:
             product = (exact or matches)[0]
         else:
             return _cart_reply(
                 request,
-                error=f"No product with barcode or SKU “{q}”. Pick one from the list."
+                error=f"No product with barcode or SKU “{read.code or read.summary or q}”. "
+                "Pick one from the list."
                 if not matches
                 else "Several products match. Pick one from the list.",
             )
@@ -206,15 +211,19 @@ def add(request):
         quantity *= product.box_size
     elif unit == "pack" or not product.allow_loose_sale:
         quantity *= product.pack_size
+    note = ""
     try:
         cart = pos.open_cart(request)
         if request.POST.get("as_return"):
             pos.add_return(cart, request=request, product=product, quantity=quantity)
         else:
-            pos.add_product(cart, request=request, product=product, quantity=quantity)
+            batch = None
+            if read:
+                batch, note = pos.batch_for_scan(cart, product, read)
+            pos.add_product(cart, request=request, product=product, quantity=quantity, batch=batch)
     except pos.PosError as err:
         return _cart_reply(request, error=err.message)
-    return _cart_reply(request)
+    return _cart_reply(request, warning=note)
 
 
 def _cart_item(request, pk):
@@ -515,6 +524,23 @@ def _payment_rows(request) -> list[dict]:
     return rows
 
 
+def _discount_at_payment(request, cart):
+    """The discount boxes on Take payment; the same rule as the till's own discount."""
+    amount = to_money(request.POST.get("discount") or 0)
+    reason = request.POST.get("discount_reason", "").strip()
+    if amount == to_money(cart.discount) and (not amount or reason == cart.discount_reason):
+        return
+    before = str(cart.discount)
+    pos.set_discount(cart, request=request, amount=amount, reason=reason)
+    audit.record(
+        request,
+        "pharmacy_sale.discount",
+        cart,
+        changes={"discount": [before, str(cart.discount)]},
+        summary=f"{cart.number}: {cart.discount} — {cart.discount_reason[:120]}",
+    )
+
+
 @permission_required(SELL, COLLECT)
 def pay(request):
     """Payment modal (design screen 48): one or more methods adding up to the total."""
@@ -524,6 +550,8 @@ def pay(request):
     error = ""
     if request.method == "POST":
         try:
+            if "discount" in request.POST:
+                _discount_at_payment(request, cart)
             unprescribed = pos.rx_only_without_prescription(cart)
             sale = pos.checkout(
                 cart,
@@ -533,6 +561,8 @@ def pay(request):
             )
         except pos.PosError as err:
             error = err.message
+        except (ArithmeticError, ValueError):
+            error = "Enter a valid discount."
         else:
             audit.record(
                 request,
@@ -575,6 +605,7 @@ def pay(request):
             "problems": pos.checkout_problems(cart),
             "methods": billing.active_methods(request.organization),
             "cash_limit": billing.settings_for(request.organization).cash_adjustment_limit,
+            "can_discount": has_perm(request, DISCOUNT),
             "error": error,
             "breadcrumbs": _crumbs({"label": "Take payment"}),
         },

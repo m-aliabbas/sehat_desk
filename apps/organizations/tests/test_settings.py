@@ -49,8 +49,9 @@ def test_logo_upload_and_svg_rejected(admin_client, org, settings, tmp_path):
     assert response.status_code == 200  # rejected with a form error
 
 
-def test_media_requires_login(client, admin_user):
-    assert client.get("/media/organization-logos/logo.png").status_code == 302
+def test_logos_are_public_for_the_sign_in_page_and_nothing_else_is(client, admin_user):
+    assert client.get("/media/organization-logos/logo.png").status_code == 404  # no such file
+    assert client.get("/media/patient-photos/a.png").status_code == 404  # never served here
 
 
 def test_create_branch_and_unique_code(admin_client, org):

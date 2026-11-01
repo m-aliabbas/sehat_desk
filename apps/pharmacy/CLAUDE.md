@@ -16,6 +16,10 @@ PRD §9. Phases 12–14. PROJECT_NOTES §12–13.
   (logs what the product form or a purchase changed), `unit_value`. Writes `ProductPriceChange`.
 - `catalog.py` — `save_product` (auto SKU and barcode), `add_many` (grid, all or nothing),
   `ensure_standard_categories`. `barcodes.py` — `new_barcode` (EAN-13 starting 20), `code128_svg` (digits use subset C, for wider bars).
+- `scan.py` — the one reader for scanned codes: `parse` (plain EAN/UPC/GTIN, GS1 strings with or without
+  separators or parentheses, GS1 Digital Link URLs, labelled text or JSON QR codes) gives a `Scan` (GTIN, batch,
+  expiry, made, serial, name, manufacturer, registration, price, `extra`); `find_products` (any GTIN length, then
+  SKU) and `search_products` (list search boxes). Every code lookup goes through these. `scan-read` serves scripts.
 - `models.py` — `Product` (base unit, pack size + pack unit, `allow_loose_sale`, reorder level,
   link to `prescriptions.Medicine`; `describe_quantity`/`pack_breakdown`/`loose_sale_error`),
   `InventoryBatch`, `StockTransaction` (ledger), `PharmacySale`, `Vendor`, `Purchase`,
@@ -88,6 +92,12 @@ PRD §9. Phases 12–14. PROJECT_NOTES §12–13.
   medicine with no purchase; it credits at batch cost. `PurchaseReturn.purchase` and `PurchaseReturnItem.purchase_item` may
   be empty. `return_items` remains for a return from one purchase.
 - Till: `checkout(adjust_cash=True)` lets cash differ by the Billing limit (`billing.apply_cash_adjustment`).
+
+- Scanning: the barcode keeps only the product code from a QR code, and the same GTIN at another length counts as a
+  duplicate. Till: `pos.batch_for_scan` sells the scanned batch, refuses an expired pack even with newer stock on the
+  shelf, and warns and uses first-expiry when the batch is not in stock. If no separators arrived the batch is a guess
+  (`batch_is_guess`): the grid warns and the till uses first-expiry. Stock grid: batch and expiry fill the row; an unknown
+  code opens quick add with the barcode set. Supplier returns: the scanned batch comes first.
 
 ## Permissions
 `pharmacy.sale`, `pharmacy.refund`, `pharmacy.discount`, `pharmacy.inventory.manage`,

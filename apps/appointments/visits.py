@@ -115,10 +115,17 @@ def register_visit(
     cash_paid=None,
     discount=ZERO,
     discount_reason="",
+    emergency=False,
 ) -> Visit:
+    """emergency: seen now whatever the slots or leave say, first in the queue, E- token."""
+    if emergency:
+        on_date = timezone.localdate()
     suggested = services.suggest_visit_type(doctor, patient, on_date)
     visit_type = None
-    if start is None:
+    if emergency:
+        start = timezone.localtime().time().replace(second=0, microsecond=0)
+        visit_type = Appointment.VisitType.EMERGENCY
+    elif start is None:
         start, visit_type = _choose_time(request, doctor, on_date, shift)
     appt = services.book(
         request=request,
@@ -133,7 +140,9 @@ def register_visit(
     )
     visit = Visit(appointment=appt)
     if on_date == timezone.localdate():
-        visit.token = _join_queue(request, appt)
+        visit.token = _join_queue(
+            request, appt, priority=QueueToken.Priority.EMERGENCY if emergency else "normal"
+        )
         visit.invoice = _bill_fee(request, appt)
     elif collect:  # advance payment for a later date
         visit.invoice = _bill_fee(request, appt)

@@ -5,10 +5,11 @@
 {% block document %}
     {% include "print/_thermal_header.html" with org=request.organization branch=request.branch %}
     <p class="text-label text-muted uppercase">Your token</p>
-    <p class="font-mono text-[44px] leading-tight font-bold">{{ token.label }}</p>
+    {% include "print/_emergency_mark.html" %}
+    <p class="print-token my-1">{{ token.label }}</p>
     <p class="font-semibold">{{ token.department }}{% if token.room %} · {{ token.room }}{% endif %}</p>
     <p class="text-label">{{ token.doctor|default:"Next available doctor" }}</p>
-    {% if token.priority != "normal" %}<p class="mt-1 text-label font-semibold">{{ token.get_priority_display }}</p>{% endif %}
+    {% if token.priority != "normal" and token.priority != "emergency" %}<p class="mt-1 text-label font-semibold">{{ token.get_priority_display }}</p>{% endif %}
     <hr class="my-3 border-dashed border-line">
     <p class="text-label">MRN {{ token.patient.mrn }}</p>
     <p class="text-label">Issued {{ token.created_at|date:"d M Y, H:i" }}</p>

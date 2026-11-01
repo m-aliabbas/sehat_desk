@@ -10,7 +10,7 @@ from django.utils import timezone
 
 from apps.accounts.models import User
 
-from .models import AttendanceRecord, PayProfile, PayrollRun
+from .models import AttendanceRecord, AttendanceSession, PayProfile, PayrollRun
 
 Status = AttendanceRecord.Status
 
@@ -67,16 +67,22 @@ def check_in(*, request) -> AttendanceRecord:
     day = timezone.localdate()
     _require_open(request.branch, day)
     rec = today_record(request.user, request.organization)
-    if rec and rec.check_in:
+    if rec and rec.check_in and not rec.check_out:
         raise AttendanceError(
-            f"You already checked in at {timezone.localtime(rec.check_in):%H:%M}."
+            f"You are already checked in since {timezone.localtime(rec.open_since):%H:%M}."
         )
+    if rec and rec.check_in:  # back again the same day: the first arrival still decides late
+        rec.check_out = None
+        rec.save(update_fields=["check_out", "updated_at"])
+        AttendanceSession.objects.create(record=rec, check_in=now)
+        return rec
     status = Status.LATE if is_late(request.user, now) else Status.PRESENT
     if rec:  # marked earlier by an admin (e.g. absent) and now arriving
         rec.check_in, rec.status, rec.self_marked, rec.marked_by = now, status, True, request.user
         rec.save(update_fields=["check_in", "status", "self_marked", "marked_by", "updated_at"])
+        AttendanceSession.objects.create(record=rec, check_in=now)
         return rec
-    return AttendanceRecord.objects.create(
+    rec = AttendanceRecord.objects.create(
         organization=request.organization,
         branch=request.branch,
         user=request.user,
@@ -86,6 +92,8 @@ def check_in(*, request) -> AttendanceRecord:
         self_marked=True,
         marked_by=request.user,
     )
+    AttendanceSession.objects.create(record=rec, check_in=now)
+    return rec
 
 
 @transaction.atomic
@@ -95,11 +103,12 @@ def check_out(*, request) -> AttendanceRecord:
         raise AttendanceError("Check in first.")
     if rec.check_out:
         raise AttendanceError(
-            f"You already checked out at {timezone.localtime(rec.check_out):%H:%M}."
+            f"You are already checked out since {timezone.localtime(rec.check_out):%H:%M}."
         )
     _require_open(rec.branch, rec.date)
     rec.check_out = timezone.now()
     rec.save(update_fields=["check_out", "updated_at"])
+    rec.sessions.filter(check_out__isnull=True).update(check_out=rec.check_out)
     return rec
 
 

@@ -21,7 +21,7 @@ from apps.accounts.decorators import permission_required
 from apps.audit import services as audit
 from apps.core.scoping import get_scoped_or_404, paginate, scoped
 
-from . import catalog, pos, purchasing
+from . import catalog, pos, purchasing, scan
 from .forms import PurchaseCreateForm, PurchaseDetailsForm, PurchaseItemForm, VendorForm
 from .models import (
     InventoryBatch,
@@ -402,7 +402,7 @@ def product_quick(request):
             f: request.POST.get(f, "")
             for f in (
                 "unit", "pack_unit", "pack_size", "box_unit", "packs_per_box", "pack_cost",
-                "pack_price", "price_per", "packing",
+                "pack_price", "price_per", "packing", "barcode",
             )
         },
     }  # fmt: skip
@@ -855,7 +855,7 @@ def supplier_returns(request):
 def supplier_return_batches(request):
     """Type-to-search for the return screen: the batches on the shelf, first to expire first."""
     q = request.GET.get("q", "").strip()
-    rows = []
+    rows, read = [], scan.parse(q)
     for product in pos.search_products(request, q, limit=8) if q else []:
         batches = InventoryBatch.objects.filter(
             branch=request.branch, product=product, quantity_available__gt=0
@@ -872,4 +872,6 @@ def supplier_return_batches(request):
             }
             for b in batches
         ]
+    # The pack in hand first: a scanned batch is what Enter should pick.
+    rows.sort(key=lambda r: not (read.batch and r["batch"].lower().startswith(read.batch.lower())))
     return JsonResponse({"rows": rows})

@@ -17,6 +17,10 @@
   {# Screen labels are larger than paper needs; keep printed layouts as they were. #}
   <style>:root { --text-label: 12px; --color-muted: #73869e; --color-line: #e5edf3; --color-head: #ffffff; --color-head-text: #000000; }</style>
   <style>
+    /* One typeface on all paper, the same on every PC and in the print helper. */
+    .sheet, .sheet * { font-family: Arial, "Liberation Sans", "DejaVu Sans", sans-serif; }
+    .print-token { font-weight: 700; line-height: 1; letter-spacing: 0; font-size: 28px; }
+    .thermal-sheet .print-token { font-size: 40px; }
     @page { size: {% block page_size %}A4{% endblock %}; margin: {% block page_margin %}12mm{% endblock %}; }
     @media print {
       .no-print { display: none !important; }
@@ -44,6 +48,7 @@
   <main class="sheet relative mx-auto bg-white text-ink shadow {% block sheet_class %}max-w-[210mm] p-10{% endblock %}">
     {% if workspace_env == "staging" %}<p class="mb-2 text-center text-label font-bold text-amber uppercase">Staging test print · not a valid document</p>{% endif %}
     {% block document %}{% endblock %}
+    {% block credit %}{% include "print/_credit.html" %}{% endblock %}
   </main>
 </body>
 </html>

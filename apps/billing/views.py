@@ -8,6 +8,7 @@ from django import forms
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
+from django.db import transaction
 from django.db.models import F, Q, Sum
 from django.http import Http404
 from django.shortcuts import redirect, render
@@ -216,10 +217,13 @@ class PaymentForm(StyledFormMixin, forms.Form):
     reference = forms.CharField(max_length=80, required=False, label="Reference (optional)")
     note = forms.CharField(max_length=200, required=False)
     key = forms.CharField(max_length=40, widget=forms.HiddenInput)
+    discount = forms.DecimalField(max_digits=12, decimal_places=2, min_value=0, required=False)
+    discount_reason = forms.CharField(max_length=200, required=False)
 
     def __init__(self, *args, request, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["method"].queryset = services.active_methods(request.organization)
+        self.fields["amount"].required = False  # a full discount leaves nothing to receive
 
 
 def _receive(invoice, *, cash_paid, **kwargs):
@@ -230,7 +234,12 @@ def _pay_form(request, invoice, data=None):
     return PaymentForm(
         data,
         request=request,
-        initial={"amount": invoice.balance_due or invoice.grand_total, "key": uuid.uuid4().hex},
+        initial={
+            "amount": invoice.balance_due or invoice.grand_total,
+            "key": uuid.uuid4().hex,
+            "discount": invoice.invoice_discount or "",
+            "discount_reason": invoice.discount_reason,
+        },
     )
 
 
@@ -458,20 +467,50 @@ def pay(request, pk):
     if request.method == "POST" and form.is_valid():
         c = form.cleaned_data
         before = Invoice.objects.get(pk=invoice.pk)
+        new_discount = c["discount"] or Decimal("0")
+        changed = "discount" in request.POST and (
+            new_discount != invoice.invoice_discount
+            or (new_discount and c["discount_reason"].strip() != invoice.discount_reason)
+        )
+        payment = None
         try:
-            take = services.settle_cash if request.POST.get("close_bill") else _receive
-            payment = take(
-                invoice,
-                request=request,
-                method=c["method"],
-                cash_paid=c["amount"],
-                reference=c["reference"],
-                note=c["note"],
-                idempotency_key=c["key"],
-            )
+            with transaction.atomic():
+                if changed:
+                    invoice = services.discount_when_collecting(
+                        invoice,
+                        request=request,
+                        amount=new_discount,
+                        reason=c["discount_reason"],
+                    )
+                    audit.record(
+                        request,
+                        "invoice.discount",
+                        invoice,
+                        changes=_money_changes(before, invoice),
+                        summary=f"{invoice.number}: {new_discount} off invoice — "
+                        f"{c['discount_reason'].strip()[:120]}",
+                    )
+                if invoice.balance_due or invoice.is_draft:
+                    if not c["amount"]:
+                        raise services.BillingError("Enter the amount received.")
+                    take = services.settle_cash if request.POST.get("close_bill") else _receive
+                    payment = take(
+                        invoice,
+                        request=request,
+                        method=c["method"],
+                        cash_paid=c["amount"],
+                        reference=c["reference"],
+                        note=c["note"],
+                        idempotency_key=c["key"],
+                    )
         except services.BillingError as err:
             form.add_error(None, err.message)
+            invoice = _get_invoice(request, pk)
         else:
+            if payment is None:
+                messages.success(request, f"{invoice.number} is closed by the discount.")
+                url = reverse("billing:invoice-detail", args=[pk])
+                return HttpResponseClientRedirect(url) if request.htmx else redirect(url)
             invoice.refresh_from_db()
             if invoice.amount_paid != before.amount_paid:  # not a replayed double-submit
                 audit.record(
@@ -488,7 +527,8 @@ def pay(request, pk):
             )
             url = f"{reverse('billing:invoice-detail', args=[pk])}?receipt={payment.pk}"
             return HttpResponseClientRedirect(url) if request.htmx else redirect(url)
-    ctx = {"invoice": invoice, "form": form, "breadcrumbs": _crumbs(
+    ctx = {"invoice": invoice, "form": form,
+           "can_discount": has_perm(request, DISCOUNT), "breadcrumbs": _crumbs(
         {"label": invoice.number, "url": reverse("billing:invoice-detail", args=[pk])},
         {"label": "Collect payment"},
     ), "cash_limit": services.settings_for(request.organization).cash_adjustment_limit}  # fmt: skip

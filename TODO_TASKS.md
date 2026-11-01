@@ -533,7 +533,7 @@ Legend:
 # PHASE 13 — Pharmacy POS
 
 ## POS UI
-- [x] Barcode input. (scan + Enter adds by barcode/SKU)
+- [x] Barcode input. (scan + Enter adds by barcode/SKU; QR and GS1 codes read by `pharmacy/scan.py`, scanned batch sold)
 - [x] Product search.
 - [x] Cart.
 - [x] Quantity editing.

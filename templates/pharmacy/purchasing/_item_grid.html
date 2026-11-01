@@ -4,35 +4,37 @@
 {{ initial_rows|default:"[]"|json_script:"grid-rows" }}
 {% include "pharmacy/_packing_list.html" %}
 <div x-data="{
-    q: '', results: [], rows: [], index: 0, uid: 0, searched: false, adding: false, error: '', showSale: false,
-    fresh: { brand_name: '', unit: 'tablet', pack_unit: 'strip', pack_size: '10', box_unit: 'box', packs_per_box: '', pack_cost: '', pack_price: '' },
+    q: '', results: [], rows: [], index: 0, uid: 0, searched: false, adding: false, error: '', showSale: false, info: null,
+    fresh: { brand_name: '', unit: 'tablet', pack_unit: 'strip', pack_size: '10', box_unit: 'box', packs_per_box: '', pack_cost: '', pack_price: '', barcode: '' },
     freshTop() { return Number(this.fresh.packs_per_box) > 1 ? this.fresh.box_unit : Number(this.fresh.pack_size) > 1 ? this.fresh.pack_unit : this.fresh.unit; },
     freshLevel() { return Number(this.fresh.packs_per_box) > 1 ? 'box' : Number(this.fresh.pack_size) > 1 ? 'pack' : 'unit'; },
     init() { const start = JSON.parse(document.getElementById('grid-rows').textContent); this.rows = (typeof start === 'string' ? JSON.parse(start) : start).map(r => ({ ...r, uid: ++this.uid })); this.showSale = this.rows.some(r => r.sale); },
     async find() {
-      if (this.q.trim().length < 2) { this.results = []; this.searched = false; return; }
+      if (this.q.trim().length < 2) { this.results = []; this.searched = false; this.info = null; return; }
       const r = await fetch('{% url 'pharmacy:product-suggest' %}?q=' + encodeURIComponent(this.q.trim()));
-      this.results = (await r.json()).results; this.index = 0; this.searched = true;
+      const data = await r.json(); this.results = data.results; this.info = data.scan; this.index = 0; this.searched = true;
     },
-    focusRow(uid) { this.$nextTick(() => document.querySelector('[data-row=&quot;' + uid + '&quot;] [name=batch]')?.focus()); },
+    focusRow(uid, box = 'batch') { this.$nextTick(() => document.querySelector('[data-row=&quot;' + uid + '&quot;] [name=' + box + ']')?.focus()); },
     add(p) {
-      const row = this.rows.find(x => x.id === p.id && !x.batch);
-      this.q = ''; this.results = []; this.searched = false; this.adding = false;
+      const info = this.info, batch = info ? info.batch : '';
+      const row = this.rows.find(x => x.id === p.id && (batch ? x.batch.toLowerCase() === batch.toLowerCase() : !x.batch));
+      this.q = ''; this.results = []; this.searched = false; this.adding = false; this.info = null;
+      if (info?.batch_is_guess) this.$dispatch('toast', { level: 'warning', message: 'The scanner sent no separators. Check batch ' + batch + ' against the pack.' });
       if (row) { row.qty = Number(row.qty || 0) + 1; this.$refs.scan.focus(); return; }
       const big = p.packSize > 1;
       const uid = ++this.uid;
-      this.rows.push({ id: p.id, name: p.name, packSize: p.packSize, boxSize: p.boxSize, packLabel: p.packLabel, boxLabel: p.boxLabel, unitLabel: p.unitLabel, uid, qty: 1, unit: big ? 'pack' : 'unit', free: '', discount: '', cost: (p.unitCost * (big ? p.packSize : 1)).toFixed(2), tax: '{{ request.organization.preferences.default_purchase_gst_percent|floatformat:"-2" }}', batch: '', expiry: '', sale: '' });
-      this.focusRow(uid);
+      this.rows.push({ id: p.id, name: p.name, packSize: p.packSize, boxSize: p.boxSize, packLabel: p.packLabel, boxLabel: p.boxLabel, unitLabel: p.unitLabel, uid, qty: 1, unit: big ? 'pack' : 'unit', free: '', discount: '', cost: (p.unitCost * (big ? p.packSize : 1)).toFixed(2), tax: '{{ request.organization.preferences.default_purchase_gst_percent|floatformat:"-2" }}', batch, expiry: info ? info.expiry_short : '', sale: '' });
+      this.focusRow(uid, batch ? 'qty' : 'batch');
     },
     async enter() { await this.find(); if (this.results[this.index]) this.add(this.results[this.index]); else if (this.searched) this.startAdding(); },
-    startAdding() { this.fresh.brand_name = this.q.trim(); this.adding = true; this.error = ''; this.$nextTick(() => document.getElementById('np-unit').focus()); },
+    startAdding() { this.fresh.brand_name = this.info ? this.info.name : this.q.trim(); this.fresh.barcode = this.info ? this.info.code : ''; this.adding = true; this.error = ''; this.$nextTick(() => document.getElementById(this.fresh.brand_name ? 'np-unit' : 'np-name').focus()); },
     async createProduct() {
       const body = new URLSearchParams({ ...this.fresh, price_per: this.freshLevel(), csrfmiddlewaretoken: document.querySelector('[name=csrfmiddlewaretoken]').value });
       const r = await fetch('{% url 'pharmacy:product-quick' %}', { method: 'POST', body });
       const data = await r.json();
       if (!r.ok) { this.error = data.error; return; }
       this.add(data.result);
-      this.fresh = { brand_name: '', unit: 'tablet', pack_unit: 'strip', pack_size: '10', box_unit: 'box', packs_per_box: '', pack_cost: '', pack_price: '' };
+      this.fresh = { brand_name: '', unit: 'tablet', pack_unit: 'strip', pack_size: '10', box_unit: 'box', packs_per_box: '', pack_cost: '', pack_price: '', barcode: '' };
     },
     newBatch(r) { const uid = ++this.uid; this.rows.splice(this.rows.indexOf(r) + 1, 0, { ...r, uid, qty: 1, free: '', batch: '', expiry: '' }); this.focusRow(uid); },
     expiryBad(r) { if (!r.expiry) return false; const m = r.expiry.trim().match(/^(\d{1,2})[\/-](\d{2}|\d{4})$/); if (!m) return !/^\d{4}-\d{2}-\d{2}$/.test(r.expiry.trim()); const month = Number(m[1]); let year = Number(m[2]); if (year < 100) year += 2000; return month < 1 || month > 12 || new Date(year, month, 0) < new Date(); },
@@ -52,14 +54,14 @@
         <tr class="entry-row"><td colspan="12">
   <div class="relative" @click.outside="results = []; searched = false">
     <label class="sr-only" for="grid-scan">Scan a barcode or search a medicine</label>
-    <input id="grid-scan" x-ref="scan" class="input" autocomplete="off" placeholder="Scan a barcode or type a medicine, then Enter" x-model="q" @input.debounce.200ms="find()"
+    <input id="grid-scan" x-ref="scan" data-scan class="input" autocomplete="off" placeholder="Scan a barcode or type a medicine, then Enter" x-model="q" @input.debounce.200ms="find()"
            @keydown.enter.prevent="enter()" @keydown.down.prevent="index = Math.min(index + 1, results.length - 1)" @keydown.up.prevent="index = Math.max(index - 1, 0)">
-    <ul x-show="results.length" x-cloak class="absolute z-40 mt-1 w-full divide-y divide-line overflow-hidden rounded-card border border-line bg-white shadow-lg" role="listbox">
+    <ul x-show="results.length" x-cloak class="pick-list absolute z-40 mt-1 w-full" role="listbox">
       <template x-for="(p, i) in results" :key="p.id">
-        <li role="option" :aria-selected="i === index"><button type="button" class="w-full px-4 py-2 text-left hover:bg-mint/50" :class="i === index && 'bg-mint/50'" @click="add(p)"><span class="font-medium" x-text="p.name"></span> <span class="text-label text-muted" x-text="p.hint"></span></button></li>
+        <li role="option" :aria-selected="i === index"><button type="button" class="pick-row" @click="add(p)"><span class="pick-title col-span-2" x-text="p.name"></span><span class="pick-sub col-span-2" x-text="p.hint"></span></button></li>
       </template>
     </ul>
-    <p x-show="searched && !results.length && !adding" x-cloak class="absolute z-40 mt-1 w-full rounded-card border border-line bg-white p-3 text-body shadow-lg">Not found. Press Enter to add <span class="font-medium" x-text="q"></span> as a new product.</p>
+    <p x-show="searched && !results.length && !adding" x-cloak class="absolute z-40 mt-1 w-full rounded-control border border-edge bg-white p-3 text-body shadow-lg">Not found. Press Enter to add <span class="font-medium" x-text="info ? info.summary : q"></span> as a new product.</p>
   </div>
   <div x-show="adding" x-cloak class="mt-2 flex flex-wrap items-end gap-2 rounded-control bg-page p-2" @keydown.enter.prevent.stop="createProduct()">
     <div class="min-w-[12rem] flex-1"><label class="field-label" for="np-name">New product</label><input id="np-name" class="input" x-model="fresh.brand_name" autocomplete="off"></div>

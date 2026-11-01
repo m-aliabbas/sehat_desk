@@ -63,6 +63,8 @@ class SpecialtyForm(StyledFormMixin, OrgUniqueMixin, forms.ModelForm):
 
 
 class DoctorProfileForm(StyledFormMixin, forms.ModelForm):
+    remember = {"qualifications": "masterdata.DoctorProfile.qualifications"}
+
     class Meta:
         model = DoctorProfile
         fields = [

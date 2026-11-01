@@ -36,6 +36,10 @@ PUBLIC = {
 # Open to any signed-in staff member: their own account, inbox and shell.
 PERSONAL = {
     "core:dashboard",
+    "core:drafts",
+    "core:draft-for-page",
+    "core:draft-save",
+    "core:draft-discard",
     "accounts:logout",
     "accounts:password-change",
     "accounts:workspace",

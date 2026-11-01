@@ -1,0 +1,29 @@
+{% extends "layouts/app.html" %}
+{% block title %}My drafts{% endblock %}
+{% block page_title %}My drafts{% endblock %}
+{% block page_subtitle %}Forms you started and did not save. Only you see these; they go after {{ keep_days }} days.{% endblock %}
+{% block content %}
+{% if drafts %}
+<div class="table-wrap">
+  <table class="table">
+    <thead><tr><th scope="col">Form</th><th scope="col">Last typed</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+    <tbody>
+      {% for d in drafts %}
+      <tr>
+        <td><a href="{{ d.path }}" class="font-medium hover:underline" data-panel="off">{{ d.title|default:d.path }}</a></td>
+        <td>{{ d.updated_at|date:"d M Y, H:i" }}</td>
+        <td class="text-right">
+          <form method="post" action="{% url 'core:draft-discard' %}" data-draft="off" class="inline">{% csrf_token %}
+            <input type="hidden" name="path" value="{{ d.path }}"><input type="hidden" name="form" value="{{ d.form_key }}"><input type="hidden" name="back" value="1">
+            <button class="btn btn-close btn-sm">Discard</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+{% include "components/empty_state.html" with icon_name="inbox" title="No drafts" message="If you leave a form before saving, it waits here." %}
+{% endif %}
+{% endblock %}

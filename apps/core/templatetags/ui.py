@@ -1,7 +1,9 @@
 """Template helpers for the SehatDesk design system. Load with {% load ui %}."""
 
+from decimal import Decimal
+
 from django import template
-from django.utils.html import format_html, mark_safe
+from django.utils.html import format_html, format_html_join, mark_safe
 
 from apps.core.icons import ICONS
 
@@ -96,6 +98,78 @@ def icon(name, css_class="h-5 w-5"):
         'stroke-linejoin="round" class="{}" aria-hidden="true">{}</svg>',
         css_class,
         mark_safe(paths),  # noqa: S308 - static strings from apps/core/icons.py, never user input
+    )
+
+
+_ONES = (
+    "zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen "
+    "fifteen sixteen seventeen eighteen nineteen"
+).split()
+_TENS = "_ _ twenty thirty forty fifty sixty seventy eighty ninety".split()
+
+
+def _words(n: int) -> str:
+    """Lakh and crore, as bills are read in Pakistan."""
+    if n < 20:
+        return _ONES[n]
+    if n < 100:
+        return _TENS[n // 10] + (f" {_ONES[n % 10]}" if n % 10 else "")
+    for size, name in (
+        (10_000_000, "crore"),
+        (100_000, "lakh"),
+        (1000, "thousand"),
+        (100, "hundred"),
+    ):
+        if n >= size:
+            rest = n % size
+            return f"{_words(n // size)} {name}" + (f" {_words(rest)}" if rest else "")
+    return ""
+
+
+@register.filter
+def in_words(amount) -> str:
+    """1250.50 -> "one thousand two hundred fifty and paisa fifty"."""
+    total = round(Decimal(str(amount or 0)) * 100)
+    whole, paisa = divmod(abs(int(total)), 100)
+    return _words(whole) + (f" and paisa {_words(paisa)}" if paisa else "")
+
+
+@register.simple_tag(takes_context=True)
+def past_values(context, source):
+    """<datalist> of what this hospital typed before. source: "app.Model.field"."""
+    from django.apps import apps
+
+    from apps.core.forms import remember_id
+
+    label, name = source.rsplit(".", 1)
+    rows = (
+        apps.get_model(label)
+        .objects.filter(organization=context["request"].organization)
+        .exclude(**{name: ""})
+        .order_by(name)
+        .values_list(name, flat=True)
+        .distinct()[:200]
+    )
+    seen = {str(r).strip().lower(): str(r).strip() for r in rows}
+    return format_html(
+        '<datalist id="{}">{}</datalist>',
+        remember_id(source),
+        format_html_join("", '<option value="{}"></option>', ((v,) for v in seen.values())),
+    )
+
+
+@register.simple_tag(takes_context=True)
+def discount_reason_list(context):
+    """<datalist id="discount-reasons">: what was typed before, for any discount reason box."""
+    from apps.billing.services import discount_reasons
+
+    return format_html(
+        '<datalist id="discount-reasons">{}</datalist>',
+        format_html_join(
+            "",
+            '<option value="{}"></option>',
+            ((r,) for r in discount_reasons(context["request"].organization)),
+        ),
     )
 
 

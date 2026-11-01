@@ -218,6 +218,16 @@
   .combo-list li { @apply cursor-pointer px-3 py-1.5 whitespace-nowrap hover:bg-mint; }
   .combo-list li[aria-selected="true"] { @apply bg-mint font-medium; }
 
+  /* Search dropdowns (till, patients, doctors, medicines): 52 to 60px rows, always two lines. Left: what it
+     is. Right: price or code. The row the keyboard is on shows mint with a teal edge, as table rows do. */
+  .pick-list { @apply max-h-[21rem] divide-y divide-line overflow-y-auto rounded-control border border-edge bg-white shadow-lg; }
+  .pick-row { @apply grid max-h-[60px] min-h-[52px] w-full grid-cols-[minmax(0,1fr)_auto] content-center gap-x-4 px-3 py-1.5 text-left leading-tight text-ink outline-none hover:bg-mint disabled:cursor-not-allowed disabled:opacity-60; }
+  .pick-row:focus, [aria-selected="true"] > .pick-row { @apply bg-mint shadow-[inset_3px_0_0_var(--color-teal)]; }
+  .pick-title { @apply truncate text-body font-semibold; }
+  .pick-sub { @apply truncate text-label text-muted; }
+  .pick-side { @apply text-right text-body font-semibold whitespace-nowrap; }
+  .pick-side-sub { @apply text-right text-label whitespace-nowrap text-muted; }
+
   /* Save bar: stays at the bottom of the window however long the sheet gets. Sits inside a .card. */
   .save-bar { @apply sticky bottom-0 z-30 mt-4 flex flex-wrap items-center gap-3 border-t border-line bg-white py-3; }
   #main:focus { outline: none; }
@@ -352,6 +362,13 @@
 .table-wrap:has(.absolute) thead th:last-child { border-top-right-radius: 7px; }
 #main .absolute:is([id$="results"], [id$="suggest"], [role="listbox"]) { z-index: 40; }
 
+/* An entry grid takes what the window has left and scrolls inside itself, so the page never grows
+   past the screen (sdFitGrids in app.js sets --fit). Its search list floats, so nothing cuts it off. */
+.table-wrap.grid-fits, .sheet-wrap.grid-fits { position: relative; max-height: var(--fit) !important; overflow: auto !important; }
+.grid-fits thead th { top: 0 !important; }
+.grid-fits .entry-row > td { top: 2.25rem !important; }
+.grid-fits .entry-row .absolute { position: fixed !important; right: auto !important; z-index: 60; margin-top: 0; overflow-y: auto; }
+
 /* Paper: no dark header blocks, whichever page prints. */
 @media print {
   :root { --color-head: #ffffff; --color-head-text: #000000; }
@@ -360,3 +377,6 @@
 /* htmx: show indicators only while a request is in flight */
 .htmx-indicator { display: none; }
 .htmx-request .htmx-indicator, .htmx-request.htmx-indicator { display: inline-flex; }
+
+/* Browsers paint saved logins yellow; keep the box looking like every other box. */
+.input:autofill:not(:focus) { box-shadow: inset 0 0 0 100px #fff; filter: none; }

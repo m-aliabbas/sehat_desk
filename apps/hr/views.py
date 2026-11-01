@@ -107,7 +107,7 @@ def attendance_check(request):
     try:
         if action == "in":
             rec = attendance.check_in(request=request)
-            msg = f"Checked in at {timezone.localtime(rec.check_in):%H:%M}" + (
+            msg = f"Checked in at {timezone.localtime(rec.open_since):%H:%M}" + (
                 " (late)." if rec.status == AttendanceRecord.Status.LATE else "."
             )
         elif action == "out":

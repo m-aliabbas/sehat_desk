@@ -4,6 +4,7 @@ from datetime import time, timedelta
 from decimal import Decimal
 
 import pytest
+from django.urls import reverse
 from django.utils import timezone
 
 from apps.appointments import services, visits
@@ -291,3 +292,46 @@ def test_papers_have_rx_and_refund_but_no_token_only_button(desk, clinic, patien
     assert AUTO_PRINT_SLIPS in html
     rx = desk.get(f"/appointments/{appt.pk}/papers/?part=rx").content.decode()
     assert 'name="sd-print-dialog"' in rx
+
+
+def test_emergency_visit_skips_slots_and_gets_e_token(
+    make_request, make_user, doctor, patient, cash
+):
+    req = make_request(make_user("reception"))
+    visit = visits.register_visit(
+        request=req, patient=patient, doctor=doctor, on_date=timezone.localdate(), emergency=True
+    )
+    assert visit.token.label == "E-001" and visit.token.priority == "emergency"
+    assert visit.appointment.visit_type == "emergency"
+    assert visit.payment is None
+
+
+def test_discount_reasons_come_back_once_each_for_this_hospital(
+    make_request, make_user, doctor, patient, cash, org
+):
+    from apps.billing.services import discount_reasons
+
+    req = make_request(make_user("super_admin"))
+    visits.register_visit(
+        request=req, patient=patient, doctor=doctor, on_date=timezone.localdate(), collect=True,
+        method=cash, discount=Decimal("1"), discount_reason="Staff family",
+    )  # fmt: skip
+    assert discount_reasons(org) == ["Staff family"]
+
+
+def test_emergency_through_the_desk_form_prints_with_the_fee_unpaid(
+    admin_client, clinic, patient, cash
+):
+    response = admin_client.post(
+        reverse("appointments:visit-new"),
+        {
+            "mode": "find", "patient": patient.pk, "doctor": clinic.pk,
+            "date": timezone.localdate().isoformat(), "emergency": "1",
+        },
+    )  # fmt: skip
+    assert response.status_code == 302
+    appt = Appointment.objects.get(patient=patient)
+    assert appt.token.label == "E-001"
+    papers = admin_client.get(response["Location"])
+    assert papers.context["auto_print"] and papers.context["due"]
+    assert b"Emergency" in papers.content

@@ -18,6 +18,7 @@ urlpatterns = [
     path("inventory/products/<int:pk>/barcode/", views.product_barcode, name="product-barcode"),
     path("inventory/products/<int:pk>/labels/", views.product_labels, name="product-labels"),
     path("inventory/uom/", views.uom, name="uom"),
+    path("inventory/scan/", views.scan_read, name="scan-read"),
     path("inventory/barcodes/", views.barcodes_page, name="barcodes"),
     path("inventory/barcodes/print/", views.barcodes_print, name="barcodes-print"),
     path("inventory/categories/", views.categories, name="categories"),

@@ -27,7 +27,7 @@ cashier's day closing. PRD §11. PROJECT_NOTES §12–13, §18.
 - Cash adjustment: `apply_cash_adjustment` / `settle_cash` close a cash bill when the cash paid differs by up to
   `BillingSettings.cash_adjustment_limit` (default 50), up or down. Stored signed on `Invoice.cash_adjustment`
   and part of `grand_total`, so day totals and the till agree. Never for non-cash methods.
-- Visit fees are issued on booking: `set_invoice_discount(before_payment=True)` allows a discount until money is taken.
+- Every Collect payment screen has a discount with a reason (`discount_when_collecting`, needs `billing.discount`). An issued bill can be discounted down to what is already paid; a discount that leaves nothing to pay closes it with no receipt. The till does the same with `pos.set_discount`.
 
 ## Permissions
 `billing.view`, `billing.payment.collect`, `billing.discount`, `billing.refund`.
