@@ -196,7 +196,7 @@ def product_suggest(request):
     qs = scoped(Product, request).filter(is_active=True)
     read = scan.parse(q)
     exact = scan.find_products(qs, read)
-    words = read.name if read.structured else q
+    words = "" if read.structured else q
     matches = exact or (
         list(qs.filter(search_text__contains=words.lower())[:8]) if len(words) >= 2 else []
     )

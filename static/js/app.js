@@ -1823,15 +1823,11 @@ const sdScan = (() => {
     }
     const scan = data.scan, around = box.closest("tr") || box.form;
     const barcode = box.name === "barcode" ? box : around?.querySelector("[name=barcode]");
-    const nameBox = around?.querySelector("[name=brand_name]");
     if (box.dataset.scan === "detect") setBox(box, "");
     if (barcode && scan.code) {
       setBox(barcode, scan.code);
       barcode.dataset.scanRead = scan.code;
     }
-    if (nameBox && !nameBox.value.trim() && scan.name) setBox(nameBox, scan.name);
-    const maker = around?.querySelector("[name=manufacturer]");
-    if (maker && !maker.value.trim() && scan.manufacturer) setBox(maker, scan.manufacturer);
     const other = data.products.find((p) => String(p.id) !== box.dataset.scanSelf);
     if (other) toast("warning", `This code is already on ${other.name}.`);
     else if (scan.summary) toast("info", `Read ${scan.summary}.${scan.batch ? " Batch and expiry are entered when stock is received." : ""}`);

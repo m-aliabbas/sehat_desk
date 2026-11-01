@@ -1021,9 +1021,9 @@ def search_products(request, q: str, limit=12):
     read = scan.parse(q)
     if exact := scan.find_products(qs, read):
         return exact
-    if read.structured and not read.name:
+    if read.structured:
         return []
-    for word in (read.name if read.structured else q).lower().split():
+    for word in q.lower().split():
         qs = qs.filter(search_text__contains=word)
     return list(qs.order_by("-stock", "brand_name")[:limit])
 

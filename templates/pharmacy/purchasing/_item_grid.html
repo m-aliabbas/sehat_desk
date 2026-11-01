@@ -27,7 +27,7 @@
       this.focusRow(uid, batch ? 'qty' : 'batch');
     },
     async enter() { await this.find(); if (this.results[this.index]) this.add(this.results[this.index]); else if (this.searched) this.startAdding(); },
-    startAdding() { this.fresh.brand_name = this.info ? this.info.name : this.q.trim(); this.fresh.barcode = this.info ? this.info.code : ''; this.adding = true; this.error = ''; this.$nextTick(() => document.getElementById(this.fresh.brand_name ? 'np-unit' : 'np-name').focus()); },
+    startAdding() { this.fresh.brand_name = this.info ? '' : this.q.trim(); this.fresh.barcode = this.info ? this.info.code : ''; this.adding = true; this.error = ''; this.$nextTick(() => document.getElementById(this.fresh.brand_name ? 'np-unit' : 'np-name').focus()); },
     async createProduct() {
       const body = new URLSearchParams({ ...this.fresh, price_per: this.freshLevel(), csrfmiddlewaretoken: document.querySelector('[name=csrfmiddlewaretoken]').value });
       const r = await fetch('{% url 'pharmacy:product-quick' %}', { method: 'POST', body });

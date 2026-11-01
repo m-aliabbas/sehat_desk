@@ -18,7 +18,7 @@ PRD §9. Phases 12–14. PROJECT_NOTES §12–13.
   `ensure_standard_categories`. `barcodes.py` — `new_barcode` (EAN-13 starting 20), `code128_svg` (digits use subset C, for wider bars).
 - `scan.py` — the one reader for scanned codes: `parse` (plain EAN/UPC/GTIN, GS1 strings with or without
   separators or parentheses, GS1 Digital Link URLs, labelled text or JSON QR codes) gives a `Scan` (GTIN, batch,
-  expiry, made, serial, name, manufacturer, registration, price, `extra`); `find_products` (any GTIN length, then
+  expiry, made, serial; names and prices on a label are ignored on purpose); `find_products` (any GTIN length, then
   SKU) and `search_products` (list search boxes). Every code lookup goes through these. `scan-read` serves scripts.
 - `models.py` — `Product` (base unit, pack size + pack unit, `allow_loose_sale`, reorder level,
   link to `prescriptions.Medicine`; `describe_quantity`/`pack_breakdown`/`loose_sale_error`),
