@@ -101,6 +101,9 @@ class PreferencesForm(StyledFormMixin, forms.ModelForm):
 class PrintLayoutForm(StyledFormMixin, forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        if self.instance.document != PrintLayout.Document.PRESCRIPTION:
+            for name in ("header_image", "footer_image", "image_keep_clinic_text"):
+                del self.fields[name]
         self.fields["paper"].choices = [
             ("", "Standard for this document"),
             *PrintLayout.Paper.choices,
@@ -111,6 +114,7 @@ class PrintLayoutForm(StyledFormMixin, forms.ModelForm):
         fields = [
             "paper", "margin_mm", "top_space_mm", "bottom_space_mm", "text_size", "show_header",
             "header_align", "show_logo", "logo_mm", "header_text", "show_footer", "footer_text",
+            "header_image", "footer_image", "image_keep_clinic_text",
             "doctor_side", "show_qualifications", "show_registration", "show_vitals",
             "show_allergies", "extra_lines",
         ]  # fmt: skip

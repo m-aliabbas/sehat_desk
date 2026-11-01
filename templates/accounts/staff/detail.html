@@ -43,6 +43,26 @@
     </dl>
   </section>
 
+  {% if "admin.masterdata.manage" in sd_perms and doctor_profile or "admin.masterdata.manage" in sd_perms and is_doctor_role %}
+  <section class="card xl:col-span-3">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <h2 class="section-title">Doctor profile</h2>
+        {% if doctor_profile %}<p class="text-body text-muted">{{ doctor_profile.department }}{% if doctor_profile.specialty %} · {{ doctor_profile.specialty }}{% endif %} · Fee {{ organization.currency }} {{ doctor_profile.consultation_fee|floatformat:"0g" }} · {{ doctor_profile.slot_minutes }}-minute slots</p>
+        {% else %}<p class="text-body text-muted">This person has the Doctor role but no fee, department or schedule yet, so reception cannot book them.</p>{% endif %}
+      </div>
+      <div class="flex flex-wrap gap-2">
+        {% if doctor_profile %}
+          <a href="{% url 'masterdata:doctor-edit' doctor_profile.pk %}" class="btn btn-secondary" data-panel="off">Fees &amp; profile</a>
+          <a href="{% url 'masterdata:doctor-detail' doctor_profile.pk %}" class="btn btn-secondary">Schedule &amp; leave</a>
+        {% else %}
+          <a href="{% url 'masterdata:doctor-create' %}?user={{ staff.pk }}" class="btn btn-primary">Add doctor profile</a>
+        {% endif %}
+      </div>
+    </div>
+  </section>
+  {% endif %}
+
   <section class="card xl:col-span-2">
     <div class="card-header">
       <div>

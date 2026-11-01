@@ -19,11 +19,19 @@ TIMEZONE_CHOICES = [("Asia/Karachi", "Asia/Karachi")]
 _prefix_validator = RegexValidator(r"^[A-Z0-9]{1,6}$", "Use 1–6 capital letters or digits.")
 
 LOGO_MAX_BYTES = 2 * 1024 * 1024
+LETTERHEAD_MAX_BYTES = 5 * 1024 * 1024
+# Paper height and blank-prescription room (mm). No paper chosen: prescriptions print on A5.
+PAGE_HEIGHT_MM = {"A4": 297, "A5": 210, "letter": 279}
 
 
 def validate_logo_size(file):
     if file.size > LOGO_MAX_BYTES:
         raise ValidationError("Logo must be 2 MB or smaller.")
+
+
+def validate_letterhead_size(file):
+    if file.size > LETTERHEAD_MAX_BYTES:
+        raise ValidationError("The image must be 5 MB or smaller.")
 
 
 class Organization(TimeStampedModel):
@@ -162,6 +170,8 @@ class OrganizationPreferences(TimeStampedModel):
     display_show_doctor = models.BooleanField(
         "Show doctor names on the waiting-room display", default=True
     )
+    # Which version of masterdata/defaults.json this hospital has received.
+    lists_version = models.PositiveSmallIntegerField(default=0, editable=False)
     # Settings → Fields & tax (apps/organizations/field_rules.py).
     field_rules = models.JSONField(default=dict, blank=True)
     default_sale_tax_percent = models.DecimalField(
@@ -274,6 +284,31 @@ class PrintLayout(TimeStampedModel):
         "Extra footer text", blank=True, help_text="Above the hospital's own footer."
     )
     # Prescription only.
+    header_image = models.ImageField(
+        "Letterhead image (top)",
+        upload_to="organization-logos/letterheads/",
+        blank=True,
+        validators=[
+            FileExtensionValidator(["png", "jpg", "jpeg", "webp"]),
+            validate_letterhead_size,
+        ],
+        help_text="Printed across the full page width. PNG, JPG or WebP, up to 5 MB.",
+    )
+    footer_image = models.ImageField(
+        "Letterhead image (bottom)",
+        upload_to="organization-logos/letterheads/",
+        blank=True,
+        validators=[
+            FileExtensionValidator(["png", "jpg", "jpeg", "webp"]),
+            validate_letterhead_size,
+        ],
+        help_text="Printed across the full page width at the bottom of the prescription.",
+    )
+    image_keep_clinic_text = models.BooleanField(
+        "Also print the hospital name and logo with the top image",
+        default=False,
+        help_text="Off = the image replaces them. The doctor's name always prints.",
+    )
     doctor_side = models.CharField(
         "Doctor's name position", max_length=6, choices=Side.choices, default=Side.LEFT
     )
@@ -301,6 +336,39 @@ class PrintLayout(TimeStampedModel):
     @property
     def lines(self) -> list[str]:
         return [line.strip() for line in self.extra_lines.splitlines() if line.strip()]
+
+    @property
+    def uses_rx_images(self) -> bool:
+        return (
+            self.document == self.Document.PRESCRIPTION
+            and self.paper != self.Paper.THERMAL
+            and bool(self.header_image or self.footer_image)
+        )
+
+    @property
+    def show_clinic_block(self) -> bool:
+        replaced = self.uses_rx_images and self.header_image and not self.image_keep_clinic_text
+        return self.show_header and not replaced
+
+    @property
+    def rx_side_mm(self) -> int:
+        """Space above the writing when no top image reaches the paper's edge."""
+        return self.top_space_mm + (0 if self.header_image else self.margin_mm)
+
+    @property
+    def rx_foot_mm(self) -> int:
+        return self.bottom_space_mm + (0 if self.footer_image else self.margin_mm)
+
+    @property
+    def rx_body_height_mm(self) -> int:
+        """Height that fills one page, less the credit line and a little room. The sheet's text
+        size zooms this too, so it is divided back."""
+        page = PAGE_HEIGHT_MM.get(self.paper, PAGE_HEIGHT_MM["A5"])
+        if self.uses_rx_images:
+            room = page - self.rx_side_mm - self.rx_foot_mm - 8
+        else:
+            room = page - 12 - 2 * self.margin_mm - self.top_space_mm - self.bottom_space_mm
+        return room * 100 // self.text_size
 
 
 def print_layout_for(organization, document) -> PrintLayout:

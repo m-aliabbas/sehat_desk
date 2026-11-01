@@ -3,6 +3,9 @@
 {% block title %}{% if creating %}Add staff{% else %}Edit {{ staff }}{% endif %}{% endblock %}
 {% block page_title %}{% if creating %}Add staff{% else %}Edit {{ staff }}{% endif %}{% endblock %}
 {% block page_subtitle %}{% if creating %}Creates a sign-in account. The person sets their own password at first sign-in.{% else %}Contact and identity details.{% endif %}{% endblock %}
+{% block page_actions %}
+  {% if staff.doctor_profile and "admin.masterdata.manage" in sd_perms %}<a href="{% url 'masterdata:doctor-edit' staff.doctor_profile.pk %}" class="btn btn-secondary" data-panel="off">Doctor's fees &amp; profile</a>{% endif %}
+{% endblock %}
 {% block content %}
 <form method="post" class="grid gap-6 xl:grid-cols-3" novalidate>
   {% csrf_token %}

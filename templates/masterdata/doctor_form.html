@@ -2,6 +2,10 @@
 {% block title %}{% if creating %}Add doctor{% else %}Edit {{ doctor }}{% endif %}{% endblock %}
 {% block page_title %}{% if creating %}Add doctor{% else %}Edit {{ doctor }}{% endif %}{% endblock %}
 {% block page_subtitle %}Clinical profile and fees. Sign-in access comes from the staff account's roles.{% endblock %}
+{% block page_actions %}
+  {% if doctor.pk and "admin.users.view" in sd_perms %}<a href="{% url 'accounts:staff-detail' doctor.user_id %}" class="btn btn-secondary" data-panel="off">Staff account</a>{% endif %}
+  {% if creating and "admin.users.manage" in sd_perms %}<a href="{% url 'accounts:staff-create' %}" class="btn btn-secondary" data-panel="off">Add staff</a>{% endif %}
+{% endblock %}
 {% block content %}
 {% include "partials/settings_tabs.html" %}
 <form method="post" class="grid gap-6 xl:grid-cols-3" novalidate>
@@ -11,6 +15,11 @@
     {% for e in form.non_field_errors %}{% include "components/alert.html" with level="danger" message=e %}{% endfor %}
     <div class="grid gap-5 md:grid-cols-2">
       {% if form.user %}{% include "components/field.html" with field=form.user wide=True %}{% endif %}
+      {% if form.first_name %}
+      {% include "components/field.html" with field=form.first_name %}
+      {% include "components/field.html" with field=form.last_name %}
+      {% include "components/field.html" with field=form.phone %}
+      {% endif %}
       {% include "components/field.html" with field=form.department %}
       {% include "components/field.html" with field=form.specialty %}
       {% include "components/field.html" with field=form.registration_number %}

@@ -9,7 +9,7 @@
   <div class="space-y-6 xl:col-span-2">
     <section class="card">
       <h2 class="section-title mb-1">Consultations</h2>
-      <p class="mb-4 text-label text-muted">Starting values for new doctors. Each doctor's own settings (Settings → Doctors) still apply.</p>
+      <p class="mb-4 text-label text-muted">Starting values for new doctors. Each doctor's own settings ({% if "admin.masterdata.manage" in sd_perms %}<a class="font-medium text-teal-deep underline" href="{% url 'masterdata:doctor-list' %}">Settings → Doctors</a>{% else %}Settings → Doctors{% endif %}) still apply.</p>
       <div class="grid gap-5 md:grid-cols-2">
         {% include "components/field.html" with field=form.default_slot_minutes %}
         {% include "components/field.html" with field=form.default_follow_up_days %}

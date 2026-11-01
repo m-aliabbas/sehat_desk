@@ -113,6 +113,7 @@ class Command(BaseCommand):
 
         result = create_organization_with_admin(
             org_name="Load Test Hospital",
+            load_lists=False,
             branch_name="Main",
             branch_code="MAIN",
             city="Lahore",

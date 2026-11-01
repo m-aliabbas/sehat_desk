@@ -64,6 +64,11 @@ class SpecialtyForm(StyledFormMixin, OrgUniqueMixin, forms.ModelForm):
 
 class DoctorProfileForm(StyledFormMixin, forms.ModelForm):
     remember = {"qualifications": "masterdata.DoctorProfile.qualifications"}
+    # The name and phone belong to the staff account; offered here so nobody has to change screens.
+    first_name = forms.CharField(max_length=150, required=False)
+    last_name = forms.CharField(max_length=150, required=False)
+    phone = forms.CharField(max_length=30, required=False)
+    ACCOUNT_FIELDS = ("first_name", "last_name", "phone")
 
     class Meta:
         model = DoctorProfile
@@ -81,8 +86,15 @@ class DoctorProfileForm(StyledFormMixin, forms.ModelForm):
         ]
         labels = {"user": "Staff account", "follow_up_days": "Follow-up window (days)"}
 
-    def __init__(self, *args, organization, **kwargs):
+    def __init__(self, *args, organization, can_edit_account=False, **kwargs):
         super().__init__(*args, **kwargs)
+        if self.instance.pk and can_edit_account:
+            self.fields["first_name"].required = True
+            for name in self.ACCOUNT_FIELDS:
+                self.fields[name].initial = getattr(self.instance.user, name)
+        else:
+            for name in self.ACCOUNT_FIELDS:
+                del self.fields[name]
         self.fields["department"].queryset = Department.objects.filter(
             organization=organization, is_active=True
         )
@@ -95,7 +107,18 @@ class DoctorProfileForm(StyledFormMixin, forms.ModelForm):
             )
             self.fields[
                 "user"
-            ].help_text = "Create the staff account first (Staff → Add staff, role Doctor)."
+            ].help_text = "Only staff who are not doctors yet. New person? Use Add staff above."
+
+    def save_account(self) -> dict:
+        """Saves the name and phone to the staff account; returns what changed."""
+        user, changes = self.instance.user, {}
+        for name in self.ACCOUNT_FIELDS:
+            if name in self.fields and getattr(user, name) != self.cleaned_data[name]:
+                changes[name] = [getattr(user, name), self.cleaned_data[name]]
+                setattr(user, name, self.cleaned_data[name])
+        if changes:
+            user.save(update_fields=list(changes))
+        return changes
 
 
 class ScheduleDayForm(StyledFormMixin, forms.Form):

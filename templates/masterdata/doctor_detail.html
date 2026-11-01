@@ -4,6 +4,7 @@
 {% block page_title %}{{ doctor }} · {{ doctor.department }}{% endblock %}
 {% block page_subtitle %}{% if doctor.specialty %}{{ doctor.specialty }} · {% endif %}Consultation {{ organization.currency }} {{ doctor.consultation_fee|floatformat:"0g" }} · {{ doctor.slot_minutes }}-minute slots · {% if doctor.is_active %}Accepting appointments{% else %}Not accepting appointments{% endif %}{% endblock %}
 {% block page_actions %}
+  {% if "admin.users.view" in sd_perms %}<a href="{% url 'accounts:staff-detail' doctor.user_id %}" class="btn btn-secondary" data-panel="off">Staff account</a>{% endif %}
   <a href="{% url 'masterdata:doctor-edit' doctor.pk %}" class="btn btn-secondary">Edit profile</a>
   <form method="post" action="{% url 'masterdata:doctor-toggle' doctor.pk %}">{% csrf_token %}
     {% if doctor.is_active %}<button class="btn btn-danger" data-confirm="No new appointments can be booked. Existing appointments are kept." data-confirm-title="Stop accepting appointments?" data-confirm-action="Stop" data-confirm-danger="true">Stop bookings</button>{% else %}<button class="btn btn-primary">Accept bookings</button>{% endif %}

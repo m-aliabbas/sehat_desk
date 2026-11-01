@@ -42,6 +42,10 @@ Each app has its own `CLAUDE.md` with its flow and rules. Open the one for the a
 ## Remembered entries
 A typed-in category (city, floor, payee, manufacturer...) offers what this hospital typed before: `remember = {"field": "app.Model.field"}` on a `StyledFormMixin` form, rendered by `components/field.html`. The model must have `organization`. Discount reasons use `billing.services.discount_reasons` and `{% discount_reason_list %}`. Saved lists (departments, expense categories) stay master data.
 
+## Standard lists and type-to-add
+`apps/masterdata/defaults.json` holds what every hospital starts with: departments, specialties, categories, payment methods, discount reasons and starting suggestions for remembered boxes. Raise its `version` when adding entries; each hospital gets a new version once, on the next migrate or desktop app start, and only what it lacks.
+A dropdown of a saved list lets permitted staff type a new entry: `StyledFormMixin` adds `data-create-kind` by model (`QUICK_ADD_MODELS` in `core/forms.py`), `masterdata/quick_add.py` saves it. For a new list, add it to both. A filter dropdown is hand-written HTML and never offers this.
+
 ## Tests
 - `pytest` from the repo root (skill: `sehatdesk-checks`). Each app has `tests/`; fixtures in the
   root `conftest.py`: `org`, `branch`, `branch2`, `make_user(role_key, branch=...)`, `admin_user`,

@@ -1,5 +1,7 @@
 from django.conf import settings
 
+from apps.masterdata.quick_add import allowed_kinds
+
 from . import licensing
 from .features import enabled_features
 from .navigation import build_nav
@@ -27,6 +29,7 @@ def shell(request):
             "branches": getattr(request, "branches", []),
             # Template permission helper: {% if "patient.create" in sd_perms %}. UI only.
             "sd_perms": getattr(request, "sd_perms", frozenset()),
+            "quick_add_kinds": allowed_kinds(getattr(request, "sd_perms", frozenset())),
             # Module switches: {% if features.lab %}. UI only; FeatureMiddleware enforces.
             "features": enabled_features(getattr(request, "organization", None)),
             "license": licensing.status(),

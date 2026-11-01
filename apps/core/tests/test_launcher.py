@@ -107,7 +107,7 @@ def test_first_start_has_nothing_to_back_up(monkeypatch, steps):
     assert steps == ["migrate"]
 
 
-def test_no_pending_migrations_does_nothing(monkeypatch, steps):
+def test_no_pending_migrations_does_nothing(db, monkeypatch, steps):
     _fake_plan(monkeypatch, [], {("other", "m"): 1})
     server.migrate_safely()
     assert steps == []

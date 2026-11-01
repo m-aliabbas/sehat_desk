@@ -1,5 +1,15 @@
 from django import forms
 
+# Dropdowns of these models let permitted staff type a new entry (masterdata/quick_add.py).
+QUICK_ADD_MODELS = {
+    "masterdata.department": "department",
+    "masterdata.specialty": "specialty",
+    "masterdata.servicecategory": "service-category",
+    "lab.labtestcategory": "lab-category",
+    "pharmacy.productcategory": "product-category",
+    "finance.expensecategory": "expense-category",
+}
+
 
 def remember_id(source: str) -> str:
     return "past-" + source.replace(".", "-").lower()
@@ -34,6 +44,11 @@ class StyledFormMixin:
             else:
                 css = "input"
             widget.attrs.setdefault("class", css)
+            queryset = getattr(field, "queryset", None)
+            if css == "select" and queryset is not None:
+                kind = QUICK_ADD_MODELS.get(queryset.model._meta.label_lower)
+                if kind:
+                    widget.attrs.setdefault("data-create-kind", kind)
 
     def full_clean(self):
         # Mark invalid fields after validation. Reading self.errors in __init__ would validate

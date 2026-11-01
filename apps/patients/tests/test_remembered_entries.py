@@ -19,11 +19,17 @@ def _list(org):
 
 
 def test_city_is_offered_once_and_only_to_its_hospital(org, patient):
-    Patient.objects.filter(pk=patient.pk).update(city="Lahore")
+    Patient.objects.filter(pk=patient.pk).update(city="Chakwal")
     html = _list(org)
-    assert 'id="past-patients-patient-city"' in html and html.count('value="Lahore"') == 1
+    assert 'id="past-patients-patient-city"' in html and html.count('value="Chakwal"') == 1
     other = Organization.objects.create(name="Other")
-    assert "Lahore" not in _list(other)
+    assert "Chakwal" not in _list(other)
+    assert html.count('value="Lahore"') == 1  # from the standard list
+
+
+def test_a_typed_city_matching_the_standard_list_shows_once(org, patient):
+    Patient.objects.filter(pk=patient.pk).update(city="lahore")
+    assert _list(org).lower().count('value="lahore"') == 1
 
 
 def test_new_patient_page_carries_the_list(admin_client, patient):

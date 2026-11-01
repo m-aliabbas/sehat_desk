@@ -24,6 +24,7 @@ must work offline on the hospital LAN (no CDNs, fonts or icons from other hosts;
 - One typeface on all paper (`print/base.html`), one roll header (`print/_thermal_header.html`), one prescription header (`print/_rx_header.html`), `print-token` for the token number, `print/_emergency_mark.html` on emergency papers. The blank Rx height is calculated to stay on one page.
 - The pharmacy sale receipt (`pharmacy/pos/receipt.html`) is a five-column slip: SN, product, rate, qty, amount, then totals, amount in words (`in_words` in `ui.py`) and how it was paid. No barcode or QR.
 - Print routing: `print/_router.html` + `static/js/print_router.js` replace `window.print` (loaded by `print/base.html`, reports and the product ledger; a new page that prints outside `print/base.html` must include it). Paper comes from `@page` or `<meta name="sd-paper">`. `apps/printing`.
+- Prescription letterhead images: `_rx_header.html` and `_rx_footer_image.html`, class `rx-image`; `_layout_css.html` then moves the page margin into the sheet so they reach the paper's edges, and keeps their colour. Written and blank prescriptions wrap in a page-tall flex section (`L.rx_body_height_mm`).
 - Printing: `print/a4.html`, `print/a5.html`, `print/thermal.html` with `_letterhead`/`_footer`;
   staging prints are stamped "not a valid document".
 
@@ -83,6 +84,7 @@ Every page has `#page-trail` (`sdTrail` in `app.js`): Back to the page you came 
   new entry screens usable the same way: focus moves to the next field, no popups or extra pages.
 - `static/js/app.js` turns every `select.select` into the one dropdown: a type-to-search box with a floating list; the
   real select stays, hidden, in the form. Nothing typed starts on the current value, so Enter keeps it and moves on.
+- A dropdown with `data-create-kind` (or `data-create-url`) shows `+ Add "typed"` to permitted staff: Enter adds it when nothing matches, or arrow down to it. The new entry reaches other dropdowns of that list on the screen. `apps/CLAUDE.md`.
 - Every `table.table` and `table.sheet` in `#main` gets the shared layer in `app.js` (`sdTables`), with no template
   change: an expand column, Ctrl+E popup (boxes move in and back; a row with a link shows that page's content;
   otherwise the row's values), arrow keys, Ctrl+Delete, and on read-only tables columns that do not fit move into the popup (entry tables scroll instead).

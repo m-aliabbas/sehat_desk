@@ -7,6 +7,7 @@ from django.utils import timezone
 from apps.billing.models import ZERO, to_money
 from apps.core.db import locked
 from apps.core.models import next_number
+from apps.masterdata import defaults as master_defaults
 
 from . import segments
 from .models import Expense, ExpenseCategory
@@ -20,8 +21,8 @@ def ensure_categories(organization) -> None:
     if ExpenseCategory.objects.filter(organization=organization).exists():
         return
     ExpenseCategory.objects.bulk_create(
-        ExpenseCategory(organization=organization, name=name, segment=seg)
-        for name, seg in ExpenseCategory.DEFAULTS
+        ExpenseCategory(organization=organization, **row)
+        for row in master_defaults.rows("expense_categories")
     )
 
 

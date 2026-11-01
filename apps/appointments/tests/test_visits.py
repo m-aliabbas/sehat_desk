@@ -316,7 +316,9 @@ def test_discount_reasons_come_back_once_each_for_this_hospital(
         request=req, patient=patient, doctor=doctor, on_date=timezone.localdate(), collect=True,
         method=cash, discount=Decimal("1"), discount_reason="Staff family",
     )  # fmt: skip
-    assert discount_reasons(org) == ["Staff family"]
+    reasons = discount_reasons(org)
+    assert reasons[0] == "Staff family" and reasons.count("Staff family") == 1
+    assert "Senior citizen" in reasons  # the standard list follows what was typed
 
 
 def test_emergency_through_the_desk_form_prints_with_the_fee_unpaid(

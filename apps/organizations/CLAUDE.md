@@ -15,6 +15,7 @@ screen `field-rules`. Add a key to `FIELDS` and enforce it in the service or for
 ## Print layouts
 `PrintLayout` (one per organization + document), `print_layout_for`, screen `print-layouts`. Templates
 use `{% print_layout "invoice" as L %}{% include "print/_layout_css.html" %}`.
+The prescription layout also takes top and bottom letterhead images (`header_image`, `footer_image`), printed to the paper's edges. The top image replaces the hospital block unless `image_keep_clinic_text`; the doctor's block always prints. They are stored under `organization-logos/` because `config/urls.py` serves only that media folder without a permission check.
 
 ## Rules
 - Every business record belongs to exactly one organization.

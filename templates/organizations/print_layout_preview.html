@@ -2,17 +2,21 @@
 {% block toolbar %}{% endblock %}
 {% block document %}
   {% include "print/_layout_css.html" %}
-  {% include "print/_letterhead.html" with org=request.organization branch=request.branch doc_title=L.get_document_display doc_number="SAMPLE-001" %}
   {% if document == "prescription" %}
-    <p class="mt-3 text-body font-bold">Dr. Sample Name{% if L.show_qualifications %} <span class="text-label font-normal">MBBS, FCPS</span>{% endif %}{% if L.show_registration %} <span class="text-label font-normal">· PMDC 12345</span>{% endif %}</p>
+    <section class="flex flex-col" style="min-height:{{ L.rx_body_height_mm }}mm">
+    {% include "print/_rx_header.html" with doctor=sample_doctor branch=request.branch %}
     <p class="mt-2 text-label">Sample patient · 34 y · Female</p>
     {% if L.show_vitals %}<p class="text-label">Vitals: BP 120/80 · Pulse 78</p>{% endif %}
     {% if L.show_allergies %}<p class="text-label">Allergies: Not recorded</p>{% endif %}
     {% for line in L.lines %}<p class="mt-3 border-b border-line pb-5 text-label font-semibold">{{ line }}:</p>{% endfor %}
-    <p class="mt-4 text-[26px] font-bold italic">℞</p>
+    <p class="mt-4 flex-1 text-[26px] font-bold italic">℞</p>
+    {% if L.show_footer and L.footer_text %}<p class="mt-2 text-center text-label whitespace-pre-line">{{ L.footer_text }}</p>{% endif %}
+    {% include "print/_rx_footer_image.html" %}
+    </section>
   {% else %}
+    {% include "print/_letterhead.html" with org=request.organization branch=request.branch doc_title=L.get_document_display doc_number="SAMPLE-001" %}
     <table class="mt-5 w-full text-body"><tbody><tr class="border-b border-line"><td class="py-2">Sample line</td><td class="text-right">1,000.00</td></tr></tbody></table>
     <p class="mt-2 text-right font-bold">Total 1,000.00</p>
+    {% include "print/_footer.html" with org=request.organization %}
   {% endif %}
-  {% include "print/_footer.html" with org=request.organization %}
 {% endblock %}

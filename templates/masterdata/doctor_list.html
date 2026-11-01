@@ -3,7 +3,7 @@
 {% block title %}Doctors{% endblock %}
 {% block page_title %}Doctors{% endblock %}
 {% block page_subtitle %}Clinical profiles, fees, weekly schedules and leave.{% endblock %}
-{% block page_actions %}<a href="{% url 'masterdata:doctor-create' %}" class="btn btn-primary">{% icon "plus" "h-4 w-4" %} Add doctor</a>{% endblock %}
+{% block page_actions %}{% if "admin.users.view" in sd_perms %}<a href="{% url 'accounts:staff-list' %}" class="btn btn-secondary">Staff</a>{% endif %}<a href="{% url 'masterdata:doctor-create' %}" class="btn btn-primary">{% icon "plus" "h-4 w-4" %} Add doctor</a>{% endblock %}
 {% block content %}
 {% include "partials/settings_tabs.html" %}
 <section class="card">

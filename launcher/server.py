@@ -42,6 +42,10 @@ def migrate_safely() -> None:
         )
     plan = executor.migration_plan(executor.loader.graph.leaf_nodes())
     if not plan:
+        # No migration, so no post_migrate: a new defaults.json version still needs loading.
+        from apps.masterdata.defaults import load_for_all
+
+        load_for_all()
         return
     if executor.loader.applied_migrations:
         common.write_status("Saving a safety backup before updating")

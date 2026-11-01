@@ -1,10 +1,11 @@
 from django.urls import path
 
-from . import views
+from . import quick_add, views
 
 app_name = "masterdata"
 
 urlpatterns = [
+    path("quick-add/<slug:kind>/", quick_add.quick_add, name="quick-add"),
     path("departments/", views.department_list, name="department-list"),
     path("departments/new/", views.department_form, name="department-create"),
     path("departments/<int:pk>/", views.department_form, name="department-edit"),

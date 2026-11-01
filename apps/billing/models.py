@@ -77,16 +77,7 @@ class BillingSettings(OrgScopedModel):
 
 
 class PaymentMethod(OrgScopedModel):
-    """Configurable ways to pay (PRD §11.3). Defaults are created for each organization."""
-
-    DEFAULTS = [
-        ("cash", "Cash", False),
-        ("card", "Card", True),
-        ("bank_transfer", "Bank transfer", True),
-        ("easypaisa", "Easypaisa", True),
-        ("jazzcash", "JazzCash", True),
-        ("other", "Other", True),
-    ]
+    """Configurable ways to pay (PRD §11.3). Defaults: masterdata/defaults.json."""
 
     code = models.SlugField(max_length=30)
     name = models.CharField(max_length=60)

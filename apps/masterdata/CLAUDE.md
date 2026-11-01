@@ -8,10 +8,13 @@ Settings → Departments, Doctors (schedules, leave), Services. PROJECT_NOTES §
   `ServiceCategory`, `Service` (`is_procedure`, `price_editable`, `price_for(branch)`),
   `ServiceBranchPrice`.
 - `views.py`, `forms.py` — the settings screens.
+- `defaults.json`, `defaults.py`, `signals.py` — standard lists, loaded for a new hospital and once per `version` after migrate (`apps/CLAUDE.md`).
+- `quick_add.py` — type-to-add endpoint (`masterdata:quick-add`); each list checks its own permission.
 
 ## Rules
 - Org-wide catalogues; schedules and service prices may differ per branch.
 - A doctor is a staff `User` with a `DoctorProfile`; access still comes from roles.
+- The doctor form also edits the account's name and phone, for people holding `admin.users.manage`, and audits them as `staff.update`. The staff and doctor pages link to each other.
 - Services marked `is_procedure` are the procedures catalogue (apps/procedures).
 
 ## Permissions

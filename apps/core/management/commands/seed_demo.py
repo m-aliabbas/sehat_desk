@@ -108,6 +108,10 @@ class Command(BaseCommand):
         self._perms = {}
         with _clock_patched(self.clock), transaction.atomic():
             self._build()
+            # The demo keeps its own short lists; a later migrate must not add the standard ones.
+            from apps.masterdata.defaults import mark_loaded
+
+            mark_loaded(self.org)
         self._write_logins()
         self._report()
 
@@ -195,6 +199,7 @@ class Command(BaseCommand):
         main = next(b for b in data.BRANCHES if b[0] == "main")
         staff = data.STAFF[0]
         self.org, main_branch, self.admin = create_organization_with_admin(
+            load_lists=False,
             org_name=data.HOSPITAL["name"],
             branch_name=main[1],
             branch_code=main[2],

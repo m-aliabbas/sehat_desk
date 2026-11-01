@@ -9,7 +9,7 @@
   <script src="{% static 'js/app.js' %}" defer></script>
   <script src="{% static 'vendor/alpine.min.js' %}" defer></script>
 </head>
-<body hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}' {% block body_attrs %}{% endblock %}>
+<body hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'{% if quick_add_kinds %} data-quick-add="{{ quick_add_kinds }}" data-quick-add-url="{% url 'masterdata:quick-add' 'KIND' %}"{% endif %} {% block body_attrs %}{% endblock %}>
   {% include "partials/env_banner.html" %}
   {% block body %}{% endblock %}
   {% include "partials/toasts.html" %}

@@ -3,6 +3,7 @@
 {% block title %}Hospital settings{% endblock %}
 {% block page_title %}Hospital &amp; branch settings{% endblock %}
 {% block page_subtitle %}Branding, contact details, defaults and localization.{% endblock %}
+{% block page_actions %}<a href="{% url 'organizations:print-layouts' %}" class="btn btn-secondary">Print layouts</a>{% endblock %}
 {% block content %}
 {% include "partials/settings_tabs.html" %}
 <form method="post" enctype="multipart/form-data" class="grid gap-6 xl:grid-cols-3" novalidate>

@@ -20,6 +20,7 @@ from django.utils import timezone
 from apps.core.dates import on_day
 from apps.core.db import locked
 from apps.core.models import next_number
+from apps.masterdata import defaults as master_defaults
 
 from .models import (
     CENT,
@@ -53,10 +54,8 @@ def ensure_payment_methods(organization) -> None:
     if PaymentMethod.objects.filter(organization=organization).exists():
         return
     PaymentMethod.objects.bulk_create(
-        PaymentMethod(
-            organization=organization, code=code, name=name, requires_reference=ref, sort_order=i
-        )
-        for i, (code, name, ref) in enumerate(PaymentMethod.DEFAULTS)
+        PaymentMethod(organization=organization, sort_order=i, **row)
+        for i, row in enumerate(master_defaults.rows("payment_methods"))
     )
 
 
@@ -263,6 +262,8 @@ def discount_reasons(organization, limit=60) -> list[str]:
         )
         for reason in rows:
             seen.setdefault(reason.strip().lower(), reason.strip())
+    for reason in master_defaults.rows("discount_reasons"):
+        seen.setdefault(reason.lower(), reason)
     return list(seen.values())[:limit]
 
 

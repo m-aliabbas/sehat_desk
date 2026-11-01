@@ -145,11 +145,19 @@ def doctor_form(request, pk=None):
     )
     creating = pk is None
     form = DoctorProfileForm(
-        request.POST or None, instance=doctor, organization=request.organization
+        request.POST or None,
+        instance=doctor,
+        organization=request.organization,
+        can_edit_account="admin.users.manage" in request.sd_perms,
+        initial={"user": request.GET.get("user")} if creating else None,
     )
     if request.method == "POST" and form.is_valid():
-        doctor = form.save()
-        audit.record(request, "doctor.create" if creating else "doctor.update", doctor)
+        with transaction.atomic():
+            doctor = form.save()
+            account_changes = form.save_account() if not creating else {}
+            audit.record(request, "doctor.create" if creating else "doctor.update", doctor)
+            if account_changes:
+                audit.record(request, "staff.update", doctor.user, changes=account_changes)
         messages.success(request, f"{doctor} saved.")
         return redirect("masterdata:doctor-detail", pk=doctor.pk)
     return render(

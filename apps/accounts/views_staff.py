@@ -6,9 +6,11 @@ from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.views.decorators.http import require_GET, require_POST
 
 from apps.audit import services as audit
+from apps.masterdata.models import DoctorProfile
 from apps.organizations.models import Branch
 
 from . import services
@@ -103,6 +105,10 @@ def staff_detail(request, pk):
         "can_manage": can_manage,
         "breadcrumbs": _crumbs({"label": str(staff)}),
         "is_self": staff == request.user,
+        "doctor_profile": DoctorProfile.objects.filter(user=staff)
+        .select_related("department", "specialty")
+        .first(),
+        "is_doctor_role": staff.assignments.filter(role__system_key="doctor").exists(),
     }
     if can_manage:
         ctx["assignment_form"] = AssignmentForm(
@@ -144,6 +150,11 @@ def staff_create(request):
         messages.success(
             request, f"{user} can now sign in and will be asked to set a new password."
         )
+        # A new doctor's next job is fees and department, so go straight there.
+        if form.cleaned_data["role"].system_key == "doctor" and has_perm(
+            request, "admin.masterdata.manage"
+        ):
+            return redirect(f"{reverse('masterdata:doctor-create')}?user={user.pk}")
         return redirect("accounts:staff-detail", pk=user.pk)
     return render(
         request,

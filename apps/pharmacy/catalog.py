@@ -7,6 +7,7 @@ from django.db import transaction
 from django.db.models import Count
 
 from apps.core.models import next_number
+from apps.masterdata import defaults as master_defaults
 from apps.prescriptions.models import Medicine
 
 from . import pricing, scan
@@ -14,35 +15,6 @@ from .barcodes import new_barcode
 from .forms import ProductForm
 from .models import Product, ProductCategory, UnitOfMeasure
 from .packing import PRESETS, packing_text, parse_packing
-
-# Common pharmacy groups: (name, prescription needed, note shown to whoever sets the tax).
-# Rates are left at 0 on purpose. Printed retail prices often already include tax, and adding it
-# again would overcharge patients. The hospital's accountant sets what applies to them.
-_REGISTERED = "Registered drugs: reduced rate at manufacture or import."
-STANDARD_CATEGORIES = [
-    ("Prescription medicines", True, _REGISTERED),
-    (
-        "Over-the-counter medicines",
-        False,
-        _REGISTERED,
-    ),
-    ("Controlled and narcotic medicines", True, "Keep a register as your licence requires."),
-    ("Antibiotics", True, _REGISTERED),
-    ("Injections and IV fluids", True, _REGISTERED),
-    ("Vaccines and cold chain", True, "Store cold. Check the rate with your accountant."),
-    ("Syrups and suspensions", False, _REGISTERED),
-    (
-        "Creams, drops and inhalers",
-        False,
-        _REGISTERED,
-    ),
-    ("Herbal and homeopathic", False, "Reported at the standard rate since 2024."),
-    ("Vitamins and nutraceuticals", False, "Check the rate with your accountant."),
-    ("Surgical and disposables", False, "Check the rate with your accountant."),
-    ("Medical devices", False, "Check the rate with your accountant."),
-    ("Baby care", False, "Check the rate with your accountant."),
-    ("Cosmetics and personal care", False, "Usually taxed on the printed retail price."),
-]
 
 
 def packing_suggestions(organization) -> list[str]:
@@ -76,11 +48,16 @@ def packing_presets(organization) -> list[dict]:
 def ensure_standard_categories(organization) -> int:
     """Adds the groups a hospital does not have yet. Existing categories are left alone."""
     created = 0
-    for name, rx, note in STANDARD_CATEGORIES:
+    # Rates stay 0: printed retail prices often already include tax, and adding it again
+    # would overcharge patients. The hospital's accountant sets what applies to them.
+    for row in master_defaults.rows("product_categories"):
         _, was_new = ProductCategory.objects.get_or_create(
             organization=organization,
-            name=name,
-            defaults={"requires_prescription": rx, "tax_note": note},
+            name=row["name"],
+            defaults={
+                "requires_prescription": row["requires_prescription"],
+                "tax_note": row["tax_note"],
+            },
         )
         created += was_new
     return created

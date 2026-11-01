@@ -140,6 +140,7 @@ def past_values(context, source):
     from django.apps import apps
 
     from apps.core.forms import remember_id
+    from apps.masterdata.defaults import suggestions
 
     label, name = source.rsplit(".", 1)
     rows = (
@@ -151,6 +152,8 @@ def past_values(context, source):
         .distinct()[:200]
     )
     seen = {str(r).strip().lower(): str(r).strip() for r in rows}
+    for value in suggestions(source):
+        seen.setdefault(value.lower(), value)
     return format_html(
         '<datalist id="{}">{}</datalist>',
         remember_id(source),

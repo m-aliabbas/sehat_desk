@@ -38,7 +38,7 @@
         <tr :class="i === 0 && 'entry-row'">
           <td class="sheet-freeze"><input name="brand_name" data-scan="detect" data-scan-url="{% url 'pharmacy:scan-read' %}" class="input" autocomplete="off" placeholder="Panadol 500 mg" x-model="r.brand_name" aria-label="Name and strength"><p class="field-error px-2 pb-1" x-show="r.error" x-text="r.error"></p></td>
           <td><input name="generic_name" class="input" autocomplete="off" x-model="r.generic_name" aria-label="Generic"></td>
-          <td><select name="category" class="select" x-model="r.category" @change="pickCategory(r)" aria-label="Category"><option value="">—</option>{% for c in categories %}<option value="{{ c.pk }}">{{ c.name }}</option>{% endfor %}</select></td>
+          <td><select name="category" class="select" data-create-kind="product-category" x-model="r.category" @change="pickCategory(r)" aria-label="Category"><option value="">—</option>{% for c in categories %}<option value="{{ c.pk }}">{{ c.name }}</option>{% endfor %}</select></td>
           <td class="cell-detail"><input name="unit" data-list="unit-names" role="combobox" class="input" autocomplete="off" x-model="r.unit" aria-label="Smallest unit sold"></td>
           <td><input name="pack_unit" data-list="pack-names" role="combobox" class="input" autocomplete="off" x-model="r.pack_unit" aria-label="What a pack is called"></td>
           <td><input name="pack_size" type="number" min="1" class="input" autocomplete="off" x-model="r.pack_size" @focus="$el.select()" aria-label="How many smallest units in a pack"></td>

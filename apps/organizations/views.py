@@ -131,7 +131,7 @@ def print_layouts(request):
     """Settings → Print layouts: paper, spacing, text size, logo, header and footer per document."""
     document = _document(request)
     layout = print_layout_for(request.organization, document)
-    form = PrintLayoutForm(request.POST or None, instance=layout)
+    form = PrintLayoutForm(request.POST or None, request.FILES or None, instance=layout)
     if request.method == "POST" and form.is_valid():
         before = audit.snapshot(layout, form.changed_data)
         form.save()
@@ -157,6 +157,18 @@ def print_layouts(request):
     )
 
 
+class _SampleDoctor:
+    """Stands in for a doctor on the prescription preview."""
+
+    qualifications = "MBBS, FCPS"
+    specialty = "Physician"
+    department = "General Medicine"
+    registration_number = "12345"
+
+    def __str__(self):
+        return "Dr. Sample Name"
+
+
 @same_origin_frame
 @permission_required("admin.organization.manage")
 def print_layout_preview(request):
@@ -165,7 +177,11 @@ def print_layout_preview(request):
     return render(
         request,
         "organizations/print_layout_preview.html",
-        {"document": document, "L": print_layout_for(request.organization, document)},
+        {
+            "document": document,
+            "L": print_layout_for(request.organization, document),
+            "sample_doctor": _SampleDoctor(),
+        },
     )
 
 

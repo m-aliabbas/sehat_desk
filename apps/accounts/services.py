@@ -48,8 +48,11 @@ def seed_default_roles(organization: Organization) -> dict[str, Role]:
 
 
 @transaction.atomic
-def create_organization_with_admin(*, org_name, branch_name, branch_code, city, admin_data):
-    """First-run setup: organization, main branch, default roles, and a Super admin account."""
+def create_organization_with_admin(
+    *, org_name, branch_name, branch_code, city, admin_data, load_lists=True
+):
+    """First-run setup: organization, main branch, default roles, a Super admin account and the
+    standard lists (masterdata/defaults.json)."""
     sync_permissions()
     org = Organization.objects.create(name=org_name)
     branch = Branch.objects.create(
@@ -61,6 +64,10 @@ def create_organization_with_admin(*, org_name, branch_name, branch_code, city, 
     user.set_password(password)
     user.save()
     RoleAssignment.objects.create(user=user, role=roles[SUPER_ADMIN_KEY], branch=None)
+    if load_lists:
+        from apps.masterdata.defaults import load_defaults
+
+        load_defaults(org)
     return org, branch, user
 
 

@@ -1,0 +1,373 @@
+{
+  "version": 1,
+  "departments": [
+    {
+      "name": "General Medicine",
+      "code": "GM",
+      "token_prefix": "M"
+    },
+    {
+      "name": "Paediatrics",
+      "code": "PAED",
+      "token_prefix": "P"
+    },
+    {
+      "name": "Gynaecology & Obstetrics",
+      "code": "GYN",
+      "token_prefix": "G"
+    },
+    {
+      "name": "Cardiology",
+      "code": "CARD",
+      "token_prefix": "C"
+    },
+    {
+      "name": "Orthopaedics",
+      "code": "ORTH",
+      "token_prefix": "O"
+    },
+    {
+      "name": "General Surgery",
+      "code": "SURG",
+      "token_prefix": "S"
+    },
+    {
+      "name": "ENT",
+      "code": "ENT",
+      "token_prefix": "E"
+    },
+    {
+      "name": "Ophthalmology",
+      "code": "EYE",
+      "token_prefix": "Y"
+    },
+    {
+      "name": "Dermatology",
+      "code": "DERM",
+      "token_prefix": "D"
+    },
+    {
+      "name": "Dental",
+      "code": "DENT",
+      "token_prefix": "T"
+    },
+    {
+      "name": "Neurology",
+      "code": "NEUR",
+      "token_prefix": "N"
+    },
+    {
+      "name": "Psychiatry",
+      "code": "PSY",
+      "token_prefix": "PS"
+    },
+    {
+      "name": "Urology",
+      "code": "URO",
+      "token_prefix": "U"
+    },
+    {
+      "name": "Physiotherapy",
+      "code": "PHYS",
+      "token_prefix": "PH"
+    },
+    {
+      "name": "Radiology",
+      "code": "RAD",
+      "token_prefix": "R"
+    },
+    {
+      "name": "Emergency",
+      "code": "ER",
+      "token_prefix": "ER"
+    }
+  ],
+  "specialties": [
+    "Physician",
+    "Consultant Physician",
+    "Family Physician",
+    "Paediatrician",
+    "Gynaecologist",
+    "Cardiologist",
+    "Orthopaedic Surgeon",
+    "General Surgeon",
+    "ENT Specialist",
+    "Eye Specialist",
+    "Dermatologist",
+    "Dentist",
+    "Neurologist",
+    "Psychiatrist",
+    "Urologist",
+    "Physiotherapist",
+    "Radiologist",
+    "Diabetologist",
+    "Pulmonologist",
+    "Nephrologist",
+    "Gastroenterologist"
+  ],
+  "service_categories": [
+    "Consultation",
+    "Procedures",
+    "Injection & dressing",
+    "Radiology & imaging",
+    "Operation theatre",
+    "Dental",
+    "Room & bed",
+    "Nursing care",
+    "Physiotherapy",
+    "Other services"
+  ],
+  "lab_test_categories": [
+    "Haematology",
+    "Biochemistry",
+    "Serology",
+    "Microbiology",
+    "Urine & stool",
+    "Hormones",
+    "Histopathology",
+    "Other tests"
+  ],
+  "product_categories": [
+    {
+      "name": "Prescription medicines",
+      "requires_prescription": true,
+      "tax_note": "Registered drugs: reduced rate at manufacture or import."
+    },
+    {
+      "name": "Over-the-counter medicines",
+      "requires_prescription": false,
+      "tax_note": "Registered drugs: reduced rate at manufacture or import."
+    },
+    {
+      "name": "Controlled and narcotic medicines",
+      "requires_prescription": true,
+      "tax_note": "Keep a register as your licence requires."
+    },
+    {
+      "name": "Antibiotics",
+      "requires_prescription": true,
+      "tax_note": "Registered drugs: reduced rate at manufacture or import."
+    },
+    {
+      "name": "Injections and IV fluids",
+      "requires_prescription": true,
+      "tax_note": "Registered drugs: reduced rate at manufacture or import."
+    },
+    {
+      "name": "Vaccines and cold chain",
+      "requires_prescription": true,
+      "tax_note": "Store cold. Check the rate with your accountant."
+    },
+    {
+      "name": "Syrups and suspensions",
+      "requires_prescription": false,
+      "tax_note": "Registered drugs: reduced rate at manufacture or import."
+    },
+    {
+      "name": "Creams, drops and inhalers",
+      "requires_prescription": false,
+      "tax_note": "Registered drugs: reduced rate at manufacture or import."
+    },
+    {
+      "name": "Herbal and homeopathic",
+      "requires_prescription": false,
+      "tax_note": "Reported at the standard rate since 2024."
+    },
+    {
+      "name": "Vitamins and nutraceuticals",
+      "requires_prescription": false,
+      "tax_note": "Check the rate with your accountant."
+    },
+    {
+      "name": "Surgical and disposables",
+      "requires_prescription": false,
+      "tax_note": "Check the rate with your accountant."
+    },
+    {
+      "name": "Medical devices",
+      "requires_prescription": false,
+      "tax_note": "Check the rate with your accountant."
+    },
+    {
+      "name": "Baby care",
+      "requires_prescription": false,
+      "tax_note": "Check the rate with your accountant."
+    },
+    {
+      "name": "Cosmetics and personal care",
+      "requires_prescription": false,
+      "tax_note": "Usually taxed on the printed retail price."
+    }
+  ],
+  "expense_categories": [
+    {
+      "name": "Rent",
+      "segment": "hospital"
+    },
+    {
+      "name": "Electricity & utilities",
+      "segment": "hospital"
+    },
+    {
+      "name": "Medical supplies & consumables",
+      "segment": "hospital"
+    },
+    {
+      "name": "Lab reagents & kits",
+      "segment": "lab"
+    },
+    {
+      "name": "Equipment maintenance",
+      "segment": "hospital"
+    },
+    {
+      "name": "Cleaning & housekeeping",
+      "segment": "hospital"
+    },
+    {
+      "name": "Marketing",
+      "segment": "hospital"
+    },
+    {
+      "name": "Pharmacy running costs",
+      "segment": "pharmacy"
+    },
+    {
+      "name": "Visiting doctor fee",
+      "segment": "doctors"
+    },
+    {
+      "name": "Miscellaneous",
+      "segment": "hospital"
+    }
+  ],
+  "payment_methods": [
+    {
+      "code": "cash",
+      "name": "Cash",
+      "requires_reference": false
+    },
+    {
+      "code": "card",
+      "name": "Card",
+      "requires_reference": true
+    },
+    {
+      "code": "bank_transfer",
+      "name": "Bank transfer",
+      "requires_reference": true
+    },
+    {
+      "code": "easypaisa",
+      "name": "Easypaisa",
+      "requires_reference": true
+    },
+    {
+      "code": "jazzcash",
+      "name": "JazzCash",
+      "requires_reference": true
+    },
+    {
+      "code": "other",
+      "name": "Other",
+      "requires_reference": true
+    }
+  ],
+  "discount_reasons": [
+    "Staff",
+    "Staff family",
+    "Poor patient",
+    "Senior citizen",
+    "Doctor's reference",
+    "Management approval",
+    "Follow-up visit",
+    "Round off"
+  ],
+  "suggestions": {
+    "accounts.User.designation": [
+      "Doctor",
+      "Consultant",
+      "Medical Officer",
+      "House Officer",
+      "Nurse",
+      "Head Nurse",
+      "Receptionist",
+      "Pharmacist",
+      "Lab Technician",
+      "Accountant",
+      "Administrator",
+      "Manager",
+      "Ward Boy",
+      "Security Guard",
+      "Cleaner"
+    ],
+    "masterdata.DoctorProfile.qualifications": [
+      "MBBS",
+      "MBBS, FCPS",
+      "MBBS, MCPS",
+      "MBBS, MRCP",
+      "MBBS, MD",
+      "MBBS, MS",
+      "BDS",
+      "BDS, FCPS",
+      "DPT"
+    ],
+    "patients.Patient.city": [
+      "Karachi",
+      "Lahore",
+      "Islamabad",
+      "Rawalpindi",
+      "Faisalabad",
+      "Multan",
+      "Peshawar",
+      "Quetta",
+      "Hyderabad",
+      "Sialkot",
+      "Gujranwala",
+      "Bahawalpur",
+      "Sargodha",
+      "Sukkur"
+    ],
+    "organizations.Branch.city": [
+      "Karachi",
+      "Lahore",
+      "Islamabad",
+      "Rawalpindi",
+      "Faisalabad",
+      "Multan",
+      "Peshawar",
+      "Quetta"
+    ],
+    "patients.Patient.emergency_contact_relation": [
+      "Father",
+      "Mother",
+      "Husband",
+      "Wife",
+      "Son",
+      "Daughter",
+      "Brother",
+      "Sister",
+      "Relative",
+      "Friend"
+    ],
+    "ipd.Admission.attendant_relation": [
+      "Father",
+      "Mother",
+      "Husband",
+      "Wife",
+      "Son",
+      "Daughter",
+      "Brother",
+      "Sister",
+      "Relative",
+      "Friend"
+    ],
+    "ipd.Ward.floor": [
+      "Ground floor",
+      "First floor",
+      "Second floor",
+      "Third floor",
+      "Basement"
+    ]
+  }
+}

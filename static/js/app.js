@@ -208,6 +208,11 @@ document.addEventListener("submit", (event) => {
     let active = -1;
     let shown = [];
     let creating = "";
+    // A form field marked data-create-kind, for someone allowed to add to that list (base.html).
+    const kind = select.dataset.createKind;
+    const addable = (document.body.dataset.quickAdd || "").split(" ");
+    const createUrl = select.dataset.createUrl ||
+      (kind && addable.includes(kind) ? document.body.dataset.quickAddUrl.replace("KIND", kind) : "");
     const current = () => select.options[select.selectedIndex];
     const showCurrent = () => {
       const opt = current();
@@ -265,7 +270,7 @@ document.addEventListener("submit", (event) => {
       creating = "";
       const typed = query.trim();
       const exact = shown.some((o) => o.textContent.trim().toLowerCase() === typed.toLowerCase());
-      if (select.dataset.createUrl && typed.length >= 2 && !exact) {
+      if (createUrl && typed.length >= 2 && !exact) {
         creating = typed;
         const li = document.createElement("li");
         li.setAttribute("role", "option");
@@ -280,7 +285,7 @@ document.addEventListener("submit", (event) => {
       }
       // Nothing typed: start on the current value, so Enter keeps it and moves on.
       const at = words.length ? 0 : shown.indexOf(current());
-      active = shown.length ? Math.max(at, 0) : -1;
+      active = shown.length || creating ? Math.max(at, 0) : -1;
       list.hidden = false;
       input.setAttribute("aria-expanded", "true");
       place();
@@ -301,16 +306,25 @@ document.addEventListener("submit", (event) => {
     };
     const create = async () => {
       const token = document.querySelector("[name=csrfmiddlewaretoken]");
-      const response = await fetch(select.dataset.createUrl, {
+      const response = await fetch(createUrl, {
         method: "POST",
         body: new URLSearchParams({ name: creating, csrfmiddlewaretoken: token ? token.value : "" }),
       });
-      const data = await response.json();
+      const data = await response.json().catch(() => ({ error: "Could not add this." }));
       if (!response.ok) {
         window.dispatchEvent(new CustomEvent("toast", { detail: { level: "danger", message: data.error } }));
         return;
       }
-      select.add(new Option(data.name, data.id, true, true));
+      // Other boxes of the same list on this screen (rows of a grid) can pick it too.
+      if (kind) {
+        document.querySelectorAll(`select[data-create-kind="${kind}"]`).forEach((other) => {
+          if (other !== select && ![...other.options].some((o) => o.value === String(data.id))) {
+            other.add(new Option(data.name, data.id));
+          }
+        });
+      }
+      if ([...select.options].some((o) => o.value === String(data.id))) select.value = data.id;
+      else select.add(new Option(data.name, data.id, true, true));
       close();
       select.dispatchEvent(new Event("change", { bubbles: true }));
       moveOn();
@@ -338,12 +352,12 @@ document.addEventListener("submit", (event) => {
           render("");
           return;
         }
-        const last = Math.min(shown.length, 100) - 1;
+        const last = Math.min(shown.length, 100) - (creating ? 0 : 1); // "+ Add" is the last row
         active = e.key === "ArrowDown" ? Math.min(active + 1, last) : Math.max(active - 1, 0);
         mark();
       } else if (e.key === "Enter" && !list.hidden) {
         e.preventDefault();
-        if (active < 0 && creating) create();
+        if (creating && active === Math.min(shown.length, 100)) create();
         else choose(active);
       } else if (e.key === "Escape" && !list.hidden) {
         e.stopPropagation();

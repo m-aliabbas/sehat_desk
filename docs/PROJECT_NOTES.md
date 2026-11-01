@@ -111,6 +111,9 @@ Goal: a customer installs one package, gets a desktop shortcut, double-clicks it
 
 ## 6. Decision log
 
+- 2026-11-01 Standard lists live in `apps/masterdata/defaults.json` and load by themselves: at hospital creation, and once per file `version` after migrate, adding only what is missing. An entry a hospital removed returns only if `version` is raised. The demo hospital keeps its own short lists.
+- 2026-11-01 Dropdowns of saved lists take a typed new entry on the spot, for staff holding that list's permission. A department gets a code made from its name.
+- 2026-11-01 Prescription letterhead images print to the paper's edges, so the page has no margin when one is set. A long prescription's later pages then also print with no top or bottom margin. The bottom image follows the writing rather than repeating, so it can never cover a medicine line.
 - 2026-11-01 The server prints 80 mm slips itself, with nothing installed on PCs. Prescriptions keep the print window. §4b.
 - 2026-11-01 Passwords: 5 characters minimum, weak allowed. Cash may differ from a bill by up to Rs 50 (setting), kept
   as `Invoice.cash_adjustment`, part of the total. Reception role gains discount and refund.

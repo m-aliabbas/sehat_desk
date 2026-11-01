@@ -12,4 +12,12 @@
   {% elif L.paper or L.margin_mm != 10 %}@page { {% if L.paper %}size: {{ L.paper }};{% endif %} margin: {{ L.margin_mm }}mm; }{% endif %}
   .sheet { zoom: {{ L.text_size }}%; padding-top: {{ L.top_space_mm }}mm; padding-bottom: {{ L.bottom_space_mm }}mm; }
   @media print { .sheet { padding-top: {{ L.top_space_mm }}mm !important; padding-bottom: {{ L.bottom_space_mm }}mm !important; } }
+  {% if L.uses_rx_images %}/* Letterhead images reach the paper's edges, so the page margin moves into the sheet. */
+  @page { margin: 0; }
+  .sheet { padding: {{ L.rx_side_mm }}mm {{ L.margin_mm }}mm {{ L.rx_foot_mm }}mm; }
+  @media print { .sheet { padding: {{ L.rx_side_mm }}mm {{ L.margin_mm }}mm {{ L.rx_foot_mm }}mm !important; } }
+  .rx-image { display: block; width: calc(100% + 2 * {{ L.margin_mm }}mm); max-width: none; margin-left: -{{ L.margin_mm }}mm; }
+  {% if L.header_image %}.rx-image:first-child { margin-top: -{{ L.top_space_mm }}mm; }{% endif %}
+  @media print { .sheet img.rx-image { filter: none !important; } }
+  {% endif %}
 </style>

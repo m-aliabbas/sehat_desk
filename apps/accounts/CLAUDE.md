@@ -20,6 +20,9 @@ workspace (branch) picker. PRD §17. PROJECT_NOTES §9.
 - Super admin role is locked and always holds every code; there must always be one active super admin.
 - Nobody can grant a role holding codes they do not hold themselves.
 
+## Doctors
+Creating staff with the Doctor role goes straight to Add doctor with that person chosen, for someone holding `admin.masterdata.manage`. Staff detail shows the doctor profile, or a button to add one.
+
 ## Adding a permission
 Use the `sehatdesk-permission` skill (catalogue entry, default roles, nav, tests).
 

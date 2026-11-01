@@ -2,13 +2,14 @@
 {% block title %}Print layouts · Settings{% endblock %}
 {% block page_title %}Print layouts{% endblock %}
 {% block page_subtitle %}Paper, spacing, text size, logo, header and footer for each document. The logo and hospital name come from Settings → Hospital.{% endblock %}
+{% block page_actions %}<a href="{% url 'organizations:hospital' %}" class="btn btn-secondary">Hospital name &amp; logo</a>{% endblock %}
 {% block content %}
 {% include "partials/settings_tabs.html" %}
 <nav class="tabs mb-6" aria-label="Document">
   {% for value, label in documents %}<a class="tab" href="?doc={{ value }}" {% if value == document %}aria-selected="true"{% endif %}>{{ label }}</a>{% endfor %}
 </nav>
 <div class="grid gap-6 xl:grid-cols-2">
-  <form method="post" class="space-y-6" novalidate>
+  <form method="post" enctype="multipart/form-data" class="space-y-6" novalidate>
     {% csrf_token %}
     {% for e in form.non_field_errors %}{% include "components/alert.html" with level="danger" message=e %}{% endfor %}
     <section class="card">
@@ -34,6 +35,15 @@
       </div>
     </section>
     {% if document == "prescription" %}
+    <section class="card">
+      <h2 class="section-title mb-1">Clinic letterhead</h2>
+      <p class="mb-4 text-label text-muted">Add your own letterhead as an image. The doctor's name still prints below it{% if "admin.masterdata.manage" in sd_perms %}; edit it under <a class="font-medium text-teal-deep underline" href="{% url 'masterdata:doctor-list' %}" data-panel="off">Doctors</a>{% endif %}.</p>
+      <div class="grid gap-5 md:grid-cols-2">
+        {% include "components/field.html" with field=form.header_image %}
+        {% include "components/field.html" with field=form.footer_image %}
+        {% include "components/field.html" with field=form.image_keep_clinic_text wide=True %}
+      </div>
+    </section>
     <section class="card">
       <h2 class="section-title mb-4">Prescription</h2>
       <div class="grid gap-5 md:grid-cols-2">

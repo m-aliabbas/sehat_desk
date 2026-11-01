@@ -16,19 +16,6 @@ from . import segments
 
 
 class ExpenseCategory(OrgScopedModel):
-    DEFAULTS = [
-        ("Rent", segments.HOSPITAL),
-        ("Electricity & utilities", segments.HOSPITAL),
-        ("Medical supplies & consumables", segments.HOSPITAL),
-        ("Lab reagents & kits", segments.LAB),
-        ("Equipment maintenance", segments.HOSPITAL),
-        ("Cleaning & housekeeping", segments.HOSPITAL),
-        ("Marketing", segments.HOSPITAL),
-        ("Pharmacy running costs", segments.PHARMACY),
-        ("Visiting doctor fee", segments.DOCTORS),
-        ("Miscellaneous", segments.HOSPITAL),
-    ]
-
     name = models.CharField(max_length=80)
     segment = models.CharField(
         max_length=12,
