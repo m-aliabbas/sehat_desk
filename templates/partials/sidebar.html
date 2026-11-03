@@ -26,6 +26,7 @@
          {% if item.active %}aria-current="page"{% endif %}>
         <span class="tint tint-{{ item.color }}">{% icon item.icon "h-4 w-4" %}</span>
         <span class="sidebar-text flex-1 truncate">{{ item.label }}</span>
+        {% if item.badge %}<span class="sidebar-text shrink-0 rounded-full bg-amber-soft px-1.5 py-0.5 text-label font-bold text-ink" title="{{ item.badge }} waiting">{{ item.badge }}</span>{% endif %}
         {% if item.coming_soon %}<span class="sidebar-text shrink-0 rounded-full bg-page px-1.5 py-0.5 text-label font-medium text-muted {% if item.active %}bg-white/15 text-white{% endif %}">Soon</span>{% endif %}
       </a>
     {% endif %}{% endfor %}

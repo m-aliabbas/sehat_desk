@@ -48,6 +48,46 @@ class ArchivableModel(TimeStampedModel):
         self.save(update_fields=["archived_at", "updated_at"])
 
 
+class LiveManager(models.Manager):
+    """Hides records that are in the Recycle bin."""
+
+    def get_queryset(self):
+        return super().get_queryset().filter(deleted_at__isnull=True)
+
+
+class RecycleBinMixin(models.Model):
+    """Delete to the Recycle bin (apps/recyclebin). Mix in first:
+    `class Product(RecycleBinMixin, OrgScopedModel)`.
+
+    `objects` leaves deleted rows out everywhere (lists, dropdowns, searches); `all_objects` sees
+    them. Related lookups (`sale_item.product`) use the base manager, so history still shows them.
+    """
+
+    deleted_at = models.DateTimeField(null=True, blank=True, db_index=True, editable=False)
+    deleted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        editable=False,
+        related_name="+",
+    )
+    deleted_reason = models.CharField(max_length=200, blank=True, editable=False)
+
+    objects = LiveManager()
+    all_objects = models.Manager()  # noqa: DJ012 (a manager, not a field)
+
+    class Meta:
+        abstract = True
+
+    @property
+    def is_deleted(self) -> bool:
+        return self.deleted_at is not None
+
+
+LIVE = models.Q(deleted_at__isnull=True)
+
+
 class Sequence(models.Model):
     """Gap-tolerant counters per organization, e.g. MRNs ("patient") and appointment numbers.
 

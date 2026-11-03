@@ -181,7 +181,7 @@ def test_product_and_receive_views(client, pharmacist, org):
         {"action": "damaged", "quantity": "2", "reason": "Broken strip"},
     )
     batch.refresh_from_db()
-    assert batch.quantity_available == 30
+    assert batch.quantity_available == 32  # waits on Approvals (apps/approvals)
     for url in ("pharmacy:dashboard", "pharmacy:product-list", "pharmacy:ledger"):
         assert client.get(reverse(url)).status_code == 200
     assert (

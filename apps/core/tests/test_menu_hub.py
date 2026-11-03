@@ -15,6 +15,8 @@ SIDEBAR = [
     "Reception",
     "Procedures",
     "Laboratory",
+    "Approvals",
+    "Recycle bin",
 ]
 
 

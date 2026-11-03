@@ -17,7 +17,7 @@ from django.db import models
 from django.urls import reverse
 from django.utils import timezone
 
-from apps.core.models import TimeStampedModel
+from apps.core.models import LIVE, RecycleBinMixin, TimeStampedModel
 from apps.core.scoping import BranchScopedModel, OrgScopedModel
 from apps.masterdata.models import money
 
@@ -30,7 +30,7 @@ unit_money = {
 }
 
 
-class UnitOfMeasure(OrgScopedModel):
+class UnitOfMeasure(RecycleBinMixin, OrgScopedModel):
     """A packing phrase the hospital wants suggested (packing.py): "Strip of 14 tablets"."""
 
     name = models.CharField(max_length=80)
@@ -38,14 +38,16 @@ class UnitOfMeasure(OrgScopedModel):
     class Meta:
         ordering = ["name"]
         constraints = [
-            models.UniqueConstraint(fields=["organization", "name"], name="uniq_uom_name")
+            models.UniqueConstraint(
+                fields=["organization", "name"], condition=LIVE, name="uniq_uom_name"
+            )
         ]
 
     def __str__(self):
         return self.name
 
 
-class ProductCategory(OrgScopedModel):
+class ProductCategory(RecycleBinMixin, OrgScopedModel):
     # Filled into a new product when this category is picked; each product can still differ.
     default_tax_percent = models.DecimalField(
         "Default tax (%)",
@@ -64,14 +66,16 @@ class ProductCategory(OrgScopedModel):
         ordering = ["name"]
         verbose_name_plural = "product categories"
         constraints = [
-            models.UniqueConstraint(fields=["organization", "name"], name="uniq_product_category")
+            models.UniqueConstraint(
+                fields=["organization", "name"], condition=LIVE, name="uniq_product_category"
+            )
         ]
 
     def __str__(self):
         return self.name
 
 
-class Product(OrgScopedModel):
+class Product(RecycleBinMixin, OrgScopedModel):
     class Unit(models.TextChoices):
         TABLET = "tablet", "Tablet"
         CAPSULE = "capsule", "Capsule"
@@ -178,10 +182,12 @@ class Product(OrgScopedModel):
     class Meta:
         ordering = ["brand_name", "strength"]
         constraints = [
-            models.UniqueConstraint(fields=["organization", "sku"], name="uniq_product_sku"),
+            models.UniqueConstraint(
+                fields=["organization", "sku"], condition=LIVE, name="uniq_product_sku"
+            ),
             models.UniqueConstraint(
                 fields=["organization", "barcode"],
-                condition=~models.Q(barcode=""),
+                condition=~models.Q(barcode="") & LIVE,
                 name="uniq_product_barcode",
             ),
         ]
@@ -739,7 +745,7 @@ class PharmacySaleReturnItem(models.Model):
 # Supplier payments are not built yet; the ledger already has a kind for them.
 
 
-class Vendor(OrgScopedModel):
+class Vendor(RecycleBinMixin, OrgScopedModel):
     name = models.CharField(max_length=120)
     contact_person = models.CharField(max_length=120, blank=True)
     phone = models.CharField(max_length=30, blank=True)
@@ -755,7 +761,9 @@ class Vendor(OrgScopedModel):
     class Meta:
         ordering = ["name"]
         constraints = [
-            models.UniqueConstraint(fields=["organization", "name"], name="uniq_vendor_name")
+            models.UniqueConstraint(
+                fields=["organization", "name"], condition=LIVE, name="uniq_vendor_name"
+            )
         ]
 
     def __str__(self):

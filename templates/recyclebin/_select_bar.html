@@ -1,0 +1,8 @@
+{# "Delete selected" bar for a list. Include above the table inside x-data="sdPick" (app.js), with kind="<registry key>". Rows tick <input name="ids" form="pick-{{ kind }}" @change="count()">. #}
+{% load ui %}
+<form id="pick-{{ kind }}" method="post" action="{% url 'recyclebin:delete-selected' kind %}" class="mb-3 flex items-center gap-2" x-show="n" x-cloak>{% csrf_token %}
+  <input type="hidden" name="next" value="{{ request.get_full_path }}">
+  <span class="text-body font-medium" x-text="n + ' ticked'"></span>
+  <button class="btn btn-danger btn-sm" data-confirm="They go to the Recycle bin. An admin can restore them." data-confirm-title="Delete the ticked rows?" data-confirm-action="Delete" data-confirm-danger="true">{% icon "trash" "h-4 w-4" %} Delete selected</button>
+  <button type="button" class="btn btn-close btn-sm" @click="none()">Clear</button>
+</form>

@@ -1,6 +1,7 @@
 from django.conf import settings
 
 from apps.masterdata.quick_add import allowed_kinds
+from apps.recyclebin.services import deletable_keys
 
 from . import licensing
 from .features import enabled_features
@@ -33,6 +34,8 @@ def shell(request):
             # Module switches: {% if features.lab %}. UI only; FeatureMiddleware enforces.
             "features": enabled_features(getattr(request, "organization", None)),
             "license": licensing.status(),
+            # Kinds this person may delete to the Recycle bin: {% if "product" in deletable %}.
+            "deletable": deletable_keys(request),
         }
     )
     return ctx

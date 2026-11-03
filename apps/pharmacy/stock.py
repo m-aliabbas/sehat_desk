@@ -13,6 +13,7 @@ from django.db import IntegrityError, transaction
 from django.db.models import F, Q, Sum
 from django.utils import timezone
 
+from apps.audit import services as audit
 from apps.core.dates import in_days, start_of_day
 
 from .models import InventoryBatch, Product, ProductPriceChange, StockTransaction
@@ -227,6 +228,39 @@ def write_off(batch, *, request, quantity: int, kind: str, reason: str) -> Stock
     if quantity <= 0:
         raise StockError("Enter a quantity greater than zero.")
     return _post(batch, request=request, kind=kind, delta=-quantity, reason=reason)
+
+
+@transaction.atomic
+def correct_batch(batch, *, request, batch_number: str = "", expiry_date=None, reason: str):
+    """Fix a batch number or expiry typed wrong. Moves no stock; the change is kept in the audit
+    log. Runs only from an approved request (apps.approvals)."""
+    _need_manage(request)
+    if not reason.strip():
+        raise StockError("Give the reason for the correction.")
+    batch = InventoryBatch.objects.select_for_update(of=("self",)).get(pk=batch.pk)
+    if batch.branch_id != request.branch.pk:
+        raise StockError("That batch belongs to another branch.")
+    number = " ".join((batch_number or batch.batch_number).split()).upper()[:40]
+    expiry = expiry_date or batch.expiry_date
+    before = {"batch_number": batch.batch_number, "expiry_date": str(batch.expiry_date)}
+    same = InventoryBatch.objects.filter(
+        branch=batch.branch, product=batch.product, batch_number=number
+    ).exclude(pk=batch.pk)
+    if same.exclude(expiry_date=expiry).exists():
+        raise StockError(f"Batch {number} is already on file with another expiry date.")
+    if number != batch.batch_number:
+        batch.lot = max(same.values_list("lot", flat=True), default=0) + 1
+        batch.batch_number = number
+    batch.expiry_date = expiry
+    batch.save(update_fields=["batch_number", "lot", "expiry_date", "updated_at"])
+    audit.record(
+        request,
+        "stock.batch_correct",
+        batch,
+        changes={k: [v, str(getattr(batch, k))] for k, v in before.items()},
+        summary=reason[:100],
+    )
+    return batch
 
 
 # --- Queries -----------------------------------------------------------------------------------

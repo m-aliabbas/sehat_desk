@@ -10,18 +10,20 @@
   <div class="stat-card bg-mint"><p class="text-body text-ink">Suppliers listed</p><p class="mt-2 text-[28px] font-bold text-ink">{{ vendors|length }}</p></div>
   <div class="stat-card bg-amber-soft"><p class="text-body text-ink">Owed to suppliers</p><p class="mt-2 text-[28px] font-bold text-ink">{{ organization.currency }} {{ owed_total|floatformat:"2g" }}</p><p class="text-label text-muted">Received purchases less returns (supplier payments come later)</p></div>
 </div>
-<section class="card">
+<section class="card" x-data="sdPick">
   <form method="get" class="mb-4 flex flex-wrap gap-3">
     <label class="sr-only" for="v-q">Search</label><input id="v-q" type="search" name="q" value="{{ q }}" class="input max-w-md" placeholder="Name, contact person or phone">
     <select name="show" class="select w-auto" aria-label="Show" onchange="this.form.submit()"><option value="active" {% if show == "active" %}selected{% endif %}>Active only</option><option value="all" {% if show == "all" %}selected{% endif %}>All suppliers</option></select>
   </form>
   {% if vendors %}
+  {% if "vendor" in deletable %}{% include "recyclebin/_select_bar.html" with kind="vendor" %}{% endif %}
   <div class="table-wrap">
     <table class="table">
-      <thead><tr><th scope="col">Supplier</th><th scope="col">Contact</th><th scope="col">Terms</th><th scope="col" class="text-right">Purchases</th><th scope="col" class="text-right">Balance owed</th></tr></thead>
+      <thead><tr>{% if "vendor" in deletable %}<th scope="col" class="w-8"><input type="checkbox" class="checkbox" aria-label="Tick all" @change="all($event)"></th>{% endif %}<th scope="col">Supplier</th><th scope="col">Contact</th><th scope="col">Terms</th><th scope="col" class="text-right">Purchases</th><th scope="col" class="text-right">Balance owed</th></tr></thead>
       <tbody>
         {% for v in vendors %}
         <tr data-edit="{% url 'pharmacy:vendor-edit' v.pk %}" data-remove="{% url 'pharmacy:vendor-toggle' v.pk %}" data-remove-label="{% if v.is_active %}Deactivate{% else %}Activate{% endif %}">
+          {% if "vendor" in deletable %}<td><input type="checkbox" class="checkbox" name="ids" value="{{ v.pk }}" form="pick-vendor" aria-label="Tick {{ v.name }}" @change="count()"></td>{% endif %}
           <td><a href="{% url 'pharmacy:vendor-detail' v.pk %}" class="font-medium hover:underline">{{ v.name }}</a>{% if not v.is_active %} {% status_chip "inactive" "Inactive" %}{% endif %}{% if v.tax_number %}<p class="text-label text-muted">NTN {{ v.tax_number }}</p>{% endif %}</td>
           <td>{{ v.contact_person|default:"—" }}<p class="text-label text-muted">{{ v.phone }}</p></td>
           <td>{% if v.payment_terms_days %}{{ v.payment_terms_days }} days{% else %}On delivery{% endif %}</td>

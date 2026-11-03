@@ -7,16 +7,18 @@
 {% block content %}
 {% include "partials/settings_tabs.html" %}
 <div class="grid gap-6 xl:grid-cols-3">
-  <section class="card xl:col-span-2">
+  <section class="card xl:col-span-2" x-data="sdPick">
     <form class="mb-4 flex flex-wrap gap-2" method="get"><label class="sr-only" for="svc-q">Search services</label><input id="svc-q" name="q" value="{{ q }}" type="search" class="input flex-1" placeholder="Search by name or code">
       <label class="sr-only" for="svc-kind">Type</label><select id="svc-kind" name="kind" class="select w-auto" onchange="this.form.submit()"><option value="">All types</option><option value="procedure" {% if kind == "procedure" %}selected{% endif %}>Procedures only</option><option value="service" {% if kind == "service" %}selected{% endif %}>Other services</option></select></form>
     {% if services %}
+    {% if "service" in deletable %}{% include "recyclebin/_select_bar.html" with kind="service" %}{% endif %}
     <div class="table-wrap">
       <table class="table">
-        <thead><tr><th scope="col">Service</th><th scope="col">Category</th><th scope="col">Price</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+        <thead><tr>{% if "service" in deletable %}<th scope="col" class="w-8"><input type="checkbox" class="checkbox" aria-label="Tick all" @change="all($event)"></th>{% endif %}<th scope="col">Service</th><th scope="col">Category</th><th scope="col">Price</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
         <tbody>
           {% for s in services %}
             <tr data-edit="{% url 'masterdata:service-edit' s.pk %}" data-remove="{% url 'masterdata:service-toggle' s.pk %}" data-remove-label="{% if s.is_active %}Deactivate{% else %}Activate{% endif %}">
+              {% if "service" in deletable %}<td><input type="checkbox" class="checkbox" name="ids" value="{{ s.pk }}" form="pick-service" aria-label="Tick {{ s.name }}" @change="count()"></td>{% endif %}
               <td><p class="font-medium">{{ s.name }}</p><p class="font-mono text-label text-muted">{{ s.code }}{% if s.department %} · {{ s.department }}{% endif %}</p>{% if s.is_procedure %}<span class="chip chip-info">Procedure{% if s.price_editable %} · price editable{% endif %}</span>{% endif %}</td>
               <td>{{ s.category }}</td>
               <td>{{ organization.currency }} {{ s.price|floatformat:"2g" }}{% if s.branch_prices.exists %} <span class="chip chip-info">Branch prices</span>{% endif %}</td>
@@ -26,6 +28,7 @@
                 <form method="post" action="{% url 'masterdata:service-toggle' s.pk %}" class="inline">{% csrf_token %}
                   {% if s.is_active %}<button class="btn btn-ghost btn-sm text-red">Deactivate</button>{% else %}<button class="btn btn-ghost btn-sm">Activate</button>{% endif %}
                 </form>
+                {% if "service" in deletable %}<form method="post" action="{% url 'recyclebin:delete' 'service' s.pk %}" class="inline">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="btn btn-ghost btn-sm text-red" data-confirm="{{ s.name }} goes to the Recycle bin. An admin can restore it." data-confirm-title="Delete?" data-confirm-action="Delete" data-confirm-danger="true">Delete</button></form>{% endif %}
               </td>
             </tr>
           {% endfor %}

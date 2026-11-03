@@ -90,8 +90,13 @@ def accessible_branches(user):
     return org_branches.filter(id__in=assignments.values("branch_id"))
 
 
+def _extra_codes(user) -> frozenset:
+    return frozenset(user.extra_permissions.values_list("code", flat=True))
+
+
 def effective_permissions(user, branch) -> frozenset:
-    """Permission codes from roles assigned for all branches or for this branch."""
+    """Permission codes from roles assigned for all branches or for this branch, plus the extra
+    access given to this person (the branch is one they may work in)."""
     if not user.is_authenticated or not user.is_active or branch is None:
         return frozenset()
     role_ids = (
@@ -100,7 +105,9 @@ def effective_permissions(user, branch) -> frozenset:
         .values("role_id")
     )
     return frozenset(
-        Permission.objects.filter(roles__in=role_ids).values_list("code", flat=True).distinct()
+        Permission.objects.filter(Q(roles__in=role_ids) | Q(extra_users=user))
+        .values_list("code", flat=True)
+        .distinct()
     )
 
 
@@ -109,7 +116,24 @@ def all_permissions_anywhere(user) -> frozenset:
     role_ids = _active_assignments(user).values("role_id")
     return frozenset(
         Permission.objects.filter(roles__in=role_ids).values_list("code", flat=True).distinct()
-    )
+    ) | _extra_codes(user)
+
+
+def set_extra_access(actor_perms: frozenset, user, codes) -> tuple[set, set]:
+    """Give or take back extra access. Only grantable codes, and only ones the actor holds
+    (no escalation). Returns (added, removed)."""
+    from .permissions import GRANTABLE_CODES
+
+    allowed = {c for c in GRANTABLE_CODES if c in actor_perms}
+    wanted = {c for c in codes if c in allowed}
+    current = set(_extra_codes(user))
+    added = wanted - current
+    removed = (current & allowed) - wanted
+    if added:
+        user.extra_permissions.add(*Permission.objects.filter(code__in=added))
+    if removed:
+        user.extra_permissions.remove(*Permission.objects.filter(code__in=removed))
+    return added, removed
 
 
 def role_codes(role) -> frozenset:

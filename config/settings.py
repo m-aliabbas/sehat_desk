@@ -128,6 +128,8 @@ INSTALLED_APPS = [
     "apps.procedures",
     "apps.hr",
     "apps.finance",
+    "apps.approvals",
+    "apps.recyclebin",
 ]
 
 AUTH_USER_MODEL = "accounts.User"

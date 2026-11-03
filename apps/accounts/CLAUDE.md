@@ -19,6 +19,9 @@ workspace (branch) picker. PRD §17. PROJECT_NOTES §9.
 - An assignment with `branch=None` means every branch. Permissions are evaluated per branch.
 - Super admin role is locked and always holds every code; there must always be one active super admin.
 - Nobody can grant a role holding codes they do not hold themselves.
+- Extra access: `User.extra_permissions` adds codes from `GRANTABLE_CODES` (full edit, delete,
+  approvals, Recycle bin) on top of roles, in every branch the person works in. Staff page card
+  `staff-access` → `services.set_extra_access` (only codes the admin holds). Audit `staff.extra_access`.
 
 ## Doctors
 Creating staff with the Doctor role goes straight to Add doctor with that person chosen, for someone holding `admin.masterdata.manage`. Staff detail shows the doctor profile, or a button to add one.

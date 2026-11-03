@@ -7,15 +7,17 @@
 {% block content %}
 {% include "partials/settings_tabs.html" %}
 <div class="grid gap-6 xl:grid-cols-3">
-  <section class="card xl:col-span-2">
+  <section class="card xl:col-span-2" x-data="sdPick">
     <h2 class="section-title mb-4">Departments</h2>
     {% if departments %}
+    {% if "department" in deletable %}{% include "recyclebin/_select_bar.html" with kind="department" %}{% endif %}
     <div class="table-wrap">
       <table class="table">
-        <thead><tr><th scope="col">Department</th><th scope="col">Code</th><th scope="col">Doctors</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+        <thead><tr>{% if "department" in deletable %}<th scope="col" class="w-8"><input type="checkbox" class="checkbox" aria-label="Tick all" @change="all($event)"></th>{% endif %}<th scope="col">Department</th><th scope="col">Code</th><th scope="col">Doctors</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
         <tbody>
           {% for d in departments %}
             <tr data-edit="{% url 'masterdata:department-edit' d.pk %}" data-remove="{% url 'masterdata:department-toggle' d.pk %}" data-remove-label="{% if d.is_active %}Deactivate{% else %}Activate{% endif %}">
+              {% if "department" in deletable %}<td><input type="checkbox" class="checkbox" name="ids" value="{{ d.pk }}" form="pick-department" aria-label="Tick {{ d.name }}" @change="count()"></td>{% endif %}
               <td><p class="font-medium">{{ d.name }}</p>{% if d.description %}<p class="text-label text-muted">{{ d.description }}</p>{% endif %}</td>
               <td class="font-mono text-label">{{ d.code }}</td>
               <td>{{ d.doctors.count }}</td>
@@ -25,6 +27,7 @@
                 <form method="post" action="{% url 'masterdata:department-toggle' d.pk %}" class="inline">{% csrf_token %}
                   {% if d.is_active %}<button class="btn btn-ghost btn-sm text-red" data-confirm="It will no longer be offered for new doctors or appointments. Existing records keep it." data-confirm-title="Deactivate {{ d.name }}?" data-confirm-action="Deactivate" data-confirm-danger="true">Deactivate</button>{% else %}<button class="btn btn-ghost btn-sm">Activate</button>{% endif %}
                 </form>
+                {% if "department" in deletable %}<form method="post" action="{% url 'recyclebin:delete' 'department' d.pk %}" class="inline">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="btn btn-ghost btn-sm text-red" data-confirm="{{ d.name }} goes to the Recycle bin. An admin can restore it." data-confirm-title="Delete?" data-confirm-action="Delete" data-confirm-danger="true">Delete</button></form>{% endif %}
               </td>
             </tr>
           {% endfor %}

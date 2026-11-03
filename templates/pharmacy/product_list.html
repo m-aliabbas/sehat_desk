@@ -6,7 +6,7 @@
 {% block page_actions %}{% if can_manage %}<a href="{% url 'pharmacy:receive' %}" class="btn btn-secondary">Receive stock</a><a href="{% url 'pharmacy:uom' %}" class="btn btn-secondary">UoM</a><a href="{% url 'pharmacy:barcodes' %}" class="btn btn-secondary">Barcodes</a><a href="{% url 'pharmacy:categories' %}" class="btn btn-secondary">Categories &amp; tax</a><a href="{% url 'pharmacy:product-create' %}" class="btn btn-secondary">Full form</a><a href="{% url 'pharmacy:product-bulk' %}" class="btn btn-primary">{% icon "plus" "h-4 w-4" %} Add products</a>{% endif %}{% endblock %}
 {% block content %}
 <div class="grid gap-6">
-<section class="card">
+<section class="card" x-data="sdPick">
   <nav class="tabs mb-4" aria-label="Product filters">
     <a class="tab" href="?" {% if not filter %}aria-selected="true"{% endif %}>All</a>
     <a class="tab" href="?filter=low" {% if filter == "low" %}aria-selected="true"{% endif %}>Low stock</a>
@@ -15,12 +15,14 @@
   </nav>
   <form method="get" class="mb-4"><input type="hidden" name="filter" value="{{ filter }}"><label class="sr-only" for="p-q">Search</label><input id="p-q" type="search" name="q" value="{{ q }}" class="input" placeholder="Search brand, generic, SKU or scan a barcode" autofocus></form>
   {% if products %}
+  {% if "product" in deletable %}{% include "recyclebin/_select_bar.html" with kind="product" %}{% endif %}
   <div class="table-wrap">
     <table class="table">
-      <thead><tr><th scope="col">Product</th><th scope="col">Category</th><th scope="col" class="text-right">Price / unit</th><th scope="col" class="text-right">In stock</th><th scope="col">Status</th></tr></thead>
+      <thead><tr>{% if "product" in deletable %}<th scope="col" class="w-8"><input type="checkbox" class="checkbox" aria-label="Tick all on this page" @change="all($event)"></th>{% endif %}<th scope="col">Product</th><th scope="col">Category</th><th scope="col" class="text-right">Price / unit</th><th scope="col" class="text-right">In stock</th><th scope="col">Status</th></tr></thead>
       <tbody>
         {% for p in products %}
-        <tr {% if "pharmacy.inventory.manage" in sd_perms %}data-edit="{% url 'pharmacy:product-edit' p.pk %}"{% endif %}>
+        <tr {% if "pharmacy.inventory.manage" in sd_perms %}data-edit="{% url 'pharmacy:product-edit' p.pk %}"{% endif %}{% if "product" in deletable %} data-remove="{% url 'recyclebin:delete' 'product' p.pk %}" data-remove-label="Delete" data-remove-note="{{ p.display_name }} goes to the Recycle bin. An admin can restore it."{% endif %}>
+          {% if "product" in deletable %}<td><input type="checkbox" class="checkbox" name="ids" value="{{ p.pk }}" form="pick-product" aria-label="Tick {{ p.display_name }}" @change="count()"></td>{% endif %}
           <td><a href="{% url 'pharmacy:product-detail' p.pk %}" class="font-medium hover:underline">{{ p.display_name }}</a><p class="text-label text-muted">{{ p.generic_name|default:"—" }} · <span class="font-mono">{{ p.sku }}</span>{% if p.requires_prescription %} · Rx only{% endif %}</p></td>
           <td>{{ p.category|default:"—" }}</td>
           <td class="text-right">{{ p.sale_price|floatformat:"2g" }}<p class="text-label text-muted">{{ p|unit_label }}{% if p.has_packs %}, {{ p|pack_label }} of {{ p.pack_size }}{% endif %}</p></td>

@@ -15,7 +15,7 @@
     </form>
     <ul class="mt-4 divide-y divide-line">
       {% for u in saved %}
-      <li class="flex items-center justify-between py-2"><span>{{ u.name }}</span><form method="post">{% csrf_token %}<input type="hidden" name="remove" value="{{ u.pk }}"><button class="btn btn-ghost btn-icon btn-sm text-red" aria-label="Remove {{ u.name }}">{% icon "trash" "h-4 w-4" %}</button></form></li>
+      <li class="flex items-center justify-between py-2"><span>{{ u.name }}</span>{% if "uom" in deletable %}<form method="post" action="{% url 'recyclebin:delete' 'uom' u.pk %}">{% csrf_token %}<button class="btn btn-ghost btn-icon btn-sm text-red" aria-label="Delete {{ u.name }}" title="Delete (goes to the Recycle bin)">{% icon "trash" "h-4 w-4" %}</button></form>{% endif %}</li>
       {% empty %}<li class="py-2 text-label text-muted">Nothing added yet.</li>{% endfor %}
     </ul>
   </section>

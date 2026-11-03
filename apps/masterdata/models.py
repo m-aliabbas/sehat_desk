@@ -12,14 +12,14 @@ from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator, RegexValidator
 from django.db import models
 
-from apps.core.models import TimeStampedModel
+from apps.core.models import LIVE, RecycleBinMixin, TimeStampedModel
 from apps.core.scoping import OrgScopedModel
 
 _code_validator = RegexValidator(r"^[A-Z0-9-]{1,12}$", "Use capital letters, digits or -.")
 money = {"max_digits": 12, "decimal_places": 2, "validators": [MinValueValidator(Decimal("0"))]}
 
 
-class Department(OrgScopedModel):
+class Department(RecycleBinMixin, OrgScopedModel):
     name = models.CharField(max_length=100)
     code = models.CharField(max_length=12, validators=[_code_validator])
     description = models.CharField(max_length=200, blank=True)
@@ -34,8 +34,12 @@ class Department(OrgScopedModel):
     class Meta:
         ordering = ["name"]
         constraints = [
-            models.UniqueConstraint(fields=["organization", "code"], name="uniq_department_code"),
-            models.UniqueConstraint(fields=["organization", "name"], name="uniq_department_name"),
+            models.UniqueConstraint(
+                fields=["organization", "code"], condition=LIVE, name="uniq_department_code"
+            ),
+            models.UniqueConstraint(
+                fields=["organization", "name"], condition=LIVE, name="uniq_department_name"
+            ),
         ]
 
     def __str__(self):
@@ -196,7 +200,7 @@ class ServiceCategory(OrgScopedModel):
         return self.name
 
 
-class Service(OrgScopedModel):
+class Service(RecycleBinMixin, OrgScopedModel):
     """A billable item (consultation, procedure, dressing...). Billing uses it from Phase 7.
     Services marked is_procedure are ordered per patient from apps.procedures (Phase 33)."""
 
@@ -223,7 +227,9 @@ class Service(OrgScopedModel):
     class Meta:
         ordering = ["category__name", "name"]
         constraints = [
-            models.UniqueConstraint(fields=["organization", "code"], name="uniq_service_code")
+            models.UniqueConstraint(
+                fields=["organization", "code"], condition=LIVE, name="uniq_service_code"
+            )
         ]
 
     def __str__(self):

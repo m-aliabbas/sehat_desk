@@ -80,10 +80,12 @@ def test_bulk_row_prices_are_for_the_biggest_size(request_, org):
     assert products[0].sale_price == D("60")
 
 
-def test_smallest_unit_is_locked_once_stock_moved(admin_client, request_, product):
+def test_smallest_unit_is_locked_once_stock_moved(client, make_user, request_, product):
+    # Without records.edit_full (admins hold it; tests/test_extra_access.py covers that side).
+    client.force_login(make_user("pharmacy"))
     stock.receive(request=request_, product=product, batch_number="A", expiry_date=_expiry(),
                   quantity=10, purchase_cost=D("1"))  # fmt: skip
-    response = admin_client.post(
+    response = client.post(
         reverse("pharmacy:product-edit", args=[product.pk]),
         {
             "brand_name": "Panadol", "unit": "capsule", "pack_unit": "strip", "pack_size": "10",

@@ -16,7 +16,8 @@ from apps.organizations.models import Branch
 from . import services
 from .decorators import has_perm, permission_required
 from .forms import AssignmentForm, ResetPasswordForm, StaffCreateForm, StaffForm
-from .models import Role, RoleAssignment, User
+from .models import Permission, Role, RoleAssignment, User
+from .permissions import GRANTABLE_CODES
 
 STAFF_AUDIT_FIELDS = [
     "first_name",
@@ -117,6 +118,15 @@ def staff_detail(request, pk):
             assignable_roles=_assignable_roles(request),
         )
         ctx["reset_form"] = ResetPasswordForm(user=staff)
+        held = services.all_permissions_anywhere(request.user)
+        given = set(staff.extra_permissions.values_list("code", flat=True))
+        labels = dict(
+            Permission.objects.filter(code__in=GRANTABLE_CODES).values_list("code", "label")
+        )
+        ctx["extra_access"] = [
+            {"code": c, "label": labels.get(c, c), "on": c in given, "can": c in held}
+            for c in GRANTABLE_CODES
+        ]
     return render(request, "accounts/staff/detail.html", ctx)
 
 
@@ -244,6 +254,27 @@ def staff_unlock(request, pk):
     cleared = axes_reset(username=staff.username)
     audit.record(request, "staff.unlock", staff, summary=f"cleared={cleared}")
     messages.success(request, f"Sign-in lockout cleared for {staff}.")
+    return redirect("accounts:staff-detail", pk=pk)
+
+
+@require_POST
+@permission_required("admin.users.manage")
+def staff_access(request, pk):
+    """Extra access on top of roles: full edit, delete, approvals, Recycle bin."""
+    staff = _get_staff(request, pk)
+    added, removed = services.set_extra_access(
+        services.all_permissions_anywhere(request.user), staff, request.POST.getlist("codes")
+    )
+    if added or removed:
+        audit.record(
+            request,
+            "staff.extra_access",
+            staff,
+            changes={"added": sorted(added), "removed": sorted(removed)},
+        )
+        messages.success(request, f"Extra access for {staff} saved.")
+    else:
+        messages.info(request, "Nothing changed.")
     return redirect("accounts:staff-detail", pk=pk)
 
 

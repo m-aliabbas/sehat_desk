@@ -27,6 +27,17 @@ PERMISSIONS: list[PermissionDef] = [
     PermissionDef(
         "admin.masterdata.manage", "Administration", "Manage departments, doctors and services"
     ),
+    PermissionDef("admin.approvals.manage", "Administration", "Approve or reject stock edits"),
+    PermissionDef(
+        "admin.recyclebin.manage", "Administration", "Open the Recycle bin and restore records"
+    ),
+    # Edit & delete (an admin can also give these to one person on their staff page)
+    PermissionDef(
+        "records.edit_full",
+        "Edit & delete",
+        "Fully edit saved records, including locked fields such as a product's unit",
+    ),
+    PermissionDef("records.delete", "Edit & delete", "Delete records (they go to the Recycle bin)"),
     # Patients
     PermissionDef("patient.view", "Patients", "View patients"),
     PermissionDef("patient.create", "Patients", "Register patients"),
@@ -92,6 +103,14 @@ PERMISSIONS: list[PermissionDef] = [
 
 ALL_CODES = frozenset(p.code for p in PERMISSIONS)
 
+# Codes an admin can give to one person on top of their roles (staff page, "Extra access").
+GRANTABLE_CODES = (
+    "records.edit_full",
+    "records.delete",
+    "admin.approvals.manage",
+    "admin.recyclebin.manage",
+)
+
 SUPER_ADMIN_KEY = "super_admin"
 
 
@@ -125,7 +144,8 @@ DEFAULT_ROLES: list[RoleDef] = [
             "patient.view",
         )
         | {"patient.create", "ipd.facility.manage", "procedure.view"}
-        | {"queue.manage", "pharmacy.inventory.manage", "lab.catalog.manage"},
+        | {"queue.manage", "pharmacy.inventory.manage", "lab.catalog.manage"}
+        | _codes("records."),
     ),
     RoleDef(
         "reception",

@@ -6,15 +6,18 @@
 {% block content %}
 {% include "components/alert.html" with level="info" title="Check tax rates with your accountant" message="Tax here is added on top of the sale price at the till. Most medicines in Pakistan are sold at a printed price that already includes tax, so leave these at 0 unless your accountant says otherwise. All rates start at 0." %}
 {% if categories %}
-<form method="post" class="card mt-6">
+<section class="card mt-6" x-data="sdPick">
+{% if "product_category" in deletable %}{% include "recyclebin/_select_bar.html" with kind="product_category" %}{% endif %}
+<form method="post">
   {% csrf_token %}
   <div class="table-wrap">
     <table class="table">
-      <thead><tr><th scope="col">Category</th><th scope="col">Tax added at the till (%)</th><th scope="col">Prescription needed</th><th scope="col">Note</th></tr></thead>
+      <thead><tr>{% if "product_category" in deletable %}<th scope="col" class="w-8"><input type="checkbox" class="checkbox" aria-label="Tick all" @change="all($event)"></th>{% endif %}<th scope="col">Category</th><th scope="col">Tax added at the till (%)</th><th scope="col">Prescription needed</th><th scope="col">Note</th></tr></thead>
       <tbody>
         {% for c in categories %}
-        <tr>
-          <td class="font-medium">{{ c.name }}</td>
+        <tr {% if "product_category" in deletable %}data-remove="{% url 'recyclebin:delete' 'product_category' c.pk %}" data-remove-label="Delete" data-remove-note="{{ c.name }} goes to the Recycle bin. Only a category no product uses can go."{% endif %}>
+          {% if "product_category" in deletable %}<td><input type="checkbox" class="checkbox" name="ids" value="{{ c.pk }}" form="pick-product_category" aria-label="Tick {{ c.name }}" @change="count()"></td>{% endif %}
+          <td><input name="name_{{ c.pk }}" value="{{ c.name }}" maxlength="80" required class="input font-medium" aria-label="Name of {{ c.name }}"></td>
           <td><input name="tax_{{ c.pk }}" type="number" min="0" max="100" step="0.01" value="{{ c.default_tax_percent|stringformat:'s' }}" class="input w-24" aria-label="Tax for {{ c.name }}"></td>
           <td><input name="rx_{{ c.pk }}" type="checkbox" class="checkbox" {% if c.requires_prescription %}checked{% endif %} aria-label="Prescription needed for {{ c.name }}"></td>
           <td class="text-label text-muted">{{ c.tax_note }}</td>
@@ -25,6 +28,7 @@
   </div>
   <button class="btn btn-primary mt-5">Save</button>
 </form>
+</section>
 {% else %}
 <div class="mt-6">{% include "components/empty_state.html" with icon_name="clipboard" title="No categories yet" message="Add the standard medicine categories to get started." %}</div>
 {% endif %}

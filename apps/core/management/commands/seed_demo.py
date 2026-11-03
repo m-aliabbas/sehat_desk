@@ -881,21 +881,53 @@ class Command(BaseCommand):
             self._pay_cart(cart, request)
 
     def _stock_corrections(self):
-        from apps.pharmacy import stock
-        from apps.pharmacy.models import InventoryBatch, StockTransaction
+        """Stock edits go through Approvals: the pharmacist asks, the admin approves. Two are
+        left waiting so the Approvals screen has work on it."""
+        from apps.approvals import services as approvals
+        from apps.pharmacy.models import InventoryBatch
 
         request = self.req(self.users["pharmacy1"], self.main)
+        admin = self.req(self.admin, self.main)
+
+        def batch_of(code):
+            return InventoryBatch.objects.filter(
+                branch=self.main, product=self.products[code]
+            ).first()
+
         self.at(self.past_days[4], 18)
-        batch = InventoryBatch.objects.filter(
-            branch=self.main, product=self.products["CALPOL"]
-        ).first()
-        stock.write_off(batch, request=request, quantity=2, kind=StockTransaction.Kind.DAMAGED,
-                        reason="Bottles broken during shelving")  # fmt: skip
-        batch = InventoryBatch.objects.filter(
-            branch=self.main, product=self.products["GRAV50"]
-        ).first()
-        stock.adjust_to_count(batch, request=request, counted=batch.quantity_available - 10,
-                              reason="Monthly stock count")  # fmt: skip
+        change = approvals.request_stock_change(
+            request,
+            batch_of("CALPOL"),
+            action="damaged",
+            quantity=2,
+            reason="Broken during shelving",
+        )
+        approvals.approve(admin, change)
+        batch = batch_of("GRAV50")
+        change = approvals.request_stock_change(
+            request,
+            batch,
+            action="count",
+            quantity=batch.quantity_available - 10,
+            reason="Monthly stock count",
+        )
+        approvals.approve(admin, change)
+        self.at(self.past_days[1], 17)
+        batch = batch_of("PAN500")
+        approvals.request_stock_change(
+            request,
+            batch,
+            action="count",
+            quantity=batch.quantity_available - 4,
+            reason="Shelf count short by 4",
+        )
+        approvals.request_stock_change(
+            request,
+            batch_of("CALPOL"),
+            action="expired",
+            quantity=1,
+            reason="Seal broken, past use date",
+        )
 
     # --- inpatients -------------------------------------------------------------------------
 

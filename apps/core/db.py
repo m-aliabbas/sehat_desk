@@ -41,7 +41,7 @@ def locked(instance_or_model, pk=None):
         model, pk = type(instance_or_model), instance_or_model.pk
     else:
         model = instance_or_model
-    return model._default_manager.select_for_update(of=("self",)).get(pk=pk)
+    return model._base_manager.select_for_update(of=("self",)).get(pk=pk)
 
 
 def after_commit(func):

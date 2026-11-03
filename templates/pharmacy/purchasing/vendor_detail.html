@@ -7,6 +7,7 @@
   {% if not vendor.is_active %}{% status_chip "inactive" "Inactive" %}{% endif %}
   <a href="{% url 'pharmacy:vendor-edit' vendor.pk %}" class="btn btn-secondary">Edit</a>
   <form method="post" action="{% url 'pharmacy:vendor-toggle' vendor.pk %}">{% csrf_token %}<button class="btn btn-ghost">{% if vendor.is_active %}Deactivate{% else %}Activate{% endif %}</button></form>
+  {% if "vendor" in deletable %}<form method="post" action="{% url 'recyclebin:delete' 'vendor' vendor.pk %}">{% csrf_token %}<button class="btn btn-danger" data-confirm="{{ vendor.name }} goes to the Recycle bin. Only a supplier with a settled account and no open purchase can go." data-confirm-title="Delete this supplier?" data-confirm-action="Delete" data-confirm-danger="true">{% icon "trash" "h-4 w-4" %} Delete</button></form>{% endif %}
   {% if "finance.expense.manage" in sd_perms %}<a href="{% url 'finance:supplier-pay' %}?vendor={{ vendor.pk }}" class="btn btn-secondary">Pay supplier</a>{% endif %}
   {% if vendor.is_active %}<a href="{% url 'pharmacy:purchase-create' %}?vendor={{ vendor.pk }}" class="btn btn-primary">{% icon "plus" "h-4 w-4" %} New purchase</a>{% endif %}
 {% endblock %}

@@ -111,6 +111,21 @@
 
   {% if can_manage %}
   <section class="card xl:col-span-3">
+    <h2 class="section-title mb-1">Extra access</h2>
+    <p class="mb-4 text-label text-muted">Given to {{ staff }} on top of their roles, in every branch they work in. You can only give what you hold yourself.</p>
+    <form method="post" action="{% url 'accounts:staff-access' staff.pk %}" class="grid gap-3 md:grid-cols-2">
+      {% csrf_token %}
+      {% for a in extra_access %}
+      <label class="flex items-start gap-2 text-body {% if not a.can %}opacity-60{% endif %}" {% if not a.can %}title="You do not hold this yourself"{% endif %}>
+        <input type="checkbox" name="codes" value="{{ a.code }}" class="checkbox mt-1" {% if a.on %}checked{% endif %} {% if not a.can %}disabled{% endif %}>
+        <span>{{ a.label }}</span>
+      </label>
+      {% endfor %}
+      <div class="md:col-span-2"><button class="btn btn-primary">Save extra access</button></div>
+    </form>
+  </section>
+
+  <section class="card xl:col-span-3">
     <h2 class="section-title mb-1">Sign-in &amp; security</h2>
     <p class="mb-4 text-label text-muted">Set a temporary password (the person must change it at next sign-in), or clear a lockout after repeated failed attempts.</p>
     <div class="grid gap-6 lg:grid-cols-[2fr_1fr]">

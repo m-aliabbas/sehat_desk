@@ -40,6 +40,7 @@ urlpatterns = [
         name="staff-reset-password",
     ),
     path("staff/<int:pk>/unlock/", views_staff.staff_unlock, name="staff-unlock"),
+    path("staff/<int:pk>/access/", views_staff.staff_access, name="staff-access"),
     path("staff/<int:pk>/roles/", views_staff.assignment_add, name="assignment-add"),
     path(
         "staff/<int:pk>/roles/<int:assignment_pk>/remove/",

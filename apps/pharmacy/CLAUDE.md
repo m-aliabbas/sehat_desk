@@ -67,7 +67,13 @@ PRD §9. Phases 12–14. PROJECT_NOTES §12–13.
   prices for the biggest size. `packing.py` phrases remain for presets, the UoM list and imports.
 - Prices per base unit keep six decimals (`unit_money`) so a box price adds back up exactly; screens
   show two. One price per product: each size is that price times its units. No separate pack discount.
-- The smallest unit cannot change once stock has moved (`ProductForm`). Pack sizes can.
+- The smallest unit cannot change once stock has moved (`ProductForm`), unless the person holds
+  `records.edit_full` (the rename is audit-logged with old and new unit). Pack sizes can.
+- Stock edits on the product page (count, write-off, return, batch number/expiry correction via
+  `stock.correct_batch`) go through `apps/approvals`: they wait until `admin.approvals.manage` approves.
+- Products, categories (renamed on the Categories screen), units of measure and suppliers delete to the
+  Recycle bin (`apps/recyclebin`); a product with stock or on an open purchase, a category in use and a
+  supplier with an unsettled account or open purchase cannot go.
 - A price change is not a batch. New stock takes the product's price; the shelf keeps its own until
   repriced (`pricing`). Repricing never changes cost. Every change is a `ProductPriceChange` row, shown
   on the product page and its ledger, and moves no stock.

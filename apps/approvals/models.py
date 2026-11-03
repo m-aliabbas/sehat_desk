@@ -1,0 +1,84 @@
+from django.conf import settings
+from django.db import models
+
+from apps.core.scoping import BranchScopedModel
+
+
+class StockChangeRequest(BranchScopedModel):
+    """A stock edit someone asked for. Stock moves only when an approver accepts it, so a count or
+    write-off cannot hide missing stock. People who hold admin.approvals.manage are approved on
+    the spot; the request is still kept for the audit."""
+
+    class Action(models.TextChoices):
+        COUNT = "count", "Physical count"
+        EXPIRED = "expired", "Write off as expired"
+        DAMAGED = "damaged", "Write off as damaged"
+        PURCHASE_RETURN = "purchase_return", "Return to supplier"
+        DETAILS = "details", "Correct batch number or expiry"
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Waiting"
+        APPROVED = "approved", "Approved"
+        REJECTED = "rejected", "Rejected"
+
+    batch = models.ForeignKey(
+        "pharmacy.InventoryBatch", on_delete=models.PROTECT, related_name="change_requests"
+    )
+    product = models.ForeignKey(
+        "pharmacy.Product", on_delete=models.PROTECT, related_name="change_requests"
+    )
+    action = models.CharField(max_length=20, choices=Action.choices)
+    # count: counted quantity; write-offs and returns: units removed. Unused for details.
+    quantity = models.IntegerField(null=True, blank=True)
+    stock_at_request = models.IntegerField(default=0)
+    new_batch_number = models.CharField(max_length=40, blank=True)
+    new_expiry_date = models.DateField(null=True, blank=True)
+    reason = models.CharField(max_length=200)
+    reference = models.CharField(max_length=80, blank=True)
+    status = models.CharField(
+        max_length=10, choices=Status.choices, default=Status.PENDING, db_index=True
+    )
+    requested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+"
+    )
+    decided_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True, related_name="+"
+    )
+    decided_at = models.DateTimeField(null=True, blank=True)
+    decision_note = models.CharField(max_length=200, blank=True)
+    transaction = models.ForeignKey(
+        "pharmacy.StockTransaction",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [models.Index(fields=["organization", "branch", "status", "-created_at"])]
+
+    def __str__(self):
+        return f"{self.get_action_display()} · {self.batch_id} · {self.get_status_display()}"
+
+    @property
+    def change(self) -> int | None:
+        """Signed units this request moves, as asked (None for a details correction)."""
+        if self.action == self.Action.DETAILS:
+            return None
+        if self.action == self.Action.COUNT:
+            return (self.quantity or 0) - self.stock_at_request
+        return -(self.quantity or 0)
+
+    @property
+    def summary(self) -> str:
+        if self.action == self.Action.DETAILS:
+            parts = []
+            if self.new_batch_number:
+                parts.append(f"batch → {self.new_batch_number}")
+            if self.new_expiry_date:
+                parts.append(f"expiry → {self.new_expiry_date:%d %b %Y}")
+            return ", ".join(parts)
+        if self.action == self.Action.COUNT:
+            return f"{self.stock_at_request} → {self.quantity} ({self.change:+d})"
+        return f"{self.change:+d}"

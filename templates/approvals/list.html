@@ -1,0 +1,56 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}Approvals{% endblock %}
+{% block page_title %}Approvals{% endblock %}
+{% block page_subtitle %}Stock edits in {{ current_branch.name }} wait here. Stock moves only when you approve, so every count and write-off is checked.{% endblock %}
+{% block content %}
+<section class="card" x-data="sdPick">
+  <nav class="tabs mb-4" aria-label="Approval filters">
+    <a class="tab" href="?show=pending" {% if show == "pending" %}aria-selected="true"{% endif %}>Waiting{% if pending %} ({{ pending }}){% endif %}</a>
+    <a class="tab" href="?show=decided" {% if show != "pending" %}aria-selected="true"{% endif %}>Decided</a>
+  </nav>
+  {% if rows %}
+  {% if show == "pending" %}
+  <form id="pick-form" method="post" action="{% url 'approvals:bulk' %}" class="mb-3 flex flex-wrap items-center gap-2" x-data="{ rejecting: false }">{% csrf_token %}
+    <span class="text-body text-muted" x-text="n ? n + ' ticked' : 'Tick rows to decide many at once'">Tick rows to decide many at once</span>
+    <button name="decision" value="approve" class="btn btn-primary btn-sm" :disabled="!n" data-confirm="Stock moves for every ticked request." data-confirm-title="Approve the ticked requests?">{% icon "check-circle" "h-4 w-4" %} Approve ticked</button>
+    <button type="button" class="btn btn-danger btn-sm" :disabled="!n" x-show="!rejecting" @click="rejecting = true; $nextTick(() => $refs.why.focus())">Reject ticked</button>
+    <template x-if="rejecting"><span class="flex gap-2"><input x-ref="why" name="reason" class="input h-8" maxlength="200" placeholder="Reason to reject" aria-label="Reason to reject" required><button name="decision" value="reject" class="btn btn-danger btn-sm">Reject</button><button type="button" class="btn btn-close btn-sm" @click="rejecting = false">Close</button></span></template>
+  </form>
+  {% endif %}
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr>
+        {% if show == "pending" %}<th scope="col" class="w-8"><input type="checkbox" class="checkbox" aria-label="Tick all" @change="all($event)"></th>{% endif %}
+        <th scope="col">Asked</th><th scope="col">Product · batch</th><th scope="col">Change</th><th scope="col" class="text-right" title="Units: minus takes stock off the shelf">Units</th><th scope="col">Reason</th><th scope="col">{% if show == "pending" %}Decide{% else %}Decision{% endif %}</th>
+      </tr></thead>
+      <tbody>
+        {% for r in rows %}
+        <tr {% if r.status == "pending" %}data-remove="{% url 'approvals:reject' r.pk %}" data-remove-label="Reject" data-remove-reason{% endif %}>
+          {% if show == "pending" %}<td><input type="checkbox" class="checkbox" name="ids" value="{{ r.pk }}" form="pick-form" aria-label="Tick {{ r.product }}" @change="count()"></td>{% endif %}
+          <td>{{ r.created_at|date:"d M, H:i" }}<p class="text-label text-muted">{{ r.requested_by }}</p></td>
+          <td><a href="{% url 'pharmacy:product-detail' r.product_id %}" class="font-medium hover:underline">{{ r.product }}</a><p class="text-label text-muted font-mono">{{ r.batch.label }} · now {{ r.batch.quantity_available }}</p></td>
+          <td>{{ r.get_action_display }}{% if r.reference %}<p class="text-label text-muted">Ref {{ r.reference }}</p>{% endif %}</td>
+          <td class="text-right font-semibold {% if r.change is not None and r.change < 0 %}text-red{% endif %}">{{ r.summary }}</td>
+          <td>{{ r.reason }}</td>
+          <td>
+            {% if r.status == "pending" %}
+            <form method="post" action="{% url 'approvals:approve' r.pk %}" class="inline">{% csrf_token %}<button class="btn btn-primary btn-sm">{% icon "check-circle" "h-4 w-4" %} Approve</button></form>
+            {% else %}
+            {% if r.status == "approved" %}<span class="chip chip-success">Approved</span>{% else %}<span class="chip chip-danger">Rejected</span>{% endif %}
+            <p class="text-label text-muted">{{ r.decided_by }} · {{ r.decided_at|date:"d M, H:i" }}{% if r.decision_note %} · {{ r.decision_note }}{% endif %}</p>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% include "components/pagination.html" %}
+  {% elif show == "pending" %}
+    {% include "components/empty_state.html" with icon_name="check-circle" title="Nothing waiting" message="Stock counts, write-offs, returns and batch corrections asked for in this branch show here." %}
+  {% else %}
+    {% include "components/empty_state.html" with icon_name="inbox" title="No decisions yet" message="Approved and rejected requests are kept here for the audit." %}
+  {% endif %}
+</section>
+{% endblock %}

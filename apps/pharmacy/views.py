@@ -116,11 +116,16 @@ def product_form(request, pk=None):
         )
     )
     creating = pk is None
+    old_unit = product.unit
     form = ProductForm(request.POST or None, instance=product, request=request)
     if request.method == "POST" and form.is_valid():
         with transaction.atomic():
             product = catalog.save_product(form, request=request)
-        audit.record(request, "product.create" if creating else "product.update", product)
+        moved = not creating and old_unit != product.unit
+        changes = {"unit": [old_unit, product.unit]} if moved else None
+        audit.record(
+            request, "product.create" if creating else "product.update", product, changes=changes
+        )
         messages.success(request, f"{product} saved.")
         return redirect("pharmacy:product-detail", pk=product.pk)
     return render(
@@ -241,9 +246,6 @@ def scan_read(request):
 def uom(request):
     """Units of measure: add phrases to the suggestions."""
     if request.method == "POST":
-        if request.POST.get("remove", "").isdigit():
-            scoped(UnitOfMeasure, request).filter(pk=request.POST["remove"]).delete()
-            return redirect("pharmacy:uom")
         name = " ".join(request.POST.get("name", "").split())
         try:
             parse_packing(name)
@@ -299,14 +301,31 @@ def categories(request):
                     messages.error(request, f"{category}: tax must be between 0 and 100.")
                     return redirect("pharmacy:categories")
                 rx = f"rx_{category.pk}" in request.POST
-                if tax != category.default_tax_percent or rx != category.requires_prescription:
+                name = " ".join(request.POST.get(f"name_{category.pk}", category.name).split())
+                name = name[:80] or category.name
+                taken = ProductCategory.objects.filter(
+                    organization=request.organization, name__iexact=name
+                ).exclude(pk=category.pk)
+                if name != category.name and taken.exists():
+                    messages.error(request, f"Another category is already called {name}.")
+                    transaction.set_rollback(True)
+                    return redirect("pharmacy:categories")
+                if (
+                    tax != category.default_tax_percent
+                    or rx != category.requires_prescription
+                    or name != category.name
+                ):
                     audit.record(
                         request,
                         "product_category.update",
                         category,
-                        changes={"tax": [str(category.default_tax_percent), str(tax)]},
+                        changes={
+                            "tax": [str(category.default_tax_percent), str(tax)],
+                            "name": [category.name, name],
+                        },
                     )
                     category.default_tax_percent, category.requires_prescription = tax, rx
+                    category.name = name
                     category.save()
         messages.success(request, "Categories saved. Existing products keep their own rates.")
         return redirect("pharmacy:categories")
@@ -613,6 +632,13 @@ def product_detail(request, pk):
             "price_changes": product.price_changes.select_related("batch", "created_by")[:5],
             "action_form": BatchActionForm(),
             "can_manage": has_perm(request, MANAGE),
+            "can_approve": has_perm(request, "admin.approvals.manage"),
+            "can_delete": has_perm(request, MANAGE) and has_perm(request, "records.delete"),
+            "pending_batches": set(
+                product.change_requests.filter(branch=request.branch, status="pending").values_list(
+                    "batch_id", flat=True
+                )
+            ),
             "near_days": stock.near_expiry_days(request.organization),
             "breadcrumbs": _crumbs(
                 {"label": "Products", "url": reverse("pharmacy:product-list")},
@@ -747,42 +773,41 @@ def receive(request):
     return _receive_page(request, rows=[], errors=[e for es in form.errors.values() for e in es])
 
 
+@require_POST
 @permission_required(MANAGE)
 def batch_action(request, pk):
+    """Count, write-off, return or batch correction. These wait on Approvals (apps.approvals)
+    unless the person can approve; stock moves only once approved."""
+    from apps.approvals import services as approvals
+
     batch = get_scoped_or_404(InventoryBatch.objects.select_related("product"), request, pk=pk)
-    form = BatchActionForm(request.POST or None)
-    if request.method == "POST" and form.is_valid():
+    form = BatchActionForm(request.POST)
+    if form.is_valid():
         c = form.cleaned_data
         try:
-            if c["action"] == "count":
-                txn = stock.adjust_to_count(
-                    batch, request=request, counted=c["quantity"], reason=c["reason"]
-                )
-            elif c["action"] == StockTransaction.Kind.PURCHASE_RETURN:
-                txn = stock.purchase_return(
-                    batch,
-                    request=request,
-                    quantity=c["quantity"],
-                    reason=c["reason"],
-                    reference=c["reference"],
-                )
-            else:
-                txn = stock.write_off(
-                    batch, request=request, quantity=c["quantity"], kind=c["action"],
-                    reason=c["reason"],
-                )  # fmt: skip
-        except stock.StockError as err:
+            change = approvals.request_stock_change(
+                request,
+                batch,
+                action=c["action"],
+                quantity=c["quantity"],
+                reason=c["reason"],
+                reference=c["reference"],
+                new_batch_number=c["new_batch_number"],
+                new_expiry_date=c["new_expiry_date"],
+            )
+        except approvals.ApprovalError as err:
             messages.error(request, err.message)
         else:
-            audit.record(
-                request,
-                f"stock.{txn.kind}",
-                batch,
-                summary=f"{batch.batch_number} {txn.quantity:+d}: {c['reason'][:100]}",
-            )
-            messages.success(request, f"{txn.get_kind_display()} recorded ({txn.quantity:+d}).")
-    elif request.method == "POST":
-        messages.error(request, "Check the quantity and give a reason.")
+            if change.status == change.Status.APPROVED:
+                messages.success(request, f"{change.get_action_display()} done ({change.summary}).")
+            else:
+                messages.warning(
+                    request,
+                    f"{change.get_action_display()} sent for approval ({change.summary}). "
+                    "Stock changes once an admin approves it.",
+                )
+    else:
+        messages.error(request, " ".join(e for es in form.errors.values() for e in es))
     return redirect("pharmacy:product-detail", pk=batch.product_id)
 
 

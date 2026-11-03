@@ -24,6 +24,11 @@ class User(AbstractUser):
     must_change_password = models.BooleanField(
         default=False, help_text="Set after an admin resets the password."
     )
+    # Given to this person on top of their roles, in every branch they work in
+    # (staff page, "Extra access"; only codes in permissions.GRANTABLE_CODES).
+    extra_permissions = models.ManyToManyField(
+        "accounts.Permission", blank=True, related_name="extra_users"
+    )
 
     class Meta:
         ordering = ["first_name", "last_name", "username"]

@@ -4,10 +4,12 @@ Base models, scoping, the dashboard, navigation, observability, security headers
 management commands.
 
 ## Files
-- `models.py` — `TimeStampedModel`, `ArchivableModel`, `Sequence` + `next_number`, `ErrorReport`.
+- `models.py` — `TimeStampedModel`, `ArchivableModel`, `RecycleBinMixin` (+ `LIVE` for conditional
+  unique constraints), `Sequence` + `next_number`, `ErrorReport`.
 - `scoping.py` — `OrgScopedModel`, `BranchScopedModel`, `scoped()`, `get_scoped_or_404`, `paginate`.
 - `db.py` — `critical_write`, `locked`, `after_commit` for money/stock writes.
-- `navigation.py` — sidebar items (`NavItem`: key, label, icon, url_name, permissions).
+- `navigation.py` — sidebar items (`NavItem`: key, label, icon, url_name, permissions). Admins also get
+  Approvals (with the waiting count, `_badge`) and Recycle bin.
 - `menu_hub.py` — the All menu page (`core:menu`): every screen grouped by category (`HUB_GROUPS`).
   Admins (`admin.organization.manage`) get the short `ADMIN_SIDEBAR`; a new screen they need goes here.
 - `features.py` — module switches (lab, pharmacy, ipd, nursing) for nav and URL namespaces.

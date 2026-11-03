@@ -61,6 +61,7 @@ class ProductForm(StyledFormMixin, forms.ModelForm):
         }
 
     def __init__(self, *args, request, apply_rules=True, **kwargs):
+        self.full_edit = "records.edit_full" in getattr(request, "sd_perms", ())
         super().__init__(*args, **kwargs)
         self.organization = request.organization
         if apply_rules:
@@ -166,11 +167,17 @@ class ProductForm(StyledFormMixin, forms.ModelForm):
             for name in ("unit", "pack_size", "pack_unit", "packs_per_box", "box_unit"):
                 self.errors.pop(name, None)
         self._normalise_sizes(data)
-        if self.instance.pk and "unit" in self.changed_data and self._has_moved_stock():
+        if (
+            self.instance.pk
+            and "unit" in self.changed_data
+            and not self.full_edit
+            and self._has_moved_stock()
+        ):
             self.add_error(
                 "unit",
                 "Stock is already counted in this unit, so it cannot change. To rename the packs "
-                "or change how many they hold, edit those instead.",
+                "or change how many they hold, edit those instead. An admin can give you full "
+                "edit access to rename it.",
             )
         if "pack_price" in self.data:
             size = data["pack_size"]
@@ -296,13 +303,24 @@ class BatchActionForm(StyledFormMixin, forms.Form):
         (StockTransaction.Kind.EXPIRED, "Write off as expired"),
         (StockTransaction.Kind.DAMAGED, "Write off as damaged"),
         (StockTransaction.Kind.PURCHASE_RETURN, "Return to supplier"),
+        ("details", "Correct batch number or expiry"),
     ]
     action = forms.ChoiceField(choices=ACTIONS)
     quantity = forms.IntegerField(
-        min_value=0, help_text="Counted quantity for a count; units removed otherwise."
+        min_value=0,
+        required=False,
+        help_text="Counted quantity for a count; units removed otherwise.",
     )
+    new_batch_number = forms.CharField(max_length=40, required=False)
+    new_expiry_date = forms.DateField(required=False)
     reason = forms.CharField(max_length=200)
     reference = forms.CharField(max_length=80, required=False, label="Reference (optional)")
+
+    def clean(self):
+        data = super().clean()
+        if data.get("action") != "details" and data.get("quantity") is None:
+            self.add_error("quantity", "Enter the quantity.")
+        return data
 
 
 # --- Purchasing --------------------------------------------------------------------------------

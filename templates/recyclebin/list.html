@@ -1,0 +1,38 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}Recycle bin{% endblock %}
+{% block page_title %}Recycle bin{% endblock %}
+{% block page_subtitle %}Deleted records wait here. Restore puts one back exactly as it was; past bills and stock history always keep it.{% endblock %}
+{% block content %}
+<section class="card" x-data="sdPick">
+  <form method="get" class="mb-4 flex flex-wrap gap-3">
+    <label class="sr-only" for="bin-q">Search</label><input id="bin-q" type="search" name="q" value="{{ q }}" class="input max-w-md" placeholder="Search deleted records">
+    <select name="kind" class="select w-auto" aria-label="Kind of record" onchange="this.form.submit()"><option value="">Everything</option>{% for k in kinds %}<option value="{{ k.key }}" {% if kind == k.key %}selected{% endif %}>{{ k.label }}</option>{% endfor %}</select>
+  </form>
+  {% if rows %}
+  <form id="pick-form" method="post" action="{% url 'recyclebin:restore-selected' %}" class="mb-3 flex items-center gap-2">{% csrf_token %}
+    <span class="text-body text-muted" x-text="n ? n + ' ticked' : 'Tick rows to restore many at once'">Tick rows to restore many at once</span>
+    <button class="btn btn-primary btn-sm" :disabled="!n">{% icon "refresh" "h-4 w-4" %} Restore ticked</button>
+  </form>
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th scope="col" class="w-8"><input type="checkbox" class="checkbox" aria-label="Tick all" @change="all($event)"></th><th scope="col">Record</th><th scope="col">Kind</th><th scope="col">Deleted</th><th scope="col">Reason</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+      <tbody>
+        {% for r in rows %}
+        <tr data-remove="{% url 'recyclebin:erase' r.kind.key r.obj.pk %}" data-remove-label="Erase for good" data-remove-note="Only records nothing else uses can be erased. This cannot be undone.">
+          <td><input type="checkbox" class="checkbox" name="ids" value="{{ r.kind.key }}:{{ r.obj.pk }}" form="pick-form" aria-label="Tick {{ r.obj }}" @change="count()"></td>
+          <td class="font-medium">{{ r.obj }}</td>
+          <td><span class="chip chip-neutral">{{ r.kind.label }}</span></td>
+          <td>{{ r.obj.deleted_at|date:"d M Y, H:i" }}<p class="text-label text-muted">{{ r.obj.deleted_by|default:"—" }}</p></td>
+          <td>{{ r.obj.deleted_reason|default:"—" }}</td>
+          <td class="text-right"><form method="post" action="{% url 'recyclebin:restore' r.kind.key r.obj.pk %}" class="inline">{% csrf_token %}<button class="btn btn-secondary btn-sm">{% icon "refresh" "h-4 w-4" %} Restore</button></form></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+    {% include "components/empty_state.html" with icon_name="trash" title="The Recycle bin is empty" message="Products, suppliers, categories, units, departments and services you delete land here." %}
+  {% endif %}
+</section>
+{% endblock %}

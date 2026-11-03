@@ -17,6 +17,8 @@ Each app has its own `CLAUDE.md` with its flow and rules. Open the one for the a
 - `OrgScopedModel` / `BranchScopedModel` for business data. Patients, staff, catalogues are
   organization-wide; visits, stock, invoices, beds are per branch.
 - `ArchivableModel` for soft delete. Clinical and financial records are never hard-deleted.
+- `RecycleBinMixin` (mixed in first) for master data people delete: `objects` hides deleted rows,
+  `all_objects` sees them, unique constraints use `condition=LIVE`. Kinds and rules: `apps/recyclebin`.
 - Numbers (MRN, invoice, token...) come from `core.models.next_number(org, key)`, never `max()+1`.
 
 ## Non-negotiable rules
@@ -55,9 +57,9 @@ A dropdown of a saved list lets permitted staff type a new entry: `StyledFormMix
   menu renders), `test_query_scaling.py` (no N+1 on list pages), `test_seed_demo.py` (demo data).
 
 ## App index
-accounts · appointments · audit · billing · core · documents · encounters · finance · hr · ipd ·
+accounts · approvals · appointments · audit · billing · core · documents · encounters · finance · hr · ipd ·
 lab · masterdata · notifications · nursing · organizations · patients · pharmacy · prescriptions ·
-printing · procedures · queue · reports · search · vitals — each has `apps/<app>/CLAUDE.md`.
+printing · procedures · queue · recyclebin · reports · search · vitals — each has `apps/<app>/CLAUDE.md`.
 
 When you add an app: create its `CLAUDE.md` (same shape as the others), add it to this index, and
 add it to `INSTALLED_APPS`, `config/urls.py` and `apps/core/navigation.py` as needed.

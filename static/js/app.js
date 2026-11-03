@@ -62,6 +62,28 @@ document.addEventListener("alpine:init", () => {
     },
   }));
 
+  // ---- Ticking rows ------------------------------------------------------------
+  // <section x-data="sdPick"> around a table whose rows tick <input name="ids">; `n` counts them
+  // for a "Delete selected" bar (recyclebin/_select_bar.html), approvals and the Recycle bin.
+  Alpine.data("sdPick", () => ({
+    n: 0,
+    boxes() {
+      return [...this.$root.querySelectorAll("input[name=ids]")];
+    },
+    count() {
+      this.n = this.boxes().filter((b) => b.checked).length;
+    },
+    all(e) {
+      this.boxes().forEach((b) => (b.checked = e.target.checked));
+      this.count();
+    },
+    none() {
+      this.boxes().forEach((b) => (b.checked = false));
+      this.$root.querySelectorAll("thead input[type=checkbox]").forEach((b) => (b.checked = false));
+      this.count();
+    },
+  }));
+
   // ---- Tabs --------------------------------------------------------------------
   Alpine.data("tabs", (initial) => ({
     active: initial,

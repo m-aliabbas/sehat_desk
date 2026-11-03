@@ -92,6 +92,10 @@ NAV_ITEMS = [
         "hr:home",
         ("hr.self", "hr.attendance.manage", "hr.pay.manage"),
     ),
+    NavItem(
+        "approvals", "Approvals", "check-circle", "approvals:list", ("admin.approvals.manage",)
+    ),
+    NavItem("recycle-bin", "Recycle bin", "trash", "recyclebin:list", ("admin.recyclebin.manage",)),
     NavItem("more", "All menu", "menu", "core:menu", ("admin.organization.manage",)),
     NavItem(
         "settings",
@@ -128,6 +132,8 @@ ADMIN_SIDEBAR = (
     "reception",
     "procedures",
     "laboratory",
+    "approvals",
+    "recycle-bin",
     "more",
     "settings",
 )
@@ -152,6 +158,8 @@ NAV_COLORS = {
     "finance": "green",
     "staff": "blue",
     "hr": "blue",
+    "approvals": "yellow",
+    "recycle-bin": "neutral",
     "more": "purple",
     "settings": "neutral",
     "design-system": "purple",
@@ -214,9 +222,19 @@ def build_nav(request) -> list[dict]:
             "active": item.key == current_key,
             "where": where if item.key == "more" else "",
             "coming_soon": item.url_name is None,
+            "badge": _badge(item.key, request),
         }
         for item in items
     ]
+
+
+def _badge(key: str, request) -> int:
+    """A count next to the menu item: stock edits waiting for approval in this branch."""
+    if key != "approvals":
+        return 0
+    from apps.approvals.services import pending_count
+
+    return pending_count(request)
 
 
 _NAV_KEY_BY_URL_NAME = {item.url_name: item.key for item in NAV_ITEMS if item.url_name}
@@ -288,6 +306,8 @@ _NAV_KEY_BY_SECTION = {
     "reports:pharmacy": "pharmacy",
     "audit:log": "settings",
     "audit:entry": "settings",
+    "approvals:list": "approvals",
+    "recyclebin:list": "recycle-bin",
     "procedures:procedure": "procedures",
     "hr:attendance": "hr",
     "hr:pay": "hr",
