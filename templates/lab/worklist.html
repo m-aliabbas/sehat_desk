@@ -18,6 +18,8 @@
 </section>
 {% endif %}
 
+{% include "flow/_counter_queue.html" with counter="LAB" %}
+{% include "flow/_token_lookup.html" %}
 <section class="card">
   <nav class="tabs mb-5 overflow-x-auto" aria-label="Worklist">
     {% for key, label, n in tabs %}<a class="tab" href="?tab={{ key }}" {% if tab == key %}aria-selected="true"{% endif %}>{{ label }} <span class="chip {% if n %}chip-warning{% else %}chip-neutral{% endif %} ml-1">{{ n }}</span></a>{% endfor %}

@@ -22,6 +22,9 @@ PRD §6.3. Prescription lines written inside a consultation; Settings → Medici
 - A line needs only a medicine name; dose and frequency are optional. `send_if_any` sends a signed
   prescription when the doctor presses "Checked · Next".
 
+- `print` takes `?print=1` (prints on load) and may be framed by our own pages: the hospital can print each signed
+  prescription by itself on the doctor's desk and/or once at the pharmacy (`apps/flow`, `pharmacy_printed_at`).
+
 ## Permissions
 `prescription.create`.
 

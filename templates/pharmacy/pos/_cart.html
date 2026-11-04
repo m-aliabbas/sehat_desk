@@ -1,4 +1,4 @@
-{% load ui pharmacy %}
+{% load ui pharmacy flow %}
 {# The till: cart lines and the sale summary. Every till action re-renders this block. #}
 <div id="pos-cart" class="grid gap-4 xl:grid-cols-4">
   <section class="card xl:col-span-3">
@@ -90,6 +90,12 @@
       <span class="text-label font-semibold uppercase text-muted">{% if returns %}New sale{% else %}Total{% endif %}</span>
       <span class="text-[32px] leading-none font-bold text-teal-deep">{{ totals.grand_total|default:0|floatformat:"2g" }}</span>
     </div>
+    {% if totals.dues %}
+    {# Fees the hospital routes to the pharmacy (Settings → Patient flow); billed on this sale. #}
+    <dl class="space-y-1 rounded-control bg-page p-2 text-label" aria-label="Visit fees on this bill">
+      {% for d in totals.dues %}<div class="flex justify-between gap-2"><dt>{{ d.description }} <span class="text-muted">· token {{ d.visit.token.label }}</span></dt><dd class="font-medium">{{ d.amount|floatformat:"2g" }}</dd></div>{% endfor %}
+    </dl>
+    {% endif %}
     {% if returns %}
     <div class="flex justify-between text-body"><span class="text-muted">Returns</span><span>− {{ totals.returns|floatformat:"2g" }}</span></div>
     <div class="flex justify-between font-semibold"><span>{% if totals.net < 0 %}Give back{% else %}Take from customer{% endif %}</span><span>{{ totals.net|floatformat:"2g" }}</span></div>
@@ -102,7 +108,7 @@
     {% if returns and not items %}
       <button id="pos-pay" type="button" class="btn btn-primary h-12 w-full" hx-post="{% url 'pharmacy:pos-returns-settle' %}" hx-target="#pos-cart" hx-swap="outerHTML">Give back {{ totals.returns|floatformat:"2g" }} · F8</button>
     {% elif can_collect %}
-      <button id="pos-pay" type="button" class="btn btn-primary h-12 w-full" hx-get="{% url 'pharmacy:pos-pay' %}" hx-target="#overlay-root" {% if not items or problems %}disabled{% endif %}>Take payment · F8</button>
+      <button id="pos-pay" type="button" class="btn btn-primary h-12 w-full" hx-get="{% url 'pharmacy:pos-pay' %}" hx-target="#overlay-root" {% if not items and not totals.dues or problems %}disabled{% endif %}>Take payment · F8</button>
     {% else %}
       <p class="text-label text-muted">You can build the sale; someone who can take payments completes it.</p>
     {% endif %}
@@ -168,4 +174,5 @@
     </div>
     {% endif %}
   </section>
+  {% pending_print %}
 </div>

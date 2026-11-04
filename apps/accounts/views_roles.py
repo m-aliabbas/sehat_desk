@@ -112,6 +112,13 @@ def role_toggle_active(request, pk):
         messages.success(
             request, f"“{role.name}” is now {'active' if role.is_active else 'inactive'}."
         )
+        people = role.assignments.filter(user__is_active=True).values("user").distinct().count()
+        if not role.is_active and people:
+            messages.warning(
+                request,
+                f"{people} active staff hold “{role.name}” and lose its access until it is "
+                "active again or they get another role.",
+            )
     return redirect("accounts:role-list")
 
 

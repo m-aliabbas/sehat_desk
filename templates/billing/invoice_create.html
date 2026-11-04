@@ -38,7 +38,7 @@
     </section>
     <div class="flex gap-3">
       <button class="btn btn-primary">Start invoice</button>
-      <a href="{% url 'billing:invoice-list' %}" class="btn btn-close">Cancel</a>
+      {% url 'billing:invoice-list' as register %}{% openable register as register_url %}<a href="{{ register_url|default:'/' }}" class="btn btn-close">Cancel</a>
     </div>
   </div>
   <aside class="card h-fit">

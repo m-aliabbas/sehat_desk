@@ -1,3 +1,4 @@
+{% load ui %}
 {% if transactions %}
 <div class="table-wrap">
   <table class="table">
@@ -8,7 +9,7 @@
         <td class="whitespace-nowrap">{{ t.created_at|date:"d M Y, H:i" }}</td>
         <td><a href="{% url 'pharmacy:product-ledger' t.product_id %}" class="hover:underline">{{ t.product.display_name }}</a><p class="font-mono text-label text-muted">{{ t.batch.label }}</p></td>
         <td>{{ t.get_kind_display }}{% if t.reason %}<p class="text-label text-muted">{{ t.reason }}</p>{% endif %}</td>
-        <td class="whitespace-nowrap">{% with doc=t.document %}{% if doc %}<a href="{{ doc.1 }}" class="font-mono hover:underline">{{ doc.0 }}</a>{% elif t.reference %}<span class="font-mono">{{ t.reference }}</span>{% else %}<span class="text-muted">—</span>{% endif %}{% endwith %}</td>
+        <td class="whitespace-nowrap">{% with doc=t.document %}{% if doc %}{% openable doc.1 as doc_url %}{% if doc_url %}<a href="{{ doc_url }}" class="font-mono hover:underline">{{ doc.0 }}</a>{% else %}<span class="font-mono">{{ doc.0 }}</span>{% endif %}{% elif t.reference %}<span class="font-mono">{{ t.reference }}</span>{% else %}<span class="text-muted">—</span>{% endif %}{% endwith %}</td>
         <td class="text-right font-semibold {% if t.quantity < 0 %}text-red{% else %}text-teal-deep{% endif %}">{% if t.quantity > 0 %}+{% endif %}{{ t.quantity }}</td>
         <td class="text-right">{{ t.balance_after }}</td>
         <td class="text-right">{{ t.unit_cost|floatformat:"2g" }}</td>

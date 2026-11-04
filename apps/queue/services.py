@@ -12,7 +12,7 @@ from django.db.models import F, Q
 from django.utils import timezone
 
 from apps.appointments.models import Appointment
-from apps.appointments.services import schedule_for
+from apps.appointments.services import release_fee, schedule_for
 from apps.core.models import next_number
 
 from .models import QueueToken
@@ -109,7 +109,17 @@ def queue_for(branch, *, doctor=None, department=None, day=None):
 
 
 def waiting(qs):
-    return qs.filter(status=Status.WAITING).order_by("priority_rank", "queued_at")
+    """Tokens the doctor can call. A visit still owing reception (apps/flow) is not in line yet."""
+    return (
+        qs.filter(status=Status.WAITING)
+        .exclude(flow_visit__state="TOKEN_ISSUED")
+        .order_by("priority_rank", "queued_at")
+    )
+
+
+def held(qs):
+    """Waiting tokens held back until reception is paid (apps/flow)."""
+    return qs.filter(status=Status.WAITING, flow_visit__state="TOKEN_ISSUED")
 
 
 def position(token) -> dict:
@@ -164,6 +174,8 @@ def call_next(*, request, doctor):
 @transaction.atomic
 def call(token, *, request, doctor):
     _require(token, Status.WAITING)
+    if held(QueueToken.objects.filter(pk=token.pk)).exists():
+        raise QueueError(f"{token.label} has not paid at reception yet.")
     current = current_for(request.branch, doctor)
     if current and current.pk != token.pk:
         raise QueueError(f"Finish {current.label} first.")
@@ -234,7 +246,24 @@ def complete(token):
 
 
 @transaction.atomic
-def cancel(token, *, reason):
+def close_elsewhere(token):
+    """The patient left the doctor's queue at another counter (apps/flow pull by token, or the
+    doctor need not press Checked · Next). Closes any open token; the appointment completes."""
+    token = QueueToken.objects.select_for_update(of=("self",)).get(pk=token.pk)
+    if not token.is_open:
+        return token
+    token.status = Status.COMPLETED
+    token.completed_at = timezone.now()
+    token.started_at = token.started_at or token.completed_at
+    token.save(update_fields=["status", "completed_at", "started_at", "updated_at"])
+    if token.appointment and token.appointment.status == ApptStatus.IN_QUEUE:
+        _set_appointment(token, ApptStatus.WITH_DOCTOR)
+    _set_appointment(token, ApptStatus.COMPLETED)
+    return token
+
+
+@transaction.atomic
+def cancel(token, *, reason, user=None):
     if not reason.strip():
         raise QueueError("A reason is required to cancel a token.")
     _require(token, *QueueToken.OPEN_STATUSES)
@@ -248,6 +277,7 @@ def cancel(token, *, reason):
         appt.cancelled_at = token.cancelled_at
         appt.cancellation_reason = f"Token cancelled: {token.cancel_reason}"
         appt.save(update_fields=["status", "cancelled_at", "cancellation_reason", "updated_at"])
+        release_fee(appt, user=user, reason=appt.cancellation_reason)
     return token
 
 

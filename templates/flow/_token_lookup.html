@@ -1,0 +1,12 @@
+{# Today's payments by token (flow:token). Include on a counter or doctor screen; the result shows under the box. #}
+<section class="card mb-4" aria-label="Payments by token">
+  <form method="get" action="{% url 'flow:token' %}" hx-get="{% url 'flow:token' %}" hx-target="#token-payments" hx-swap="innerHTML" class="flex flex-wrap items-end gap-3">
+    <div class="field min-w-[12rem]">
+      <label class="field-label" for="token-lookup">Token</label>
+      <input id="token-lookup" name="token" class="input" placeholder="M-2" autocomplete="off" required data-draft="off">
+    </div>
+    <button class="btn btn-secondary">Today's payments</button>
+    <p class="basis-full text-label text-muted">Type the token on the patient's slip (M-2, M002) to see what they paid today and what is still owed.</p>
+  </form>
+  <div id="token-payments" class="mt-3" aria-live="polite"></div>
+</section>

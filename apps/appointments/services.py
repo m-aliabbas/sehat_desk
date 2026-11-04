@@ -230,7 +230,23 @@ def cancel(appt, *, user, reason):
     appt.cancelled_at = timezone.now()
     appt.cancelled_by = user
     appt.save()
+    release_fee(appt, user=user, reason=appt.cancellation_reason)
     return appt
+
+
+def release_fee(appt, *, user, reason):
+    """A cancelled visit owes nothing: its fee invoice is voided when it holds no money, so it
+    leaves the outstanding list. One that was paid is returned: refund it in Billing."""
+    from apps.billing import services as billing
+    from apps.billing.models import Invoice
+
+    paid = None
+    for invoice in appt.invoices.exclude(status=Invoice.Status.CANCELLED):
+        if invoice.net_paid > 0:
+            paid = invoice
+        else:
+            billing.void_unpaid(invoice, user=user, reason=f"{appt.number} cancelled: {reason}")
+    return paid
 
 
 @transaction.atomic

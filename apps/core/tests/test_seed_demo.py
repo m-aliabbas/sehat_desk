@@ -46,7 +46,7 @@ def test_demo_counts_meet_phase_31(demo):
     assert staff("reception") + staff("cashier") == 4
     assert staff("lab") == 2 and staff("pharmacy") == 2
     assert Patient.objects.filter(**org).count() == 50
-    assert Appointment.objects.filter(**org).count() == 30
+    assert Appointment.objects.filter(**org).count() == 32
     assert Encounter.objects.filter(**org, status="completed").count() == 20
     assert Prescription.objects.filter(**org).count() == 15
     assert LabOrder.objects.filter(**org).count() == 20

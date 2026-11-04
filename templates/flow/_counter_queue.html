@@ -1,0 +1,32 @@
+{% load ui %}
+{# Patients the flow has sent to this counter today (apps/flow). Context: flow_queue, counter ("PHARMACY" or "LAB"). #}
+{% if flow_queue %}
+<section class="card mb-6" aria-label="Waiting here">
+  <div class="card-header">
+    <div>
+      <h2 class="section-title">Waiting here ({{ flow_queue|length }})</h2>
+      <p class="text-label text-muted">Sent here by the patient flow today. Done here moves the patient on; fees still owed here keep them.</p>
+    </div>
+    <a class="btn btn-ghost btn-sm" href="{% url 'flow:board' %}">Patient flow</a>
+  </div>
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th scope="col">Token</th><th scope="col">Patient</th><th scope="col">Doctor</th><th scope="col">Notes</th><th scope="col" class="text-right">Still to pay</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+    <tbody>{% for v in flow_queue %}<tr>
+      <td class="font-mono font-semibold">{{ v.token.label }}</td>
+      <td>{{ v.patient.full_name }}<p class="font-mono text-label text-muted">{{ v.patient.mrn }}</p></td>
+      <td>{{ v.token.doctor|default:"Any doctor" }}</td>
+      <td class="text-label">{% if v.is_emergency %}<span class="chip chip-danger">Emergency</span> {% endif %}{% if v.is_manual_rx_flagged %}Paper Rx{% elif v.digital_rx_generated %}Rx sent{% endif %}{% if v.pulled_to %}{% if v.is_manual_rx_flagged or v.digital_rx_generated %} · {% endif %}Taken by token{% endif %}</td>
+      <td class="text-right">{% if v.unpaid_total %}{{ v.unpaid_total|floatformat:"2g" }}{% else %}—{% endif %}</td>
+      <td class="text-right whitespace-nowrap">
+        {% if counter == "PHARMACY" %}
+        <form method="post" action="{% url 'pharmacy:pos-prescription' %}" class="inline">{% csrf_token %}<input type="hidden" name="action" value="visit"><input type="hidden" name="patient" value="{{ v.patient.pk }}">{% if v.token.doctor_id %}<input type="hidden" name="doctor" value="{{ v.token.doctor_id }}">{% endif %}<button class="btn btn-primary btn-sm">Open at till</button></form>
+        {% else %}
+        {% for o in v.lab_orders %}<a class="btn btn-secondary btn-sm" href="{% url 'lab:order-detail' o.pk %}">{{ o.number }}</a>{% endfor %}
+        {% for number, inv in v.lab_dues %}{% if "billing.payment.collect" in sd_perms %}<a class="btn btn-warning btn-sm" href="{% url 'billing:invoice-pay' inv.pk %}">Collect {{ inv.balance_due|floatformat:"2g" }}</a>{% else %}<span class="chip chip-warning" title="{{ number }}">Pay at cash</span>{% endif %}{% endfor %}
+        {% endif %}
+        <form method="post" action="{% url 'flow:send-on' v.pk %}" class="inline">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="btn btn-ghost btn-sm">Done here</button></form>
+      </td>
+    </tr>{% endfor %}</tbody>
+  </table></div>
+</section>
+{% endif %}

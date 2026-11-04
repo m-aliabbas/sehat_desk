@@ -85,7 +85,6 @@ class PreferencesForm(StyledFormMixin, forms.ModelForm):
             "default_slot_minutes",
             "default_follow_up_days",
             "use_doctor_shifts",
-            "opd_collect_fee_upfront",
             "opd_print_blank_prescription",
             "opd_print_office_copy",
             "opd_auto_print",

@@ -7,7 +7,11 @@
 {% include "partials/settings_tabs.html" %}
 <div class="mb-6 grid gap-4 md:grid-cols-3">
   {% for c, label, ok in channels %}
-  <div class="stat-card {% if ok %}bg-mint{% else %}bg-page{% endif %}"><p class="text-body font-semibold">{{ label }}</p><p class="mt-1 text-label text-muted">{% if ok %}Set up — messages are sent.{% else %}Not set up — messages are logged as skipped.{% endif %}</p></div>
+  {# Not a stat-card: that is a label and one number on a line, and a sentence overflows it. #}
+  <div class="rounded-control border border-line px-3 py-2 {% if ok %}bg-mint{% else %}bg-page{% endif %}">
+    <p class="flex items-center justify-between gap-2 text-body font-semibold">{{ label }} {% if ok %}<span class="chip chip-success">Set up</span>{% else %}<span class="chip chip-neutral">Not set up</span>{% endif %}</p>
+    <p class="mt-1 text-label text-muted">{% if ok %}Messages are sent.{% else %}Messages are logged as skipped.{% endif %}</p>
+  </div>
   {% endfor %}
 </div>
 <div class="grid gap-6 xl:grid-cols-[1fr_2fr]">

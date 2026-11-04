@@ -254,3 +254,29 @@ def test_permission_matrix_saves_changes(admin_client, org):
     assert nurse.permissions.filter(code="appointment.view").exists()
     log = AuditLog.objects.get(action="role.update", record_id=str(nurse.pk))
     assert log.changes["added"] == ["appointment.view"]
+
+
+def test_lab_technician_can_take_lab_fees_by_default():
+    """Lab tests are paid at the lab by default (apps/flow), so the lab role collects them."""
+    from apps.accounts.permissions import DEFAULT_ROLES
+
+    lab = next(r for r in DEFAULT_ROLES if r.key == "lab")
+    assert "billing.payment.collect" in lab.permissions
+
+
+def test_breadcrumbs_link_only_pages_the_person_can_open(client, make_user):
+    """Reception on the lab's test list: 'Laboratory' (the worklist) is plain text."""
+    from django.urls import reverse
+
+    client.force_login(make_user("reception", username="crumbs"))
+    html = client.get(reverse("lab:tests")).content.decode()
+    assert 'href="/lab/"' not in html and "Laboratory" in html
+
+
+def test_deactivating_a_role_says_who_loses_access(admin_client, make_user, org):
+    from apps.accounts.models import Role
+
+    make_user("cashier", username="till1")
+    role = Role.objects.get(organization=org, system_key="cashier")
+    response = admin_client.post(f"/settings/roles/{role.pk}/status/", follow=True)
+    assert "1 active staff hold" in response.content.decode()

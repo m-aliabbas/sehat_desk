@@ -43,7 +43,7 @@
     <ul class="divide-y divide-line">
       {% for r in k.critical_list %}
       <li class="flex items-center justify-between gap-3 py-2">
-        <span><a class="font-medium hover:underline" href="{% url 'lab:order-detail' r.item.order_id %}">{{ r.item.order.number }}</a> · {{ r.item.order.patient.full_name }}<span class="block text-label text-muted">{{ r.item.test_name }}: <span class="font-semibold text-red">{{ r.display_value }}</span> ({{ r.get_flag_display }})</span></span>
+        <span>{% if can_open_orders %}<a class="font-medium hover:underline" href="{% url 'lab:order-detail' r.item.order_id %}">{{ r.item.order.number }}</a>{% else %}<span class="font-medium">{{ r.item.order.number }}</span>{% endif %} · {{ r.item.order.patient.full_name }}<span class="block text-label text-muted">{{ r.item.test_name }}: <span class="font-semibold text-red">{{ r.display_value }}</span> ({{ r.get_flag_display }})</span></span>
         <span class="text-label text-muted whitespace-nowrap">{{ r.entered_at|timesince }} ago</span>
       </li>
       {% endfor %}
@@ -56,7 +56,7 @@
     <ul class="divide-y divide-line">
       {% for i in k.oldest_open %}
       <li class="flex items-center justify-between gap-3 py-2">
-        <span><a class="font-medium hover:underline" href="{% url 'lab:order-detail' i.order_id %}">{{ i.order.number }}</a> · {{ i.test_name }}<span class="block text-label text-muted">{{ i.order.patient.full_name }}</span></span>
+        <span>{% if can_open_orders %}<a class="font-medium hover:underline" href="{% url 'lab:order-detail' i.order_id %}">{{ i.order.number }}</a>{% else %}<span class="font-medium">{{ i.order.number }}</span>{% endif %} · {{ i.test_name }}<span class="block text-label text-muted">{{ i.order.patient.full_name }}</span></span>
         <span class="flex items-center gap-2">{% status_chip i.status i.get_status_display %}<span class="text-label text-muted whitespace-nowrap">{{ i.order.created_at|timesince }}</span></span>
       </li>
       {% endfor %}

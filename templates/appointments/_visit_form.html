@@ -19,6 +19,7 @@
         pickTime: {% if form.time.value %}true{% else %}false{% endif %},
         time: '{{ form.time.value|default:''|slice:':5' }}',
         fee: '',
+        visitType: '',
         collect: {% if form.is_bound %}{{ form.collect.value|yesno:'true,false' }}{% else %}true{% endif %},
         showVitals: true,
         emergency: {% if form.emergency.value %}true{% else %}false{% endif %},
@@ -32,7 +33,7 @@
           return this.doctors.filter(d => !q || (d.name + ' ' + d.dept).toLowerCase().includes(q)).slice(0, 8);
         },
         get doctor() { return this.doctors.find(d => String(d.id) === String(this.doctorId)); },
-        chooseDoctor(d) { this.doctorId = d.id; this.fee = d.fee; this.doctorQuery = ''; this.doctorOpen = false; this.$nextTick(() => { this.refreshSlots(); this.$refs.save.focus(); }); },
+        chooseDoctor(d) { this.doctorId = d.id; this.fee = d.fee; this.visitType = ''; this.doctorQuery = ''; this.doctorOpen = false; this.$nextTick(() => { this.refreshSlots(); this.$refs.save.focus(); }); },
         refreshSlots() { this.$nextTick(() => document.body.dispatchEvent(new Event('visit-changed'))); },
         get isToday() { return this.date === this.today; },
         get timeLabel() { return this.pickTime && this.time ? this.time : (this.isToday ? 'Next in the queue' : 'First free slot'); },
@@ -46,6 +47,7 @@
       @keydown.f4.window.prevent="toggleEmergency()"
       @slot-picked.window="time = $event.detail"
       @fee-suggested.window="fee = $event.detail"
+      @visit-suggested.window="visitType = $event.detail"
       @keydown.enter="if ($event.target.tagName === 'INPUT') $event.preventDefault()">
   {% csrf_token %}
   <input type="hidden" name="mode" :value="mode">
@@ -194,8 +196,9 @@
   <aside class="space-y-6">
     <section class="card xl:sticky xl:top-20">
       <h2 class="section-title mb-4">Fee and papers</h2>
-      <p class="flex items-baseline justify-between text-body"><span class="text-muted">Doctor's fee</span><span class="text-[22px] font-bold">{{ organization.currency }} <span x-text="fee ? Number(fee).toLocaleString() : '—'"></span></span></p>
-      {% if can_collect and prefs.opd_collect_fee_upfront %}
+      <p class="flex items-baseline justify-between text-body"><span class="text-muted">Doctor's fee<span x-show="visitType === 'follow_up'" class="chip chip-info ml-2" title="Seen by this doctor within the follow-up days: the follow-up fee applies">Follow-up</span></span><span class="text-[22px] font-bold">{{ organization.currency }} <span x-text="fee ? Number(fee).toLocaleString() : '—'"></span></span></p>
+      {% if not fee_at_desk %}<p class="mt-1 text-label text-muted">Paid at {{ fee_at }}, not here.</p>{% endif %}
+      {% if can_collect and fee_at_desk %}
       <label class="mt-4 flex items-center gap-2 text-body">
         <input type="checkbox" class="checkbox" name="collect" x-model="collect">
         <span x-text="isToday ? 'Fee received now' : 'Fee received in advance'"></span>
@@ -236,7 +239,7 @@
         <input id="id_reason" name="reason" class="input" maxlength="200" data-list="past-appointments-appointment-reason" role="combobox" autocomplete="off" value="{{ form.reason.value|default:'' }}">{% past_values "appointments.Appointment.reason" %}
       </div>
       <ul class="mt-4 space-y-1 text-label text-muted" x-show="isToday">
-        <li>Prints by itself: token{% if prefs.opd_collect_fee_upfront %}, fee slip{% if prefs.opd_print_office_copy %} (patient and office copy){% endif %}{% endif %}.{% if prefs.opd_print_blank_prescription %} The prescription has its own button.{% endif %}</li>
+        <li>Prints by itself: token{% if fee_at_desk %}, fee slip{% if prefs.opd_print_office_copy %} (patient and office copy){% endif %}{% endif %}.{% if prefs.opd_print_blank_prescription %} The prescription has its own button.{% endif %}</li>
       </ul>
       <p class="mt-4 text-label text-muted" x-show="!isToday" x-cloak>Pre-booking. The token and prescription print when the patient arrives.</p>
       <button type="submit" x-ref="save" class="btn btn-primary mt-5 w-full" :disabled="(mode === 'find' && !patientId) || !doctorId || (pickTime && !time)" x-text="emergency ? 'Save emergency and print (F8)' : (isToday ? 'Save and print (F8)' : 'Save booking (F8)')"></button>

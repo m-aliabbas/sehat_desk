@@ -80,6 +80,7 @@
       <button type="button" class="tab" role="tab" :aria-selected="tab === 'prescription'" @click="pick('prescription')">Medicines</button>
       {% if features.lab %}<button type="button" class="tab" role="tab" :aria-selected="tab === 'lab'" @click="pick('lab')">Tests</button>{% endif %}
       {% if procedure_can_view %}<button type="button" class="tab" role="tab" :aria-selected="tab === 'procedures'" @click="pick('procedures')">Procedures</button>{% endif %}
+      {% if flow_visit %}<button type="button" class="tab" role="tab" :aria-selected="tab === 'fees'" @click="pick('fees')">Fees</button>{% endif %}
       <button type="button" class="tab" role="tab" :aria-selected="tab === 'diagnoses'" @click="pick('diagnoses')">Diagnoses</button>
       {% if doc_can_view %}<button type="button" class="tab" role="tab" :aria-selected="tab === 'documents'" @click="pick('documents')">Documents</button>{% endif %}
       <button type="button" class="tab" role="tab" :aria-selected="tab === 'visits'" @click="pick('visits')">Past visits</button>
@@ -87,6 +88,7 @@
     <div x-show="tab === 'prescription'">{% include "prescriptions/_panel.html" %}</div>
     {% if features.lab %}<div x-show="tab === 'lab'" x-cloak>{% include "lab/_encounter_panel.html" %}</div>{% endif %}
     {% if procedure_can_view %}<div x-show="tab === 'procedures'" x-cloak>{% include "procedures/_encounter_panel.html" %}</div>{% endif %}
+    {% if flow_visit %}<div x-show="tab === 'fees'" x-cloak>{% include "flow/_encounter_fees.html" %}</div>{% endif %}
     <div x-show="tab === 'diagnoses'" x-cloak>{% include "encounters/_diagnoses.html" %}</div>
     {% if doc_can_view %}<div x-show="tab === 'documents'" x-cloak><section class="card" id="sec-documents">{% include "documents/_panel.html" %}</section></div>{% endif %}
     <div x-show="tab === 'visits'" x-cloak>

@@ -317,6 +317,11 @@ def test_pay_staff_reduces_balance_once(admin_req, make_user, cash):
     payroll.pay_staff(
         request=admin_req, user=user, amount=D("3000"), method=cash, idempotency_key="k1"
     )
+    with pytest.raises(payroll.PayrollError, match="already used"):  # not someone else's pay
+        payroll.pay_staff(
+            request=admin_req, user=make_user("nurse"), amount=D("10"), method=cash,
+            idempotency_key="k1",
+        )  # fmt: skip
     payroll.pay_staff(
         request=admin_req,
         user=user,

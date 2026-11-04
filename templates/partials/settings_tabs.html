@@ -1,7 +1,7 @@
 {# Sub-navigation for Settings pages: a group, then the pages in it. Context: settings_tab #}
 {% with org="admin.organization.manage" branches_p="admin.branches.manage" data="admin.masterdata.manage" roles="admin.roles.manage" audit_p="admin.audit.view" sys="admin.system.view" %}
 <nav class="tabs" aria-label="Settings sections">
-  {% if org in sd_perms %}<a class="tab" href="{% url 'organizations:hospital' %}" {% if settings_tab == "hospital" or settings_tab == "preferences" or settings_tab == "fields" or settings_tab == "messages" or settings_tab == "branches" %}aria-selected="true"{% endif %}>Hospital</a>
+  {% if org in sd_perms %}<a class="tab" href="{% url 'organizations:hospital' %}" {% if settings_tab == "hospital" or settings_tab == "preferences" or settings_tab == "fields" or settings_tab == "messages" or settings_tab == "flow" or settings_tab == "branches" %}aria-selected="true"{% endif %}>Hospital</a>
   {% elif branches_p in sd_perms %}<a class="tab" href="{% url 'organizations:branch-list' %}" {% if settings_tab == "branches" %}aria-selected="true"{% endif %}>Hospital</a>{% endif %}
   {% if org in sd_perms %}<a class="tab" href="{% url 'billing:settings' %}" {% if settings_tab == "billing" or settings_tab == "print" or settings_tab == "printers" %}aria-selected="true"{% endif %}>Billing &amp; printing</a>{% endif %}
   {% if data in sd_perms %}<a class="tab" href="{% url 'masterdata:department-list' %}" {% if settings_tab == "departments" or settings_tab == "doctors" or settings_tab == "services" or settings_tab == "diagnoses" or settings_tab == "medicines" %}aria-selected="true"{% endif %}>Clinical lists</a>{% endif %}
@@ -11,10 +11,11 @@
   {% elif sys in sd_perms %}<a class="tab" href="{% url 'core:system' %}" {% if settings_tab == "system" %}aria-selected="true"{% endif %}>System</a>{% endif %}
 </nav>
 <nav class="mb-3 flex flex-wrap gap-1 py-2" aria-label="Pages in this group">
-  {% if settings_tab == "hospital" or settings_tab == "preferences" or settings_tab == "fields" or settings_tab == "messages" or settings_tab == "branches" %}
+  {% if settings_tab == "hospital" or settings_tab == "preferences" or settings_tab == "fields" or settings_tab == "messages" or settings_tab == "flow" or settings_tab == "branches" %}
     {% if org in sd_perms %}<a class="settings-sub" href="{% url 'organizations:hospital' %}" {% if settings_tab == "hospital" %}aria-current="page"{% endif %}>Details</a>
     <a class="settings-sub" href="{% url 'organizations:preferences' %}" {% if settings_tab == "preferences" %}aria-current="page"{% endif %}>Preferences</a>
     <a class="settings-sub" href="{% url 'organizations:field-rules' %}" {% if settings_tab == "fields" %}aria-current="page"{% endif %}>Fields &amp; tax</a>
+    <a class="settings-sub" href="{% url 'flow:settings' %}" {% if settings_tab == "flow" %}aria-current="page"{% endif %}>Patient flow</a>
     <a class="settings-sub" href="{% url 'notifications:messages' %}" {% if settings_tab == "messages" %}aria-current="page"{% endif %}>Patient messages</a>{% endif %}
     {% if branches_p in sd_perms %}<a class="settings-sub" href="{% url 'organizations:branch-list' %}" {% if settings_tab == "branches" %}aria-current="page"{% endif %}>Branches</a>{% endif %}
   {% elif settings_tab == "billing" or settings_tab == "print" or settings_tab == "printers" %}

@@ -316,6 +316,8 @@ def record_deposit(
             organization=request.organization, idempotency_key=idempotency_key
         ).first()
         if done:
+            if done.admission_id != admission.pk:
+                raise IpdError("This deposit form was already used. Reload the page and try again.")
             return done  # the same form was submitted twice; never take money twice
     admission = _lock(admission)
     _require_active(admission)

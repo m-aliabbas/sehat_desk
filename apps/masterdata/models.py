@@ -14,6 +14,7 @@ from django.db import models
 
 from apps.core.models import LIVE, RecycleBinMixin, TimeStampedModel
 from apps.core.scoping import OrgScopedModel
+from apps.flow.choices import CounterLocation
 
 _code_validator = RegexValidator(r"^[A-Z0-9-]{1,12}$", "Use capital letters, digits or -.")
 money = {"max_digits": 12, "decimal_places": 2, "validators": [MinValueValidator(Decimal("0"))]}
@@ -219,6 +220,14 @@ class Service(RecycleBinMixin, OrgScopedModel):
         default=False,
         help_text="A procedure added to a patient's visit, e.g. ECG, ECHO, ultrasound, an "
         "operation or dental work.",
+    )
+    billed_at = models.CharField(
+        "Fee is paid at",
+        max_length=16,
+        choices=CounterLocation.choices,
+        default=CounterLocation.RECEPTION,
+        help_text="The counter that takes this fee when it is added to a visit (apps/flow): "
+        "e.g. an injection fee paid at the pharmacy with the medicine.",
     )
     price_editable = models.BooleanField(
         "Price can be changed per patient",

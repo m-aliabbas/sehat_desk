@@ -193,8 +193,21 @@ def _workspace_context(request, encounter, form=None):
     from apps.procedures.views import encounter_panel_context as procedure_panel
 
     procedure_can_view = has_perm(request, "procedure.view")
+    from apps.flow.services import ADD_FEE, visit_for_encounter
+    from apps.masterdata.models import Service
+
+    flow_visit = visit_for_encounter(encounter)
     return {
         **lab,
+        # Fees tab (apps/flow): injection, dressing... each paid at its own counter.
+        "flow_visit": flow_visit,
+        "flow_fees": list(flow_visit.bill_items.all()) if flow_visit else [],
+        "can_add_fee": bool(flow_visit) and has_perm(request, ADD_FEE) and encounter.is_draft,
+        "fee_services": scoped(Service, request)
+        .filter(is_active=True, is_procedure=False)
+        .order_by("name")
+        if flow_visit
+        else [],
         **(procedure_panel(request, encounter, writable) if procedure_can_view else {}),
         "procedure_can_view": procedure_can_view,
         **document_panel(request, patient, encounter=encounter),
@@ -321,11 +334,18 @@ def complete(request, pk):
     messages.success(
         request, f"{encounter.number} completed and signed (version {version.version})."
     )
+    from apps.flow.services import print_at_doctor
+    from apps.prescriptions.services import prescription_for
+
+    print_at_doctor(request, prescription_for(encounter))
     if request.POST.get("next_patient"):
         from apps.prescriptions import services as rx_services
 
         if rx := rx_services.send_if_any(encounter, request=request):
             audit.record(request, "prescription.send", rx, summary=rx.number)
+        from apps.flow.services import doctor_clicked_next
+
+        doctor_clicked_next(request, encounter.token)
         _call_next(request, encounter)
         return redirect("queue:doctor")
     return redirect("encounters:detail", pk=pk)

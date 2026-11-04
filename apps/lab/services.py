@@ -33,6 +33,26 @@ def _need(request, code, action):
         raise LabError(f"You are not allowed to {action}.")
 
 
+def _flow_guard(order, **kwargs):
+    """An OPD visit with any lab fee unpaid blocks lab work, whichever counter takes the fee
+    (apps/flow lab_guard). Urgent and STAT orders may be collected with a reason. Orders with no
+    visit keep the rules below."""
+    from apps.flow.services import FlowError, lab_guard
+
+    try:
+        lab_guard(order, **kwargs)
+    except FlowError as err:
+        raise LabError(err.message) from err
+
+
+def _bill_at_pharmacy(order, *, request, lines) -> bool:
+    """Where the hospital takes lab tests at the pharmacy (apps/flow), the visit's pharmacy bill
+    carries them and the order has no invoice of its own."""
+    from apps.flow.services import bill_lab_at_pharmacy
+
+    return bill_lab_at_pharmacy(request=request, order=order, lines=lines)
+
+
 # --- Orders ------------------------------------------------------------------------------------
 
 
@@ -91,7 +111,9 @@ def create_order(
     if not seen:
         raise LabError("The chosen panels have no active tests.")
     _create_samples(order)
-    if any(price > 0 for _, price in lines):
+    if any(price > 0 for _, price in lines) and not _bill_at_pharmacy(
+        order, request=request, lines=lines
+    ):
         invoice = billing.create_invoice(
             request=request, patient=patient, notes=f"Laboratory order {order.number}"
         )
@@ -129,7 +151,9 @@ def _rebill(order, *, request, reason):
         billing.void_unpaid(order.invoice, user=request.user, reason=reason)
     order.invoice = None
     lines = _bill_lines(order)
-    if any(price > 0 for _, price in lines):
+    if any(price > 0 for _, price in lines) and not _bill_at_pharmacy(
+        order, request=request, lines=lines
+    ):
         invoice = billing.create_invoice(
             request=request, patient=order.patient, notes=f"Laboratory order {order.number}"
         )
@@ -307,6 +331,9 @@ def cancel_order(order, *, request, reason: str) -> LabOrder:
             )
         if invoice.status != Invoice.Status.CANCELLED:
             billing.void_unpaid(invoice, user=request.user, reason=f"{order.number}: {reason}")
+    from apps.flow.services import drop_unbilled
+
+    drop_unbilled(lab_order=order)
     order.items.update(status=ItemStatus.CANCELLED, updated_at=timezone.now())
     order.cancelled_at = timezone.now()
     order.cancelled_by = request.user
@@ -333,6 +360,7 @@ def collect_sample(sample, *, request, unpaid_reason="") -> LabSample:
         raise LabError(
             f"Sample {sample.accession} is already {sample.get_status_display().lower()}."
         )
+    _flow_guard(order, collecting=True, reason=unpaid_reason, request=request)
     urgent = order.priority in (LabOrder.Priority.URGENT, LabOrder.Priority.STAT)
     if not order.is_paid and not urgent and not unpaid_reason.strip():
         raise LabError("The invoice is not paid. Collect payment first, or give a reason.")
@@ -379,6 +407,7 @@ def reject_sample(sample, *, request, reason: str) -> LabSample:
 @transaction.atomic
 def start_processing(order, *, request) -> int:
     _need(request, "lab.result.enter", "process samples")
+    _flow_guard(order)
     n = order.items.filter(status=ItemStatus.COLLECTED).update(
         status=ItemStatus.PROCESSING, updated_at=timezone.now()
     )
@@ -477,6 +506,7 @@ def enter_result(item, *, request, value: str, interpretation="") -> LabResult:
         raise LabError(f"{item.test_name} is verified. Amend it to change the result.")
     if item.status not in ENTERABLE:
         raise LabError(f"{item.test_name}: the sample has not been collected.")
+    _flow_guard(item.order)
     numeric, text = _parse_value(item.test, value)
     flag, ref = compute_flag(item.test, item.order.patient, numeric=numeric, text=text)
     band = band_for(item.test, item.order.patient, numeric)

@@ -26,6 +26,7 @@ from apps.core.forms import StyledFormMixin
 from apps.core.scoping import get_scoped_or_404, scoped
 from apps.encounters import services as encounter_services
 from apps.encounters.models import Encounter
+from apps.flow import services as flow_services
 from apps.lab import services as lab_services
 from apps.lab.models import LabOrder
 from apps.masterdata.models import Department, DoctorProfile, DoctorSchedule
@@ -75,9 +76,16 @@ def desk(request):
     elif clinic.startswith("dept-") and clinic[5:].isdigit():
         tokens = tokens.filter(department_id=clinic[5:])
 
-    open_tokens = tokens.filter(status__in=QueueToken.OPEN_STATUSES).order_by(
-        "priority_rank", "queued_at"
+    open_tokens = list(
+        tokens.filter(status__in=QueueToken.OPEN_STATUSES)
+        .select_related("flow_visit")
+        .order_by("priority_rank", "queued_at")
     )
+    for t in open_tokens:
+        # Held until reception is paid (apps/flow): how the desk takes the fee from this row.
+        visit = flow_services.visit_for_token(t)
+        t.held = visit is not None and visit.state == "TOKEN_ISSUED"
+        t.pay = flow_services.reception_pay_link(visit) if t.held else None
     closed_tokens = tokens.exclude(status__in=QueueToken.OPEN_STATUSES).order_by("-updated_at")[:10]
     today = timezone.localdate()
     working_ids = DoctorSchedule.objects.filter(
@@ -357,6 +365,7 @@ def complete_and_next(request, pk):
             )
             if rx := rx_services.send_if_any(encounter, request=request):
                 audit.record(request, "prescription.send", rx, summary=rx.number)
+            flow_services.print_at_doctor(request, rx_services.prescription_for(encounter))
             token.refresh_from_db()
         else:
             token = services.complete(token)
@@ -364,6 +373,7 @@ def complete_and_next(request, pk):
         messages.error(request, err.message)
         return _back(request, reverse("queue:doctor"))
     audit.record(request, "queue.complete", token, changes={"status": [before, token.status]})
+    flow_services.doctor_clicked_next(request, token)
     try:
         nxt = services.call_next(request=request, doctor=doctor)
     except services.QueueError as err:
@@ -378,14 +388,33 @@ def complete_and_next(request, pk):
 @permission_required(DESK)
 def cancel(request, pk):
     token = get_scoped_or_404(QueueToken, request, pk=pk)
-    return _run(
+    response = _run(
         request,
         "cancel",
         services.cancel,
         token,
         reverse("queue:desk"),
         reason=request.POST.get("reason", ""),
+        user=request.user,
     )
+    _warn_paid_fee(request, token.appointment)
+    return response
+
+
+def _warn_paid_fee(request, appt):
+    """A cancelled visit whose fee was paid: the money is still with the hospital."""
+    from apps.appointments.visits import fee_invoice
+
+    if appt is None:
+        return
+    appt.refresh_from_db(fields=["status"])
+    invoice = fee_invoice(appt)
+    if appt.status == "cancelled" and invoice is not None and invoice.net_paid > 0:
+        messages.warning(
+            request,
+            f"{invoice.number}: {invoice.net_paid:,.2f} was paid for this visit. "
+            "Refund it from the invoice.",
+        )
 
 
 # --- Doctor queue ------------------------------------------------------------------------------
@@ -409,6 +438,7 @@ def doctor_queue(request):
                 "current": services.current_for(request.branch, doctor),
                 "counts": {
                     "waiting": services.waiting(qs).count(),
+                    "held": services.held(qs).count(),
                     "seen": qs.filter(status=Status.COMPLETED).count(),
                     "skipped": qs.filter(status=Status.SKIPPED).count(),
                     "unsigned": Encounter.objects.filter(

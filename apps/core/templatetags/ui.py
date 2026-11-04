@@ -225,3 +225,12 @@ def get_item(mapping, key):
 def sum_values(values):
     """{{ row.values|sum_values }}: sum of an iterable of numbers."""
     return sum(values, 0)
+
+
+@register.simple_tag(takes_context=True)
+def openable(context, url):
+    """The URL if the person may open it, else "" (render as plain text)."""
+    from apps.accounts.decorators import can_open
+
+    request = context.get("request")
+    return url if url and request is not None and can_open(request, url) else ""

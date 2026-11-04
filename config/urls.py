@@ -15,6 +15,7 @@ urlpatterns = [
     path("", include("apps.vitals.urls")),
     path("", include("apps.prescriptions.urls")),
     path("", include("apps.lab.urls")),
+    path("", include("apps.flow.urls")),
     path("", include("apps.pharmacy.urls")),
     path("", include("apps.ipd.urls")),
     path("", include("apps.nursing.urls")),

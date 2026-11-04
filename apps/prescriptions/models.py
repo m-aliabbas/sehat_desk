@@ -107,6 +107,8 @@ class Prescription(BranchScopedModel):
     advice = models.TextField(blank=True, help_text="General advice printed under the medicines.")
     signed_at = models.DateTimeField(null=True, blank=True)
     sent_to_pharmacy_at = models.DateTimeField(null=True, blank=True)
+    # Printed by itself at the pharmacy (apps/flow rx_print_at), so it prints there only once.
+    pharmacy_printed_at = models.DateTimeField(null=True, blank=True)
     sent_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True, related_name="+"
     )

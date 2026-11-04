@@ -49,4 +49,6 @@
 
 {# HTMX-loaded modals and drawers render here (see templates/components/modal_base.html) #}
 <div id="overlay-root"></div>
+{# A prescription the hospital prints by itself on this PC (Settings → Patient flow). #}
+{% load flow %}{% pending_print %}
 {% endblock %}

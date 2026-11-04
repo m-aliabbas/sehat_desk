@@ -23,6 +23,7 @@
   <div class="space-y-6">
     <section class="card">
       <h2 class="section-title mb-4">Samples</h2>
+      {% if flow_unpaid %}{% include "components/alert.html" with level="warning" title="Lab fees unpaid for this visit" message=flow_unpaid|join:"; " %}{% endif %}
       <ul class="divide-y divide-line">
         {% for s in samples %}
         <li class="grid gap-3 py-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start {% if s.status == 'rejected' %}opacity-70{% endif %}">
@@ -36,7 +37,7 @@
             <a href="{% url 'lab:sample-label' s.pk %}" target="_blank" class="btn btn-ghost btn-sm">Label</a>
             {% if can_collect and is_lab_branch and s.status == "pending" %}
               <form method="post" action="{% url 'lab:sample-collect' s.pk %}" class="flex flex-wrap items-center gap-2">{% csrf_token %}
-                {% if not order.is_paid and order.priority == "routine" %}<input name="unpaid_reason" class="input h-9" maxlength="120" placeholder="Reason to collect before payment" aria-label="Reason to collect before payment">{% endif %}
+                {% if not order.is_paid and order.priority == "routine" or flow_unpaid and order.priority != "routine" %}<input name="unpaid_reason" class="input h-9" maxlength="120" placeholder="Reason to collect before payment" aria-label="Reason to collect before payment">{% endif %}
                 <button class="btn btn-primary btn-sm">Mark collected</button>
               </form>
             {% endif %}
@@ -104,7 +105,7 @@
       <dl class="space-y-2 text-body">
         <div><dt class="text-label text-muted">Ordered</dt><dd>{{ order.created_at|date:"d M Y, H:i" }} by {{ order.created_by }} · {{ order.get_source_display }}</dd></div>
         <div><dt class="text-label text-muted">Ordering doctor</dt><dd>{{ order.doctor|default:"—" }}</dd></div>
-        {% if order.encounter %}<div><dt class="text-label text-muted">Consultation</dt><dd><a class="hover:underline" href="{% url 'encounters:detail' order.encounter_id %}">{{ order.encounter.number }}</a></dd></div>{% endif %}
+        {% if order.encounter %}<div><dt class="text-label text-muted">Consultation</dt><dd>{% url 'encounters:detail' order.encounter_id as enc_url %}{% openable enc_url as enc_url %}{% if enc_url %}<a class="hover:underline" href="{{ enc_url }}">{{ order.encounter.number }}</a>{% else %}{{ order.encounter.number }}{% endif %}</dd></div>{% endif %}
         {% if order.clinical_notes %}<div><dt class="text-label text-muted">Clinical notes</dt><dd>{{ order.clinical_notes }}</dd></div>{% endif %}
         {% if order.released_at %}<div><dt class="text-label text-muted">Released</dt><dd>{{ order.released_at|date:"d M Y, H:i" }} by {{ order.released_by }}</dd></div>{% endif %}
         {% if order.amendment_count %}<div><dt class="text-label text-muted">Amendments</dt><dd>{{ order.amendment_count }}</dd></div>{% endif %}

@@ -14,7 +14,7 @@ Wards, rooms, beds, admissions, transfers, the running bill and discharge. PRD Â
 ## Rules
 - A bed holds one patient: partial unique constraints on open occupancy plus a row lock.
 - Admission opens a draft invoice that collects bed, service and procedure charges until the
-  final bill. Deposits are money: transactional and idempotent.
+  final bill. Deposits are money: transactional and idempotent (a key from another admission is refused).
 - Rounds and medication orders are clinical: corrected by "entered in error", never edited.
 - Discharge with an unpaid bill needs `ipd.discharge.override`.
 - Audit entries name the action and numbers, never clinical text.

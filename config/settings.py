@@ -128,6 +128,7 @@ INSTALLED_APPS = [
     "apps.procedures",
     "apps.hr",
     "apps.finance",
+    "apps.flow",
     "apps.approvals",
     "apps.recyclebin",
 ]
@@ -371,8 +372,13 @@ LOGGING = {
         },
     },
     "root": {"handlers": ["console"], "level": env("SEHATDESK_LOG_LEVEL")},
-    # django-axes logs every sign-in at INFO; keep only lockouts and problems.
-    "loggers": {"axes": {"level": "WARNING"}},
+    # django-axes logs every sign-in at INFO; keep only lockouts and problems. WeasyPrint and
+    # fontTools log each step of every PDF at INFO, which buries the customer's log file.
+    "loggers": {
+        "axes": {"level": "WARNING"},
+        "weasyprint": {"level": "WARNING"},
+        "fontTools": {"level": "WARNING"},
+    },
 }
 if DEPLOYED:
     # Customer machines have no terminal to read: keep a rotating log in the data folder.

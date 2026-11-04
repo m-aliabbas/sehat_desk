@@ -34,7 +34,9 @@ def order(
     price_reason="",
     notes="",
 ) -> PatientProcedure:
-    """Add a procedure to a patient and issue its invoice, all or nothing."""
+    """Add a procedure to a patient and issue its invoice, all or nothing. In a visit whose
+    procedure fee is paid at the pharmacy (apps/flow), the fee goes on the pharmacy bill instead
+    and the invoice is the till's once paid."""
     org = request.organization
     if patient.organization_id != org.pk:
         raise ProcedureError("That patient is not in this hospital.")
@@ -80,7 +82,24 @@ def order(
         notes=notes.strip()[:300],
         created_by=request.user,
     )
-    if price > Decimal("0"):
+    from apps.flow import services as flow
+
+    pharmacy_visit = flow.procedure_to_pharmacy(encounter, service) if price > 0 else None
+    if pharmacy_visit is not None:
+        # Paid at the pharmacy with the medicine (Settings → Services → "Fee is paid at").
+        flow.add_fee(
+            request=request,
+            visit=pharmacy_visit,
+            kind=InvoiceItem.Kind.PROCEDURE,
+            service=service,
+            description=(proc.name + (f" · {proc.notes}" if proc.notes else ""))[:160],
+            unit_price=price,
+            quantity=quantity,
+            billed_at=flow.CounterLocation.PHARMACY,
+            performed_by=performed_by.user if performed_by else None,
+            procedure=proc,
+        )
+    elif price > Decimal("0"):
         invoice = billing.create_invoice(
             request=request, patient=patient, notes=f"Procedure {proc.number}"
         )
@@ -97,6 +116,14 @@ def order(
         )
         proc.invoice = billing.issue(invoice, request=request)
         proc.save(update_fields=["invoice", "updated_at"])
+        flow.track_invoiced_fee(
+            request=request,
+            encounter=encounter,
+            invoice=proc.invoice,
+            kind=InvoiceItem.Kind.PROCEDURE,
+            billed_at=service.billed_at,
+            procedure=proc,
+        )
     return proc
 
 
@@ -128,6 +155,9 @@ def cancel(proc, *, request, reason) -> PatientProcedure:
                 f"{invoice.number} has payments. Refund them in Billing first, then cancel."
             )
         billing.void_unpaid(invoice, user=request.user, reason=f"{proc.number}: {reason}")
+    from apps.flow.services import drop_unbilled
+
+    drop_unbilled(procedure=proc)
     proc.status = Status.CANCELLED
     proc.cancelled_at = timezone.now()
     proc.cancelled_by = request.user

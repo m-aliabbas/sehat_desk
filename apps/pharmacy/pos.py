@@ -372,16 +372,21 @@ def attach_paper_prescription(sale, *, request, doctor) -> PharmacySale:
 
 
 def visits_without_rx(request, *, patient=None, q="") -> list[dict]:
-    """Today's reception visits with nothing for the pharmacy yet. The doctor may have written on
-    paper, so the till can tag the sale to the visit (attach_paper_prescription)."""
+    """Today's reception visits the doctor has seen with nothing for the pharmacy yet. The doctor
+    may have written on paper, so the till can tag the sale to the visit
+    (attach_paper_prescription). A patient still waiting for the doctor has no prescription."""
     from apps.queue.models import QueueToken
 
     today = timezone.localdate()
-    tokens = QueueToken.objects.filter(branch=request.branch, date=today).exclude(
-        status=QueueToken.Status.CANCELLED
+    tokens = QueueToken.objects.filter(
+        branch=request.branch,
+        date=today,
+        status__in=(QueueToken.Status.IN_CONSULTATION, QueueToken.Status.COMPLETED),
     )
-    appointments = Appointment.objects.filter(branch=request.branch, date=today).exclude(
-        status__in=Appointment.RELEASED_STATUSES
+    appointments = Appointment.objects.filter(
+        branch=request.branch,
+        date=today,
+        status__in=(Appointment.Status.WITH_DOCTOR, Appointment.Status.COMPLETED),
     )
     if patient is not None:
         tokens = tokens.filter(patient=patient)
@@ -420,11 +425,20 @@ def visits_without_rx(request, *, patient=None, q="") -> list[dict]:
 
 @transaction.atomic
 def tag_visit(sale, *, request, patient, doctor=None) -> PharmacySale:
-    """Put a visit's patient on the sale and, when the doctor is known, an empty paper Rx."""
+    """Put a visit's patient on the sale with the doctor's prescription: the signed one waiting
+    here when there is one, else (doctor known) an empty paper Rx."""
     sale = _lock_cart(sale, request)
     if sale.patient_id and sale.patient_id != patient.pk:
         raise PosError(f"This sale is for {sale.patient.full_name}. Finish or clear it first.")
     sale = attach_patient(sale, request=request, patient=patient)
+    if sale.prescription_id:
+        return sale
+    waiting = dispensable(request).filter(patient=patient)
+    if doctor is not None:
+        waiting = waiting.filter(doctor=doctor)
+    rx = waiting.order_by("-sent_to_pharmacy_at", "-pk").first()
+    if rx is not None:
+        return attach_prescription(sale, request=request, prescription=rx)
     if doctor is not None:
         sale = attach_paper_prescription(sale, request=request, doctor=doctor)
     return sale
@@ -483,14 +497,35 @@ def _add_sold_to_prescription(sale, request) -> list[PrescriptionItem]:
     return added
 
 
+def fee_lines(sale):
+    """Visit fees billed with this sale (doctor's fee, procedure, injection...): the invoice's
+    lines that are not medicine. Receipts and the sale screen list them under the medicines."""
+    if not sale.invoice_id:
+        return InvoiceItem.objects.none()
+    return sale.invoice.items.exclude(kind=InvoiceItem.Kind.PHARMACY)
+
+
+def visit_dues(sale) -> list:
+    """Fees the hospital routes to the pharmacy for this patient today (doctor's fee,
+    injection...). They join the sale's invoice at checkout (apps/flow)."""
+    from apps.flow.services import pharmacy_dues
+
+    return pharmacy_dues(sale)
+
+
 def totals(sale) -> dict:
     items = list(sale.items.all())
     lines = sum((i.line_total for i in items), ZERO)
     discount = min(to_money(sale.discount), lines)
     returns = sum((r.amount for r in pending_returns(sale)), ZERO)
+    dues = visit_dues(sale)
+    dues_total = sum((d.amount for d in dues), ZERO)
     return {
+        "dues": dues,
+        "dues_total": dues_total,
+        "before_discount": lines + dues_total,
         "returns": returns,
-        "net": lines - discount - returns,
+        "net": lines + dues_total - discount - returns,
         "lines": len(items),
         "units": sum(i.quantity for i in items),
         "subtotal": sum((i.gross for i in items), ZERO),
@@ -498,7 +533,7 @@ def totals(sale) -> dict:
         "tax": sum((i.tax_amount for i in items), ZERO),
         "lines_total": lines,
         "discount": discount,
-        "grand_total": lines - discount,
+        "grand_total": lines + dues_total - discount,
     }
 
 
@@ -579,7 +614,7 @@ def checkout_problems(sale) -> list[str]:
     """Reasons the cart cannot be sold yet (shown before payment, enforced at checkout)."""
     problems = []
     items = list(sale.items.select_related("product", "batch"))
-    if not items:
+    if not items and not visit_dues(sale):
         problems.append("The cart is empty.")
     org = sale.organization
     if field_rules.is_required(org, "till.customer") and not (
@@ -663,6 +698,10 @@ def checkout(sale, *, request, payments: list[dict], adjust_cash=False) -> Pharm
                 item.batch, request=request, quantity=item.quantity, reference=sale.number
             )
             item.save(update_fields=["stock_txn", "updated_at"])
+        if t["dues"]:
+            from apps.flow.services import bill_pharmacy_dues
+
+            bill_pharmacy_dues(invoice, request=request, sale=sale)
         if t["discount"]:
             billing.set_invoice_discount(
                 invoice,

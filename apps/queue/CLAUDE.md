@@ -19,8 +19,15 @@ Phase 6. Tokens per branch, department and day (A-001...). Emergency tokens numb
   calls the next. An open consultation is signed as it stands and its prescription sent to the
   pharmacy; with no consultation the token just closes (paper prescription). Only the note's own
   doctor can do this for a visit with a note.
+- `cancel(token, reason=, user=)` cancels the appointment and releases its fee (`appointments.release_fee`); the view
+  warns when the fee was paid.
 - Special priority needs `priority.special`.
 - The public display (`queue:display`) uses the branch `display_key`, shows token numbers only.
+
+- Patient flow (`apps/flow`): `waiting` leaves out tokens whose visit still owes reception (`held`), and `call`
+  refuses them. The desk shows them "Pay first" with Collect fee; the doctor's queue counts them. `close_elsewhere`
+  closes an open token when pharmacy or lab takes the patient by token. Checked · Next tells the flow
+  (`doctor_clicked_next`).
 
 - `position(token)` gives the slip its "Now serving" number and patients ahead (`queue/_running_number.html`).
 

@@ -5,6 +5,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_GET
 
 from apps.accounts.decorators import has_perm, permission_required
+from apps.lab.views import LAB_DESK
 
 from . import kpis
 
@@ -24,7 +25,13 @@ def lab_dashboard(request):
     return render(
         request,
         "reports/lab_dashboard.html",
-        {"k": kpis.lab_kpis(request), "today": timezone.localdate()},
+        {
+            "k": kpis.lab_kpis(request),
+            "today": timezone.localdate(),
+            # The same test as lab.views.order_detail: who may open an order.
+            "can_open_orders": has_perm(request, "consultation.view")
+            or any(has_perm(request, c) for c in LAB_DESK),
+        },
     )
 
 
