@@ -76,9 +76,16 @@ def desk(request):
     elif clinic.startswith("dept-") and clinic[5:].isdigit():
         tokens = tokens.filter(department_id=clinic[5:])
 
-    open_tokens = tokens.filter(status__in=QueueToken.OPEN_STATUSES).order_by(
-        "priority_rank", "queued_at"
+    open_tokens = list(
+        tokens.filter(status__in=QueueToken.OPEN_STATUSES)
+        .select_related("flow_visit")
+        .order_by("priority_rank", "queued_at")
     )
+    for t in open_tokens:
+        # Held until reception is paid (apps/flow): how the desk takes the fee from this row.
+        visit = flow_services.visit_for_token(t)
+        t.held = visit is not None and visit.state == "TOKEN_ISSUED"
+        t.pay = flow_services.reception_pay_link(visit) if t.held else None
     closed_tokens = tokens.exclude(status__in=QueueToken.OPEN_STATUSES).order_by("-updated_at")[:10]
     today = timezone.localdate()
     working_ids = DoctorSchedule.objects.filter(
@@ -366,6 +373,7 @@ def complete_and_next(request, pk):
         messages.error(request, err.message)
         return _back(request, reverse("queue:doctor"))
     audit.record(request, "queue.complete", token, changes={"status": [before, token.status]})
+    flow_services.doctor_clicked_next(request, token)
     try:
         nxt = services.call_next(request=request, doctor=doctor)
     except services.QueueError as err:
@@ -411,6 +419,7 @@ def doctor_queue(request):
                 "current": services.current_for(request.branch, doctor),
                 "counts": {
                     "waiting": services.waiting(qs).count(),
+                    "held": services.held(qs).count(),
                     "seen": qs.filter(status=Status.COMPLETED).count(),
                     "skipped": qs.filter(status=Status.SKIPPED).count(),
                     "unsigned": Encounter.objects.filter(

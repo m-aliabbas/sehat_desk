@@ -21,6 +21,9 @@ The consultation note, diagnoses, and the doctor's workspace. PRD §6. PROJECT_N
 - Audit note saves by field name only, never the text.
 - AI suggestions are drafts; saving one needs the doctor's action and `audit.record_ai_acceptance`.
 
+- Fees tab (`flow/_encounter_fees.html`): the doctor adds a fee to the visit (`flow.charge.add`). Sign & next tells
+  the patient flow (`doctor_clicked_next`).
+
 ## Connected
 prescriptions (signed with the note), lab (orders from the workspace), procedures, vitals, queue.
 

@@ -64,6 +64,7 @@ PERMISSIONS: list[PermissionDef] = [
     PermissionDef("appointment.view", "Reception", "View appointments"),
     PermissionDef("appointment.manage", "Reception", "Book and change appointments"),
     PermissionDef("queue.manage", "Reception", "Issue and manage tokens"),
+    PermissionDef("flow.charge.add", "Reception", "Add fees to a visit (injection, dressing...)"),
     PermissionDef("priority.special", "Reception", "Give special queue priority"),
     # Clinical
     PermissionDef("consultation.view", "Clinical", "View clinical records"),
@@ -185,14 +186,15 @@ DEFAULT_ROLES: list[RoleDef] = [
         _codes("patient.", "appointment.", "queue.")
         | {"billing.view", "billing.payment.collect", "document.view", "document.upload"}
         | {"billing.discount", "billing.refund"}
-        | {"procedure.view", "procedure.order", "vitals.record", "hr.self"},
+        | {"procedure.view", "procedure.order", "vitals.record", "hr.self", "flow.charge.add"},
     ),
     RoleDef(
         "doctor",
         "Doctor",
         "Consultations, prescriptions, lab orders and AI drafting.",
         _codes("consultation.", "prescription.", "vitals.", "ai.", "document.", "procedure.")
-        | {"patient.view", "appointment.view", "lab.order.create", "ipd.manage", "hr.self"},
+        | {"patient.view", "appointment.view", "lab.order.create", "ipd.manage", "hr.self"}
+        | {"flow.charge.add"},
     ),
     RoleDef(
         "nurse",
@@ -232,6 +234,6 @@ DEFAULT_ROLES: list[RoleDef] = [
         "Payments, refunds and day closing.",
         _codes("billing.")
         | {"patient.view", "reports.financial.view", "procedure.view"}
-        | {"hr.self", "finance.expense.manage"},
+        | {"hr.self", "finance.expense.manage", "flow.charge.add"},
     ),
 ]

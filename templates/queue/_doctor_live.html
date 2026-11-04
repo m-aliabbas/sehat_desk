@@ -5,6 +5,7 @@
   <div class="stat-card bg-page"><p class="text-body text-ink">Skipped</p><p class="mt-1 text-[28px] font-bold text-ink">{{ counts.skipped }}</p></div>
   <div class="stat-card bg-blue-soft"><p class="text-body text-ink">Notes not signed</p><p class="mt-1 text-[28px] font-bold text-ink">{{ counts.unsigned }}</p></div>
 </div>
+{% if counts.held %}<p class="mb-4 -mt-3 text-label text-muted" role="status">{{ counts.held }} more waiting to pay at reception; they join this queue once paid.</p>{% endif %}
 {% if critical_results %}
 <section class="mb-6 rounded-card border border-red bg-red-soft p-4" role="alert">
   <h2 class="flex items-center gap-2 font-semibold text-red">{% icon "alert-triangle" "h-5 w-5" %} Critical lab results for your patients</h2>

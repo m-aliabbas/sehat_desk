@@ -180,6 +180,9 @@ Goal: a customer installs one package, gets a desktop shortcut, double-clicks it
   (`apps/flow`), not code. State transitions use django-fsm-2 (pure Python, bundled by the installers).
   Settings are one row per organization rather than django-solo, because one server hosts several
   hospitals. The old "collect the doctor's fee up front" preference follows "Doctor's fee is paid at". §11.
+- Patient flow review (2026-11-04): urgent/STAT lab orders may be collected unpaid with a written reason
+  (patient safety over payment); lab-desk orders are never matched to a visit by guess; by default signing sends
+  the patient on, and "only Checked · Next" is opt-in.
 - Access matrix (2026-11-04): roles act as departments; each area (products, suppliers, lab tests, wards,
   reports…) has View / Edit / Delete cells mapped to permission codes (`apps/accounts/matrix.py`). Delete is
   one code per area instead of the single `records.delete`; existing delete rights were carried over per area.
@@ -372,7 +375,9 @@ Tooling:
   reception fees are paid (emergencies first). Pharmacy or lab can take a patient by token when the doctor
   forgets to send them on. Fees routed to the pharmacy are billed on the till's invoice with the medicine. The
   lab refuses work on a visit while any lab fee is unpaid, whichever counter takes it. A signed prescription
-  can print by itself on the doctor's desk, at the pharmacy (once), both, or neither (`rx_print_at`). Rules: `apps/flow/CLAUDE.md`.
+  can print by itself on the doctor's desk, at the pharmacy (once), both, or neither (`rx_print_at`). Procedure and
+  lab fees follow their counter too; anything unpaid at the end holds the patient in "Pay before leaving"; a branch
+  may have its own rules; visits left open close at day end. Rules: `apps/flow/CLAUDE.md`.
 
 ## 12. Vitals, diagnoses, prescriptions, laboratory and pharmacy stock (Phases 9–12)
 - **Vitals (`apps/vitals`):** one `VitalSign` row per set of readings, branch-scoped, linked to the patient

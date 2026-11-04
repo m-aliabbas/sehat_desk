@@ -4,7 +4,7 @@ Phases 20–21. PROJECT_NOTES §14, §20.
 
 ## Files
 - `engine.py` — `Filters`, `ReportResult` and the `@report(...)` registry decorator.
-- `definitions/` — reports by area: `clinical.py`, `daily.py` (daily sales, purchases, both side by
+- `definitions/` — reports by area: `clinical.py` (incl. `patient-flow-times` from `apps/flow`), `daily.py` (daily sales, purchases, both side by
   side), `financial.py`, `ipd.py`, `lab.py`, `pharmacy.py`, `accounts.py` (khata, customers,
   salespeople, doctors, salaries, P&L). Add a report by decorating a function in the right file.
 - `exports.py` — CSV, XLSX (openpyxl), PDF (WeasyPrint with print fallback).

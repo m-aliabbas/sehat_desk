@@ -19,22 +19,43 @@ from apps.billing.models import ZERO, InvoiceItem, to_money
 from apps.core.scoping import BranchScopedModel, OrgScopedModel
 from apps.masterdata.models import money
 
-from .choices import CounterLocation, RxPrintAt, VisitState
+from .choices import CounterLocation, LabBilledAt, RxPrintAt, VisitState
 
 __all__ = [
     "CounterLocation",
+    "LabBilledAt",
     "RxPrintAt",
     "VisitState",
     "HospitalFlowSetting",
     "PatientVisit",
     "PatientBillItem",
+    "PatientVisitStep",
+]
+
+OPEN_STATES = [
+    VisitState.TOKEN_ISSUED,
+    VisitState.IN_QUEUE,
+    VisitState.WITH_DOCTOR,
+    VisitState.LAB_QUEUE,
+    VisitState.PHARMACY_QUEUE,
+    VisitState.PAYMENT_DUE,
 ]
 
 
 class HospitalFlowSetting(OrgScopedModel):
     """How patients move through this hospital (Settings → Patient flow). One row per
-    organization; use services.flow_settings_for(org). Not a global singleton: every hospital on
-    a server has its own rules."""
+    organization (branch empty) and, where a branch works differently, one row for that branch;
+    use services.flow_settings_for(org, branch). Not a global singleton: every hospital on a
+    server has its own rules."""
+
+    branch = models.ForeignKey(
+        "organizations.Branch",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="+",
+        help_text="Empty = the hospital's rules. Set = this branch's own rules.",
+    )
 
     consultation_fee_billed_at = models.CharField(
         "Doctor's fee is paid at",
@@ -44,12 +65,20 @@ class HospitalFlowSetting(OrgScopedModel):
         help_text="Reception: paid before the patient joins the doctor's queue. Pharmacy: added "
         "to the medicine bill. Lab or Central cash: paid there.",
     )
+    lab_tests_billed_at = models.CharField(
+        "Lab tests are paid at",
+        max_length=16,
+        choices=LabBilledAt.choices,
+        default=LabBilledAt.LAB,
+        help_text="Laboratory or Central cash: the lab's own invoice, paid there. Pharmacy: "
+        "tests the doctor orders go on the medicine bill, and the patient pays there first.",
+    )
     doctor_must_click_next = models.BooleanField(
-        "Doctor sends the patient on",
-        default=True,
-        help_text="On: the patient leaves the doctor's queue only when the doctor presses "
-        "Checked · Next. Pharmacy and lab can still take a patient by token if the doctor "
-        "forgets. Off: signing the consultation sends the patient on by itself.",
+        "Only Checked · Next sends the patient on",
+        default=False,
+        help_text="On: the patient moves on only when the doctor presses Checked · Next (or "
+        "Sign & next). Signing alone leaves them with the doctor, and pharmacy or lab take "
+        "them by token. Off: signing or closing the visit sends the patient on.",
     )
     doctor_generates_digital_rx = models.BooleanField(
         "Doctors write prescriptions in SehatDesk",
@@ -76,11 +105,20 @@ class HospitalFlowSetting(OrgScopedModel):
         verbose_name = "patient flow settings"
         verbose_name_plural = "patient flow settings"
         constraints = [
-            models.UniqueConstraint(fields=["organization"], name="uniq_flow_settings_per_org")
+            models.UniqueConstraint(
+                fields=["organization"],
+                condition=models.Q(branch__isnull=True),
+                name="uniq_flow_settings_per_org",
+            ),
+            models.UniqueConstraint(
+                fields=["organization", "branch"],
+                condition=models.Q(branch__isnull=False),
+                name="uniq_flow_settings_per_branch",
+            ),
         ]
 
     def __str__(self):
-        return f"Patient flow · {self.organization}"
+        return f"Patient flow · {self.branch or self.organization}"
 
     @property
     def reception_prints_blank_rx(self) -> bool:
@@ -122,6 +160,9 @@ class PatientVisit(BranchScopedModel):
     pulled_at = models.DateTimeField(null=True, blank=True)
     pulled_to = models.CharField(max_length=16, choices=CounterLocation.choices, blank=True)
     state_changed_at = models.DateTimeField(null=True, blank=True)
+    closed_at_day_end = models.BooleanField(
+        default=False, help_text="Still open after its day; closed by services.close_stale_visits."
+    )
 
     class Meta:
         ordering = ["-created_at"]
@@ -151,10 +192,16 @@ class PatientVisit(BranchScopedModel):
 
         return self.is_emergency or not unpaid_lab_lines(self)
 
+    def all_paid(self) -> bool:
+        return not self.unpaid().exists()
+
+    def reception_unpaid(self) -> bool:
+        return not self.reception_paid()
+
     def auto_next_allowed(self) -> bool:
         from .services import flow_settings_for
 
-        return not flow_settings_for(self.organization).doctor_must_click_next
+        return not flow_settings_for(self.organization, self.branch).doctor_must_click_next
 
     # --- Transitions. Targets that depend on the visit come back from services.route_after_* --
 
@@ -163,20 +210,25 @@ class PatientVisit(BranchScopedModel):
     def admit_to_queue(self):
         """Reception fees are paid (or it is an emergency): the doctor can call the patient."""
 
+    @transition(field=state, source=VisitState.IN_QUEUE, target=VisitState.TOKEN_ISSUED,
+                conditions=[reception_unpaid])  # fmt: skip
+    def hold_again(self):
+        """The reception fee was refunded before the doctor saw the patient."""
+
     @transition(field=state, source=VisitState.IN_QUEUE, target=VisitState.WITH_DOCTOR)
     def start_consult(self):
         pass
 
     @transition(field=state, source=VisitState.WITH_DOCTOR,
                 target=RETURN_VALUE(VisitState.LAB_QUEUE, VisitState.PHARMACY_QUEUE,
-                                    VisitState.COMPLETED))  # fmt: skip
+                                    VisitState.PAYMENT_DUE, VisitState.COMPLETED))  # fmt: skip
     def doctor_next(self, destination):
         """The doctor pressed Checked · Next."""
         return destination
 
     @transition(field=state, source=VisitState.WITH_DOCTOR,
                 target=RETURN_VALUE(VisitState.LAB_QUEUE, VisitState.PHARMACY_QUEUE,
-                                    VisitState.COMPLETED),
+                                    VisitState.PAYMENT_DUE, VisitState.COMPLETED),
                 conditions=[auto_next_allowed])  # fmt: skip
     def auto_next(self, destination):
         """The consultation was signed and the hospital does not wait for the doctor's click."""
@@ -189,15 +241,27 @@ class PatientVisit(BranchScopedModel):
         return destination
 
     @transition(field=state, source=VisitState.LAB_QUEUE,
-                target=RETURN_VALUE(VisitState.PHARMACY_QUEUE, VisitState.COMPLETED),
+                target=RETURN_VALUE(VisitState.PHARMACY_QUEUE, VisitState.PAYMENT_DUE,
+                                    VisitState.COMPLETED),
                 conditions=[lab_paid])  # fmt: skip
     def lab_done(self, destination):
         return destination
 
-    @transition(field=state, source=VisitState.PHARMACY_QUEUE, target=VisitState.COMPLETED,
+    @transition(field=state, source=VisitState.PHARMACY_QUEUE,
+                target=RETURN_VALUE(VisitState.LAB_QUEUE, VisitState.PAYMENT_DUE,
+                                    VisitState.COMPLETED),
                 conditions=[pharmacy_paid])  # fmt: skip
-    def pharmacy_done(self):
-        pass
+    def pharmacy_done(self, destination):
+        return destination
+
+    @transition(field=state, source=VisitState.PAYMENT_DUE, target=VisitState.COMPLETED,
+                conditions=[all_paid])  # fmt: skip
+    def settle(self):
+        """Everything the visit owes is paid."""
+
+    @transition(field=state, source=OPEN_STATES, target=VisitState.COMPLETED)
+    def close_day(self):
+        """Left open after its day: closed so queues start clean; unpaid fees stay on record."""
 
     @transition(field=state, source=[VisitState.TOKEN_ISSUED, VisitState.IN_QUEUE,
                                      VisitState.WITH_DOCTOR],
@@ -206,10 +270,40 @@ class PatientVisit(BranchScopedModel):
         pass
 
 
+class PatientVisitStep(models.Model):
+    """When the visit entered each state: the Patient flow times report reads these."""
+
+    visit = models.ForeignKey(PatientVisit, on_delete=models.CASCADE, related_name="steps")
+    state = models.CharField(max_length=16, choices=VisitState.choices)
+    at = models.DateTimeField()
+
+    class Meta:
+        ordering = ["at", "pk"]
+        indexes = [models.Index(fields=["visit", "at"], name="flow_step_visit_at")]
+
+    def __str__(self):
+        return f"{self.state} @ {self.at:%H:%M}"
+
+
 class PatientBillItem(BranchScopedModel):
     """One fee a visit owes, and the counter that must take it."""
 
     visit = models.ForeignKey(PatientVisit, on_delete=models.PROTECT, related_name="bill_items")
+    # Where the fee came from, so the source record follows the bill that collects it.
+    procedure = models.ForeignKey(
+        "procedures.PatientProcedure",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="flow_bill_items",
+    )
+    lab_order = models.ForeignKey(
+        "lab.LabOrder",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="flow_bill_items",
+    )
     kind = models.CharField(
         max_length=16, choices=InvoiceItem.Kind.choices, default=InvoiceItem.Kind.SERVICE
     )

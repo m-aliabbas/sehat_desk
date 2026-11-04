@@ -32,11 +32,12 @@
         {% if v.is_manual_rx_flagged %}<span class="chip chip-warning">Paper Rx</span>{% endif %}
         {% if v.digital_rx_generated %}<span class="chip chip-info">Rx sent</span>{% endif %}
         {% if v.pulled_to %}<span class="chip chip-neutral" title="Taken by token at {{ v.get_pulled_to_display }}">Taken by {{ v.get_pulled_to_display }}</span>{% endif %}
+        {% if v.closed_at_day_end %}<span class="chip chip-neutral">Closed at day end</span>{% endif %}
       </p>
       {% if v.bill_items.all %}
       <ul class="mt-1 space-y-0.5 text-label">
         {% for b in v.bill_items.all %}
-        <li class="flex justify-between gap-2"><span>{{ b.description }} <span class="text-muted">· {{ b.get_billed_at_display }}</span></span><span class="{% if b.is_paid %}text-muted{% else %}font-semibold{% endif %}">{{ b.amount|floatformat:"2g" }} {% if b.is_paid %}paid{% elif b.invoice_id %}billed{% else %}due{% endif %}</span></li>
+        <li class="flex justify-between gap-2"><span>{{ b.description }} <span class="text-muted">· {{ b.get_billed_at_display }}</span></span><span class="{% if b.is_paid %}text-muted{% else %}font-semibold{% endif %}">{{ b.amount|floatformat:"2g" }} {% if b.is_paid %}paid{% elif b.invoice_id %}{% if can_collect %}<a class="underline" href="{% url 'billing:invoice-pay' b.invoice_id %}">billed · pay</a>{% else %}billed{% endif %}{% else %}due{% endif %}</span></li>
         {% endfor %}
       </ul>
       {% endif %}
@@ -49,10 +50,10 @@
         {% if state == "LAB_QUEUE" and can_pull_lab or state == "PHARMACY_QUEUE" and can_pull_pharmacy %}
           <form method="post" action="{% url 'flow:send-on' v.pk %}">{% csrf_token %}<button class="btn btn-sm btn-primary">Done here</button></form>
         {% endif %}
-        {% if state != "COMPLETED" %}
+        {% if state != "COMPLETED" and can_add_fee %}
         <form method="post" action="{% url 'flow:charge' v.pk %}" class="flex gap-1">{% csrf_token %}
           <label class="sr-only" for="svc-{{ v.pk }}">Add a fee for {{ v.token.label }}</label>
-          <select id="svc-{{ v.pk }}" name="service" class="select btn-sm w-40">{% for s in services %}<option value="{{ s.pk }}">{{ s.name }} · {{ s.get_billed_at_display }}</option>{% endfor %}</select>
+          <select id="svc-{{ v.pk }}" name="service" class="select btn-sm w-40" required><option value="">Add a fee…</option>{% for s in services %}<option value="{{ s.pk }}">{{ s.name }} · {{ s.get_billed_at_display }}</option>{% endfor %}</select>
           <button class="btn btn-sm btn-ghost">Add fee</button>
         </form>
         {% endif %}

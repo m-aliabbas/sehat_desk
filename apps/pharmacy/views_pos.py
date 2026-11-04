@@ -705,6 +705,7 @@ def rx_queue(request):
             .filter(**on_day("sent_to_pharmacy_at", today))
             .count(),
             "visits": pos.visits_without_rx(request, q=q)[:50],
+            "flow_queue": flow_services.counter_queue(request, "PHARMACY_QUEUE"),
             "breadcrumbs": _crumbs({"label": "Prescriptions"}),
         },
     )

@@ -21,11 +21,20 @@ class RxPrintAt(models.TextChoices):
     BOTH = "BOTH", "Both: doctor's desk and pharmacy"
 
 
+class LabBilledAt(models.TextChoices):
+    """Lab and Central cash take the lab's own invoice; Pharmacy puts tests on the till bill."""
+
+    LAB = "LAB", "Laboratory"
+    CENTRAL_CASH = "CENTRAL_CASH", "Central cash"
+    PHARMACY = "PHARMACY", "Pharmacy"
+
+
 class VisitState(models.TextChoices):
     TOKEN_ISSUED = "TOKEN_ISSUED", "Token issued · pay first"
     IN_QUEUE = "IN_QUEUE", "In the doctor's queue"
     WITH_DOCTOR = "WITH_DOCTOR", "With the doctor"
     PHARMACY_QUEUE = "PHARMACY_QUEUE", "Pharmacy queue"
     LAB_QUEUE = "LAB_QUEUE", "Lab queue"
+    PAYMENT_DUE = "PAYMENT_DUE", "Pay before leaving"
     COMPLETED = "COMPLETED", "Completed"
     CANCELLED = "CANCELLED", "Cancelled"

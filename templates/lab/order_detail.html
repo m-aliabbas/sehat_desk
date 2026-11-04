@@ -23,6 +23,7 @@
   <div class="space-y-6">
     <section class="card">
       <h2 class="section-title mb-4">Samples</h2>
+      {% if flow_unpaid %}{% include "components/alert.html" with level="warning" title="Lab fees unpaid for this visit" message=flow_unpaid|join:"; " %}{% endif %}
       <ul class="divide-y divide-line">
         {% for s in samples %}
         <li class="grid gap-3 py-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start {% if s.status == 'rejected' %}opacity-70{% endif %}">
@@ -36,7 +37,7 @@
             <a href="{% url 'lab:sample-label' s.pk %}" target="_blank" class="btn btn-ghost btn-sm">Label</a>
             {% if can_collect and is_lab_branch and s.status == "pending" %}
               <form method="post" action="{% url 'lab:sample-collect' s.pk %}" class="flex flex-wrap items-center gap-2">{% csrf_token %}
-                {% if not order.is_paid and order.priority == "routine" %}<input name="unpaid_reason" class="input h-9" maxlength="120" placeholder="Reason to collect before payment" aria-label="Reason to collect before payment">{% endif %}
+                {% if not order.is_paid and order.priority == "routine" or flow_unpaid and order.priority != "routine" %}<input name="unpaid_reason" class="input h-9" maxlength="120" placeholder="Reason to collect before payment" aria-label="Reason to collect before payment">{% endif %}
                 <button class="btn btn-primary btn-sm">Mark collected</button>
               </form>
             {% endif %}

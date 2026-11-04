@@ -15,6 +15,10 @@ the All menu page and this app's list); `service-create?kind=procedure` starts w
 - Only ordered (not done) procedures can be cancelled, with a reason. Its invoice is voided
   (`billing.void_unpaid`); if it has payments, refund them in Billing first.
 
+- In a consultation with a patient-flow visit (apps/flow), a procedure whose service is paid at the pharmacy has
+  no invoice of its own: its fee goes on the pharmacy bill, and `invoice` becomes the till's once paid. Others are
+  invoiced as before and tracked on the visit. Cancel removes an unbilled fee.
+
 ## Permissions
 `procedure.view`, `procedure.order`, `procedure.perform`, `procedure.price.override`.
 

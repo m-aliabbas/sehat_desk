@@ -312,3 +312,58 @@ def diagnosis_count(f):
         chart_title="Top diagnoses",
         note="Coded diagnoses are grouped by code; free-text entries by their wording.",
     )
+
+
+@report(
+    "patient-flow-times",
+    "Patient flow times",
+    "clinical",
+    "Average minutes a patient spends waiting for the doctor, with the doctor, at the lab, at "
+    "the pharmacy and paying before leaving, by day and doctor. Visits closed at day end with "
+    "fees unpaid are counted.",
+    permissions=OPS,
+    filters=("date", "branch", "doctor"),
+)
+def patient_flow_times(f):
+    from apps.flow.services import flow_times
+
+    data = flow_times(f.organization, f.branches, f.start_dt, f.end_dt, doctor=f.doctor)
+    rows = [
+        {
+            "date": r["day"],
+            "doctor": r["doctor"],
+            "visits": r["visits"],
+            "to_doctor": r["in_queue"],
+            "with_doctor": r["with_doctor"],
+            "lab": r["lab_queue"],
+            "pharmacy": r["pharmacy_queue"],
+            "paying": r["payment_due"],
+            "unpaid_closed": r["unpaid_closed"],
+        }
+        for r in data
+    ]
+    totals = sum_rows(rows, ["visits", "unpaid_closed"])
+    return ReportResult(
+        columns=[
+            Column("date", "Date", "date"),
+            Column("doctor", "Doctor"),
+            Column("visits", "Visits", "int"),
+            Column("to_doctor", "Wait for doctor (min)", "int"),
+            Column("with_doctor", "With doctor (min)", "int"),
+            Column("lab", "At lab (min)", "int"),
+            Column("pharmacy", "At pharmacy (min)", "int"),
+            Column("paying", "Paying before leaving (min)", "int"),
+            Column("unpaid_closed", "Closed unpaid", "int"),
+        ],
+        rows=rows,
+        totals={"date": "Total", **totals},
+        cards=[
+            {"label": "Visits", "value": totals["visits"], "kind": "int"},
+            {
+                "label": "Closed at day end, unpaid",
+                "value": totals["unpaid_closed"],
+                "kind": "int",
+                "note": "Fees still owed; see the patient's bills",
+            },
+        ],
+    )

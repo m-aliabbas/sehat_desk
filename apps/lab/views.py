@@ -205,6 +205,9 @@ def worklist(request):
             orders = orders.filter(items__test__category_id=category)
         ctx["orders"] = order_filter(orders).distinct()[:200]
         ctx["item_status"] = status
+    from apps.flow.services import counter_queue
+
+    ctx["flow_queue"] = counter_queue(request, "LAB_QUEUE")
     return render(request, "lab/worklist.html", ctx)
 
 
@@ -353,11 +356,16 @@ def order_detail(request, pk):
     audit.record(request, "lab.order.view", order, summary=order.number)
     items = list(_items_with_results(order))
     samples = order.samples.select_related("collected_by", "rejected_by").prefetch_related("items")
+    from apps.flow.services import unpaid_lab_lines, visit_for_lab_order
+
+    visit = visit_for_lab_order(order)
     return render(
         request,
         "lab/order_detail.html",
         {
             "order": order,
+            # The visit still owes lab fees (apps/flow): work waits, urgent orders need a reason.
+            "flow_unpaid": unpaid_lab_lines(visit) if visit and not visit.is_emergency else [],
             "items": items,
             "samples": samples,
             "can_collect": has_perm(request, "lab.sample.collect") and order.is_open,

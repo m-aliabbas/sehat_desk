@@ -708,18 +708,24 @@ def check_in(request, pk):
 
     appt = get_scoped_or_404(Appointment, request, pk=pk)
     before = appt.status
+    from apps.appointments.visits import bill_fee
+    from apps.billing.services import BillingError
+
     try:
         if appt.date != timezone.localdate():
             raise services.BookingError("Only today's appointments can be checked in.")
-        token = queue_services.issue_token(
-            request=request,
-            patient=appt.patient,
-            department=appt.department,
-            doctor=appt.doctor,
-            appointment=appt,
-            priority=request.POST.get("priority", "normal"),
-        )
-    except (services.BookingError, queue_services.QueueError) as err:
+        with transaction.atomic():
+            token = queue_services.issue_token(
+                request=request,
+                patient=appt.patient,
+                department=appt.department,
+                doctor=appt.doctor,
+                appointment=appt,
+                priority=request.POST.get("priority", "normal"),
+            )
+            # The doctor's fee invoice, as for a walk-in, so reception can take it at once.
+            bill_fee(request, appt)
+    except (services.BookingError, queue_services.QueueError, BillingError) as err:
         messages.error(request, err.message)
     else:
         audit.record(

@@ -18,6 +18,7 @@ Doctor slots, booking, rescheduling and appointment status. PRD §4. PROJECT_NOT
 - Booking takes a per-organization lock (`_lock_bookings`) so two desks cannot take one slot.
 - No booking in the past; one active appointment per patient per doctor per day.
 - Downstream: `queue.issue_token` moves it to in_queue; encounters move it to with_doctor/completed.
+- Check-in (`check_in` view) issues the token and the fee invoice (`visits.bill_fee`) in one transaction.
 
 - Time on a visit is automatic (`next_free_slot`, optional shift); today with no slot left becomes a
   walk-in. Future dates get no token or invoice until `arrive`, unless the fee is paid in advance.

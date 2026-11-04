@@ -47,12 +47,12 @@ def fee_invoice(appt) -> Invoice | None:
     return appt.invoices.exclude(status=Invoice.Status.CANCELLED).first()
 
 
-def _bill_fee(request, appt) -> Invoice | None:
+def bill_fee(request, appt) -> Invoice | None:
     """The doctor's fee invoice, when reception takes it (Settings → Patient flow)."""
     from apps.flow.services import fee_counter
 
     if (
-        fee_counter(request.organization) != "RECEPTION"
+        fee_counter(request.organization, request.branch) != "RECEPTION"
         or COLLECT not in request.sd_perms
         or appt.fee <= ZERO
     ):
@@ -144,9 +144,9 @@ def register_visit(
         visit.token = _join_queue(
             request, appt, priority=QueueToken.Priority.EMERGENCY if emergency else "normal"
         )
-        visit.invoice = _bill_fee(request, appt)
+        visit.invoice = bill_fee(request, appt)
     elif collect:  # advance payment for a later date
-        visit.invoice = _bill_fee(request, appt)
+        visit.invoice = bill_fee(request, appt)
     if vitals:
         vitals_services.record(request=request, patient=patient, data=vitals, token=visit.token)
     if collect and visit.invoice is not None and visit.invoice.balance_due > ZERO:
@@ -172,4 +172,4 @@ def arrive(appt, *, request, priority="normal") -> Visit:
         raise BookingError("Only today's appointments can be checked in.")
     token = _join_queue(request, appt, priority=priority)
     appt.refresh_from_db()
-    return Visit(appointment=appt, token=token, invoice=_bill_fee(request, appt))
+    return Visit(appointment=appt, token=token, invoice=bill_fee(request, appt))

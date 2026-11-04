@@ -1,0 +1,18 @@
+{# Fees of this visit (apps/flow). Each is paid at the counter its service names. Context: flow_visit, flow_fees, fee_services, can_add_fee #}
+<section class="card" id="sec-fees">
+  <h2 class="section-title mb-1">Fees for this visit</h2>
+  <p class="mb-3 text-label text-muted">Injection, dressing and similar. Each fee is paid where its service says (Settings → Services → "Fee is paid at").</p>
+  {% if can_add_fee %}
+  <form method="post" action="{% url 'flow:charge' flow_visit.pk %}" class="mb-3 flex gap-2">{% csrf_token %}
+    <input type="hidden" name="next" value="{{ request.path }}#sec-fees">
+    <label class="sr-only" for="fee-service">Fee to add</label>
+    <select id="fee-service" name="service" class="select flex-1" required><option value="">Choose a fee…</option>{% for s in fee_services %}<option value="{{ s.pk }}">{{ s.name }} · {{ s.price|floatformat:"2g" }} · {{ s.get_billed_at_display }}</option>{% endfor %}</select>
+    <button class="btn btn-secondary">Add fee</button>
+  </form>
+  {% endif %}
+  {% if flow_fees %}
+  <ul class="divide-y divide-line text-body">
+    {% for b in flow_fees %}<li class="flex justify-between gap-2 py-1.5"><span>{{ b.description }} <span class="text-label text-muted">· {{ b.get_billed_at_display }}</span></span><span class="text-label">{{ b.amount|floatformat:"2g" }} {% if b.is_paid %}paid{% elif b.invoice_id %}billed{% else %}to pay{% endif %}</span></li>{% endfor %}
+  </ul>
+  {% else %}<p class="text-label text-muted">No fees yet.</p>{% endif %}
+</section>

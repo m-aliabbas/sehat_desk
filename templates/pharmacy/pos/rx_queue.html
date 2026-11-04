@@ -10,6 +10,7 @@
   <div class="stat-card bg-blue-soft"><p class="text-body text-ink">Partly dispensed</p><p class="mt-2 text-[32px] font-bold text-ink">{{ partial_count }}</p><p class="text-label text-muted">Rest still to give</p></div>
   <div class="stat-card bg-mint"><p class="text-body text-ink">Received today</p><p class="mt-2 text-[32px] font-bold text-ink">{{ today_count }}</p><p class="text-label text-muted">Sent to this pharmacy</p></div>
 </div>
+{% include "flow/_counter_queue.html" with counter="PHARMACY" %}
 {% if visits %}
 <section class="card mb-6">
   <h2 class="section-title mb-1">Today's visits, no prescription in the system</h2>

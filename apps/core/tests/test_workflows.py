@@ -110,7 +110,9 @@ def test_outpatient_visit_from_registration_to_pharmacy(
     visit = flow.visit_for_token(token)
     assert visit.state == VisitState.TOKEN_ISSUED
     desk = make_request(rf, staff["reception"], org, branch)
-    fee = flow.counter_invoice(request=desk, visit=visit, counter="RECEPTION")
+    from apps.appointments.visits import fee_invoice
+
+    fee = fee_invoice(appt)  # check-in made it, so reception takes it straight away
     billing.receive_payment(fee, request=desk, method=cash, amount=fee.balance_due)
     assert _state(visit) == VisitState.IN_QUEUE
 

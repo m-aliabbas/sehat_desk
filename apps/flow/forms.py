@@ -17,12 +17,18 @@ class FlowSettingsForm(StyledFormMixin, forms.ModelForm):
         model = HospitalFlowSetting
         fields = [
             "consultation_fee_billed_at",
+            "lab_tests_billed_at",
             "doctor_must_click_next",
             "doctor_generates_digital_rx",
             "rx_print_at",
             "pharmacy_handles_manual_rx",
         ]
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, for_branch=False, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["reception_prints_blank_rx"].initial = self.instance.reception_prints_blank_rx
+        if for_branch:  # one switch for the whole hospital, kept on Preferences
+            del self.fields["reception_prints_blank_rx"]
+        else:
+            self.fields[
+                "reception_prints_blank_rx"
+            ].initial = self.instance.reception_prints_blank_rx

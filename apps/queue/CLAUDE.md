@@ -23,7 +23,9 @@ Phase 6. Tokens per branch, department and day (A-001...). Emergency tokens numb
 - The public display (`queue:display`) uses the branch `display_key`, shows token numbers only.
 
 - Patient flow (`apps/flow`): `waiting` leaves out tokens whose visit still owes reception (`held`), and `call`
-  refuses them. `close_elsewhere` closes an open token when pharmacy or lab takes the patient by token.
+  refuses them. The desk shows them "Pay first" with Collect fee; the doctor's queue counts them. `close_elsewhere`
+  closes an open token when pharmacy or lab takes the patient by token. Checked · Next tells the flow
+  (`doctor_clicked_next`).
 
 - `position(token)` gives the slip its "Now serving" number and patients ahead (`queue/_running_number.html`).
 
