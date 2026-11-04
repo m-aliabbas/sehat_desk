@@ -7,7 +7,7 @@
 <div class="mb-6 grid gap-4 md:grid-cols-3">
   <div class="stat-card bg-amber-soft"><p class="text-body text-ink">Vitals pending</p><p class="mt-2 text-[32px] font-bold text-ink">{{ pending }}</p><p class="text-label text-muted">Open tokens without vitals today</p></div>
   <div class="stat-card bg-mint"><p class="text-body text-ink">Recorded</p><p class="mt-2 text-[32px] font-bold text-ink">{{ done }}</p><p class="text-label text-muted">Patients with vitals today</p></div>
-  <div class="stat-card bg-blue-soft"><p class="text-body text-ink">Flags</p><p class="mt-2 text-body text-ink">Amber = outside the usual adult range. Red = critical, tell the doctor now.</p></div>
+  <div class="rounded-control bg-blue-soft px-3 py-2"><p class="text-body font-semibold text-ink">Flags</p><p class="mt-1 text-label text-ink">Amber = outside the usual adult range. Red = critical, tell the doctor now.</p></div>
 </div>
 <section class="card" hx-get="{{ request.path }}" hx-trigger="every 30s [document.visibilityState === 'visible']" hx-select="#station-table" hx-target="#station-table" hx-swap="outerHTML">
   <div id="station-table">

@@ -18,6 +18,8 @@ from apps.billing import services as billing
 from apps.billing.models import Invoice, PaymentMethod
 from apps.encounters import services as encounters
 from apps.encounters.models import Encounter
+from apps.flow import services as flow
+from apps.flow.models import PatientVisit, VisitState
 from apps.ipd import services as ipd
 from apps.ipd.models import Admission, Bed
 from apps.ipd.tests.helpers import admit, make_request, make_ward
@@ -64,6 +66,10 @@ def pharmacy_stock(rf, org, branch, admin_user):
     return medicine, product
 
 
+def _state(visit):
+    return PatientVisit.objects.get(pk=visit.pk).state
+
+
 def test_outpatient_visit_from_registration_to_pharmacy(
     client, rf, org, branch, admin_user, doctor, department, staff, cash, catalogue,  # noqa: F811
     pharmacy_stock,
@@ -100,6 +106,14 @@ def test_outpatient_visit_from_registration_to_pharmacy(
     appt.refresh_from_db()
     assert token.status == "waiting" and appt.status == Appointment.Status.IN_QUEUE
 
+    # The doctor's fee is paid at reception (Settings → Patient flow) before the patient is in line.
+    visit = flow.visit_for_token(token)
+    assert visit.state == VisitState.TOKEN_ISSUED
+    desk = make_request(rf, staff["reception"], org, branch)
+    fee = flow.counter_invoice(request=desk, visit=visit, counter="RECEPTION")
+    billing.receive_payment(fee, request=desk, method=cash, amount=fee.balance_due)
+    assert _state(visit) == VisitState.IN_QUEUE
+
     # 4. The doctor calls the token and opens the consultation from it.
     doc = make_request(rf, doctor.user, org, branch)
     queue.call(token, request=doc, doctor=doctor)
@@ -127,6 +141,7 @@ def test_outpatient_visit_from_registration_to_pharmacy(
     rx = encounter.prescription
     assert encounter.status == Encounter.Status.COMPLETED and not rx.is_draft
     rx_services.send_to_pharmacy(rx, request=doc)
+    assert _state(visit) == VisitState.LAB_QUEUE  # tests first, then the pharmacy
 
     # 6. The cashier takes the lab payment; the lab can then work the sample.
     assert order.status == LabOrder.Status.PAYMENT_PENDING
@@ -138,6 +153,7 @@ def test_outpatient_visit_from_registration_to_pharmacy(
 
     tech = make_request(rf, staff["lab"], org, branch)
     lab.collect_sample(order.samples.get(), request=tech)
+    assert _state(visit) == VisitState.PHARMACY_QUEUE
     lab.start_processing(order, request=tech)
     item = order.items.get()
     result = lab.enter_result(item, request=tech, value="11.2")
@@ -167,6 +183,7 @@ def test_outpatient_visit_from_registration_to_pharmacy(
     assert stock.on_hand(branch, product) == before - 15
     assert StockTransaction.objects.filter(kind="sale", reference=sale.number).count() == 1
     assert sale.invoice.status == Invoice.Status.PAID and sale.invoice.patient == patient
+    assert _state(visit) == VisitState.COMPLETED
 
     # The consultation can no longer be reopened once medicines left the pharmacy.
     with pytest.raises(encounters.EncounterError):

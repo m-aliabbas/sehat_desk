@@ -4,7 +4,7 @@
 {% for p in problems %}{% include "components/alert.html" with level="warning" message=p %}{% endfor %}
 <div class="mt-2 space-y-4"
      x-data="{
-       before: {{ totals.lines_total|stringformat:'s' }},
+       before: {{ totals.before_discount|stringformat:'s' }},
        discount: '{% if cart.discount %}{{ cart.discount|stringformat:'s' }}{% endif %}',
        get total() { return Math.max(0, Math.round((this.before - (parseFloat(this.discount) || 0)) * 100) / 100) },
        rows: [{ method: '{{ methods.0.pk }}', amount: '{{ totals.grand_total|stringformat:'s' }}', reference: '' }],

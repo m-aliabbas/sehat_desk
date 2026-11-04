@@ -321,6 +321,10 @@ def complete(request, pk):
     messages.success(
         request, f"{encounter.number} completed and signed (version {version.version})."
     )
+    from apps.flow.services import print_at_doctor
+    from apps.prescriptions.services import prescription_for
+
+    print_at_doctor(request, prescription_for(encounter))
     if request.POST.get("next_patient"):
         from apps.prescriptions import services as rx_services
 

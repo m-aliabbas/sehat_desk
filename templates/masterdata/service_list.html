@@ -19,7 +19,7 @@
           {% for s in services %}
             <tr data-edit="{% url 'masterdata:service-edit' s.pk %}" data-remove="{% url 'masterdata:service-toggle' s.pk %}" data-remove-label="{% if s.is_active %}Deactivate{% else %}Activate{% endif %}">
               {% if "service" in deletable %}<td><input type="checkbox" class="checkbox" name="ids" value="{{ s.pk }}" form="pick-service" aria-label="Tick {{ s.name }}" @change="count()"></td>{% endif %}
-              <td><p class="font-medium">{{ s.name }}</p><p class="font-mono text-label text-muted">{{ s.code }}{% if s.department %} · {{ s.department }}{% endif %}</p>{% if s.is_procedure %}<span class="chip chip-info">Procedure{% if s.price_editable %} · price editable{% endif %}</span>{% endif %}</td>
+              <td><p class="font-medium">{{ s.name }}</p><p class="font-mono text-label text-muted">{{ s.code }}{% if s.department %} · {{ s.department }}{% endif %} · paid at {{ s.get_billed_at_display }}</p>{% if s.is_procedure %}<span class="chip chip-info">Procedure{% if s.price_editable %} · price editable{% endif %}</span>{% endif %}</td>
               <td>{{ s.category }}</td>
               <td>{{ organization.currency }} {{ s.price|floatformat:"2g" }}{% if s.branch_prices.exists %} <span class="chip chip-info">Branch prices</span>{% endif %}</td>
               <td>{% if s.is_active %}{% status_chip "active" %}{% else %}{% status_chip "inactive" %}{% endif %}</td>

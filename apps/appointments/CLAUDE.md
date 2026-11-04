@@ -5,7 +5,8 @@ Doctor slots, booking, rescheduling and appointment status. PRD §4. PROJECT_NOT
 ## Files
 - `services.py` — `available_slots(doctor, branch, date)`, `book(...)`, `reschedule`, `cancel`,
   `confirm`, `check_in`, `mark_no_show`, `suggest_visit_type`, `default_fee`, `schedule_for`.
-- `visits.py` — the front-desk visit: `register_visit`, `arrive`, `collect_fee`. The form
+- `visits.py` — the front-desk visit (the fee invoice only when the doctor's fee is paid at reception,
+  `flow.services.fee_counter`): `register_visit`, `arrive`, `collect_fee`. The form
   (`_visit_form.html`, `visit_context`) sits on the reception desk and posts to `visit-new`; `papers`
   prints the blank Rx, token and fee copies. A future date on the same form is a pre-booking.
 - `models.py` — `Appointment` with `Status`, `VisitType`, `Source` and the allowed `TRANSITIONS`.

@@ -2,6 +2,7 @@
 {% load ui %}
 {% block title %}Prescription {{ rx.number }}{% endblock %}
 {% block print_label %}Print prescription{% endblock %}
+{% block head_extra %}{{ block.super }}{% if auto_print %}<script>window.addEventListener("load", () => window.print());</script>{% endif %}{% endblock %}
 {% block document %}
     {% print_layout "prescription" as L %}{% include "print/_layout_css.html" %}
     {% if rx.is_draft %}<p class="absolute inset-x-0 top-1/3 -rotate-12 text-center text-[48px] font-bold text-red/20 uppercase select-none" aria-hidden="true">Draft · not valid</p>{% endif %}

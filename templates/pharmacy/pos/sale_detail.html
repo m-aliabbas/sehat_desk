@@ -35,6 +35,15 @@
             <td class="text-right">{{ i.line_total|floatformat:"2g" }}</td>
           </tr>
           {% endfor %}
+          {% for f in fees %}
+          <tr>
+            <td><p class="font-medium">{{ f.description }}</p><p class="text-label text-muted">{{ f.get_kind_display }} fee · collected here</p></td>
+            <td></td>
+            <td class="text-right">{{ f.quantity }}</td>
+            <td class="text-right">{{ f.unit_price|floatformat:"2g" }}</td>
+            <td class="text-right">{{ f.line_total|floatformat:"2g" }}</td>
+          </tr>
+          {% endfor %}
         </tbody>
       </table>
     </div>

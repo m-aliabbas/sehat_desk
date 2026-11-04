@@ -248,6 +248,8 @@ _NAV_KEY_BY_SECTION = {
     "organizations:settings": "settings",
     "organizations:preferences": "settings",
     "queue:walk": "reception",
+    "flow:board": "reception",
+    "flow:settings": "settings",
     "appointments:visit-new": "reception",
     "billing:ledger": "finance",
     "queue:counters": "reception",

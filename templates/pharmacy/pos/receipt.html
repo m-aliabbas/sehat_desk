@@ -39,6 +39,16 @@
       <span>{{ i.line_total|floatformat:"2g" }}</span>
     </div>
     {% endfor %}
+    {# Visit fees the pharmacy collected on this bill (apps/flow): doctor's fee, procedure, injection. #}
+    {% for f in fees %}
+    <div class="receipt-row receipt-item break-inside-avoid border-line">
+      <span>{{ items|length|add:forloop.counter }}</span>
+      <span class="break-words">{{ f.description }}<br><span class="receipt-sub">{{ f.get_kind_display }} fee</span></span>
+      <span>{{ f.unit_price|floatformat:"2g" }}</span>
+      <span>{{ f.quantity }}</span>
+      <span>{{ f.line_total|floatformat:"2g" }}</span>
+    </div>
+    {% endfor %}
 
     <div class="break-inside-avoid">
       <div class="mt-2 space-y-1 pt-1">

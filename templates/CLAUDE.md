@@ -20,6 +20,8 @@ must work offline on the hospital LAN (no CDNs, fonts or icons from other hosts;
 - Print pages are forced to black and white in `print/base.html`. Layout settings come from
   `{% print_layout %}` + `print/_layout_css.html`. Paper may be 80 mm thermal per document. `print/_credit.html` is the "SehatDesk by Vibe.Exe" line: `print/base.html` puts it at the end of every document, and sticker labels turn it off with an empty `credit` block.
 - `print/thermal.html` (tokens, receipts): all text bold in Arial for thermal heads, 72 mm wide, no `@page` size or margin (the driver's roll, no browser header/footer); The fee slip prints each copy as its own job (`printSlips` in `papers.html`), so the printer cuts between them. Visit papers: `appointments/papers.html` (roll), `papers_rx.html` (A5, `?part=rx`).
+- `{% load flow %}{% pending_print %}` (end of `layouts/app.html`, and the till cart) prints a prescription queued by
+  `apps/flow` in a hidden frame. A new partial that replaces a whole working screen after a sign or attach includes it.
 - Saving a visit prints slips by itself; the papers page has "Print Rx" (F9, always the print window via `sd-print-dialog`) and no token-only button.
 - One typeface on all paper (`print/base.html`), one roll header (`print/_thermal_header.html`), one prescription header (`print/_rx_header.html`), `print-token` for the token number, `print/_emergency_mark.html` on emergency papers. The blank Rx height is calculated to stay on one page.
 - The pharmacy sale receipt (`pharmacy/pos/receipt.html`) is a five-column slip: SN, product, rate, qty, amount, then totals, amount in words (`in_words` in `ui.py`) and how it was paid. No barcode or QR.
@@ -44,7 +46,7 @@ Ctrl+K search also offers screens: `find_screens` in `apps/core/menu_hub.py` mat
 open. A new screen people need goes in `HUB_GROUPS`, so it shows in both.
 
 ## Screen density
-Pages are compact by default, from shared CSS: `stat-card` is one short strip (label and number on a line), so do not give it big padding or a big number.
+Pages are compact by default, from shared CSS: `stat-card` is one short strip (label and number on a line), so do not give it big padding or a big number. Its second child is styled as the number, so a sentence never goes there: use a plain `rounded-control px-3 py-2` box for a note or status.
 Tables show one status chip colour only for exceptions: a chip most rows share becomes plain words (`chip-quiet`, `quietChips` in `app.js`).
 Row buttons and the word Open appear on the row you point at. Clicking a read-only row opens its main link. Keep a screen's first rows in the first view.
 A summary panel inside a page shows at most 20 rows in a short scrolling box, with a "See all N" link to the full list (`pharmacy/dashboard.html`).
@@ -121,7 +123,7 @@ Every page has `#page-trail` (`sdTrail` in `app.js`): Back to the page you came 
   only inside the permission check. Add `data-remove-label`; `data-remove-reason` asks for a reason and posts it as `reason`. Removal
   always goes to a deactivate or cancel view; clinical and money records are never erased.
 - Entry grids (`entry-row` or `table.sheet`) fit the window (`sdFitGrids`, `grid-fits`): rows scroll inside the table, header and entry row stay, and the page does not grow. Their search list floats.
-- Drafts (`sdDrafts`, `apps/core/drafts.py`): any posting form with two or more boxes saves what is typed for its owner and offers Restore on return; My drafts is in the user menu. `data-draft="off"` opts out, htmx forms and passwords are skipped, and `rows`/`lines` in Alpine are kept.
+- Drafts (`sdDrafts`, `apps/core/drafts.py`): any posting form with two or more boxes saves what is typed for its owner and offers Restore on return; My drafts is in the user menu. `data-draft="off"` opts out, htmx forms and passwords are skipped, and `rows`/`lines` in Alpine are kept. The "Draft saved" note is the form's first child with `col-span-full`, so a form that is itself a grid keeps its layout.
 - Search dropdowns use `pick-list` and `pick-row` (`pick-title`, `pick-sub`, `pick-side`, `pick-side-sub`): 52 to 60px, two lines, mint with a teal edge on the keyboard's row. A new dropdown uses these.
 - Any table people scan or add into has a fixed first row, `<tr class="entry-row">`, and lines land below it (POS, stock grid, Add
   products). Forms that add a line, such as the invoice's, sit above the table. A new entry screen follows this.

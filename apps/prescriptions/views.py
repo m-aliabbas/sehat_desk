@@ -13,6 +13,7 @@ from apps.accounts.decorators import has_perm, permission_required
 from apps.audit import services as audit
 from apps.core.dates import on_day
 from apps.core.scoping import get_scoped_or_404, scoped
+from apps.core.security import same_origin_frame
 from apps.encounters import services as encounter_services
 from apps.encounters.models import Encounter
 from apps.patients.services import limit_records_to_own_patients
@@ -265,6 +266,7 @@ def _can_view_rx(request):
 
 
 @require_GET
+@same_origin_frame
 def print_rx(request, pk):
     if not _can_view_rx(request):
         raise PermissionDenied
@@ -294,6 +296,7 @@ def print_rx(request, pk):
             "encounter": encounter,
             "allergies": rx.patient.allergies.filter(entered_in_error=False),
             "vitals": _visit_vitals(request, encounter) if encounter else [],
+            "auto_print": request.GET.get("print") == "1",
         },
     )
 

@@ -26,6 +26,7 @@ from apps.core.forms import StyledFormMixin
 from apps.core.scoping import get_scoped_or_404, scoped
 from apps.encounters import services as encounter_services
 from apps.encounters.models import Encounter
+from apps.flow import services as flow_services
 from apps.lab import services as lab_services
 from apps.lab.models import LabOrder
 from apps.masterdata.models import Department, DoctorProfile, DoctorSchedule
@@ -357,6 +358,7 @@ def complete_and_next(request, pk):
             )
             if rx := rx_services.send_if_any(encounter, request=request):
                 audit.record(request, "prescription.send", rx, summary=rx.number)
+            flow_services.print_at_doctor(request, rx_services.prescription_for(encounter))
             token.refresh_from_db()
         else:
             token = services.complete(token)

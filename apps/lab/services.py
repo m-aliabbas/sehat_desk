@@ -33,6 +33,17 @@ def _need(request, code, action):
         raise LabError(f"You are not allowed to {action}.")
 
 
+def _flow_guard(order):
+    """An OPD visit with any lab fee unpaid blocks lab work, whichever counter takes the fee
+    (apps/flow lab_guard). Orders with no visit keep the rules below."""
+    from apps.flow.services import FlowError, lab_guard
+
+    try:
+        lab_guard(order)
+    except FlowError as err:
+        raise LabError(err.message) from err
+
+
 # --- Orders ------------------------------------------------------------------------------------
 
 
@@ -333,6 +344,7 @@ def collect_sample(sample, *, request, unpaid_reason="") -> LabSample:
         raise LabError(
             f"Sample {sample.accession} is already {sample.get_status_display().lower()}."
         )
+    _flow_guard(order)
     urgent = order.priority in (LabOrder.Priority.URGENT, LabOrder.Priority.STAT)
     if not order.is_paid and not urgent and not unpaid_reason.strip():
         raise LabError("The invoice is not paid. Collect payment first, or give a reason.")
@@ -379,6 +391,7 @@ def reject_sample(sample, *, request, reason: str) -> LabSample:
 @transaction.atomic
 def start_processing(order, *, request) -> int:
     _need(request, "lab.result.enter", "process samples")
+    _flow_guard(order)
     n = order.items.filter(status=ItemStatus.COLLECTED).update(
         status=ItemStatus.PROCESSING, updated_at=timezone.now()
     )
@@ -477,6 +490,7 @@ def enter_result(item, *, request, value: str, interpretation="") -> LabResult:
         raise LabError(f"{item.test_name} is verified. Amend it to change the result.")
     if item.status not in ENTERABLE:
         raise LabError(f"{item.test_name}: the sample has not been collected.")
+    _flow_guard(item.order)
     numeric, text = _parse_value(item.test, value)
     flag, ref = compute_flag(item.test, item.order.patient, numeric=numeric, text=text)
     band = band_for(item.test, item.order.patient, numeric)

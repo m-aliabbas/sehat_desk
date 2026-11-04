@@ -57,7 +57,7 @@ A dropdown of a saved list lets permitted staff type a new entry: `StyledFormMix
   menu renders), `test_query_scaling.py` (no N+1 on list pages), `test_seed_demo.py` (demo data).
 
 ## App index
-accounts · approvals · appointments · audit · billing · core · documents · encounters · finance · hr · ipd ·
+accounts · approvals · appointments · audit · billing · core · documents · encounters · finance · flow · hr · ipd ·
 lab · masterdata · notifications · nursing · organizations · patients · pharmacy · prescriptions ·
 printing · procedures · queue · recyclebin · reports · search · vitals — each has `apps/<app>/CLAUDE.md`.
 

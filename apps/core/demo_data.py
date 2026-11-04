@@ -73,6 +73,9 @@ STAFF = [
 ]
 
 # code, name, category, price, is_procedure, department key
+# Where each service's fee is paid (apps/flow); the rest are paid at reception.
+SERVICE_COUNTERS = {"INJ": "PHARMACY", "NEB": "PHARMACY"}
+
 SERVICES = [
     ("DRS", "Wound dressing", "Nursing services", 500, False, None),
     ("INJ", "Injection administration", "Nursing services", 200, False, None),

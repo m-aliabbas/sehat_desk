@@ -68,6 +68,9 @@ HUB_GROUPS: list[tuple[str, str, str, list[HubLink]]] = [
                     ("pharmacy.sale",), feature="pharmacy", locked_if_denied=True),
             HubLink("Cashier", "Collect patient payments", "credit-card", "billing:invoice-list",
                     ("billing.payment.collect",), locked_if_denied=True),
+            HubLink("Patient flow", "Who is where; take a patient by token", "ticket",
+                    "flow:board", ("queue.manage", "pharmacy.sale", "lab.sample.collect",
+                                   "billing.payment.collect")),
         ],
     ),
     (
@@ -269,6 +272,8 @@ HUB_GROUPS: list[tuple[str, str, str, list[HubLink]]] = [
                     "organizations:preferences", ("admin.organization.manage",)),
             HubLink("Required fields", "Which boxes show or are required", "sliders",
                     "organizations:field-rules", ("admin.organization.manage",)),
+            HubLink("Patient flow settings", "Where fees are paid, who sends patients on",
+                    "sliders", "flow:settings", ("admin.organization.manage",)),
             HubLink("Billing settings", "Payment methods and rules", "credit-card",
                     "billing:settings", ("admin.organization.manage",)),
             HubLink("Print layouts", "Letterhead and paper", "file",

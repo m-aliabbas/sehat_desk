@@ -25,6 +25,7 @@ from apps.billing.models import to_money
 from apps.core.dates import in_days, on_day
 from apps.core.scoping import get_scoped_or_404, scoped
 from apps.core.security import same_origin_frame
+from apps.flow import services as flow_services
 from apps.masterdata.models import DoctorProfile
 from apps.organizations.models import preferences_for
 from apps.patients.models import Patient
@@ -409,6 +410,7 @@ def prescription(request):
                 return _tag_visit(request, cart)
             rx = get_scoped_or_404(Prescription, request, pk=_int(request.POST.get("rx")))
             pos.attach_prescription(cart, request=request, prescription=rx)
+            flow_services.print_at_pharmacy(request, rx)
         except pos.PosError as err:
             return _cart_reply(request, error=err.message)
         return _cart_reply(request, success=f"{rx.number} attached.")
@@ -720,6 +722,8 @@ def rx_detail(request, pk):
         status=Prescription.Status.SIGNED,
     )
     lines = pos.prescription_lines(rx, request.branch)
+    if request.method == "GET":
+        flow_services.print_at_pharmacy(request, rx)
     errors = []
     if request.method == "POST":
         products = {p.pk: p for p in scoped(Product, request).filter(is_active=True)}
@@ -854,6 +858,7 @@ def sale_detail(request, pk):
         {
             "sale": sale,
             "items": items,
+            "fees": pos.fee_lines(sale),
             "payments": sale.invoice.payments.select_related("method"),
             "returns": sale.returns.select_related("created_by").prefetch_related(
                 "items__sale_item__product", "refunds__method"
@@ -881,6 +886,7 @@ def sale_receipt(request, pk):
         {
             "sale": sale,
             "items": sale.items.select_related("product", "batch"),
+            "fees": pos.fee_lines(sale),
             "payments": sale.invoice.payments.select_related("method"),
             "billing_settings": billing.settings_for(request.organization),
             "auto_print": request.GET.get("print") == "1",

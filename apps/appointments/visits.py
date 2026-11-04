@@ -12,7 +12,6 @@ from django.utils import timezone
 
 from apps.billing import services as billing
 from apps.billing.models import ZERO, Invoice, Payment
-from apps.organizations.models import preferences_for
 from apps.queue import services as queue_services
 from apps.queue.models import QueueToken
 from apps.vitals import services as vitals_services
@@ -49,9 +48,11 @@ def fee_invoice(appt) -> Invoice | None:
 
 
 def _bill_fee(request, appt) -> Invoice | None:
-    """The doctor's fee invoice, when the hospital collects it up front."""
+    """The doctor's fee invoice, when reception takes it (Settings → Patient flow)."""
+    from apps.flow.services import fee_counter
+
     if (
-        not preferences_for(request.organization).opd_collect_fee_upfront
+        fee_counter(request.organization) != "RECEPTION"
         or COLLECT not in request.sd_perms
         or appt.fee <= ZERO
     ):

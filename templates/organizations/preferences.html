@@ -20,7 +20,7 @@
       <p class="mb-4 text-label text-muted">How a visit runs at the front desk. Shift hours are set per doctor in Settings → Doctors.</p>
       <div class="grid gap-5 md:grid-cols-2">
         {% include "components/field.html" with field=form.use_doctor_shifts %}
-        {% include "components/field.html" with field=form.opd_collect_fee_upfront %}
+        <p class="text-label text-muted md:col-span-2">Where the doctor's fee is paid, and how patients move on from the doctor, is set under <a class="underline" href="{% url 'flow:settings' %}">Patient flow</a>.</p>
         {% include "components/field.html" with field=form.opd_print_blank_prescription %}
         {% include "components/field.html" with field=form.opd_print_office_copy %}
         {% include "components/field.html" with field=form.opd_auto_print %}

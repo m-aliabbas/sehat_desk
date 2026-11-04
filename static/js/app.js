@@ -1683,7 +1683,8 @@ const sdDrafts = (() => {
     if (!box) {
       box = document.createElement("div");
       box.dataset.draftNote = "";
-      box.className = "mb-3 flex flex-wrap items-center gap-2 rounded-control bg-page p-2 text-label";
+      // col-span-full: many forms are themselves grids; the note takes a whole row, not a cell.
+      box.className = "col-span-full mb-3 flex flex-wrap items-center gap-2 rounded-control bg-page p-2 text-label";
       form.prepend(box);
     }
     box.replaceChildren(...parts);

@@ -483,14 +483,35 @@ def _add_sold_to_prescription(sale, request) -> list[PrescriptionItem]:
     return added
 
 
+def fee_lines(sale):
+    """Visit fees billed with this sale (doctor's fee, procedure, injection...): the invoice's
+    lines that are not medicine. Receipts and the sale screen list them under the medicines."""
+    if not sale.invoice_id:
+        return InvoiceItem.objects.none()
+    return sale.invoice.items.exclude(kind=InvoiceItem.Kind.PHARMACY)
+
+
+def visit_dues(sale) -> list:
+    """Fees the hospital routes to the pharmacy for this patient today (doctor's fee,
+    injection...). They join the sale's invoice at checkout (apps/flow)."""
+    from apps.flow.services import pharmacy_dues
+
+    return pharmacy_dues(sale)
+
+
 def totals(sale) -> dict:
     items = list(sale.items.all())
     lines = sum((i.line_total for i in items), ZERO)
     discount = min(to_money(sale.discount), lines)
     returns = sum((r.amount for r in pending_returns(sale)), ZERO)
+    dues = visit_dues(sale)
+    dues_total = sum((d.amount for d in dues), ZERO)
     return {
+        "dues": dues,
+        "dues_total": dues_total,
+        "before_discount": lines + dues_total,
         "returns": returns,
-        "net": lines - discount - returns,
+        "net": lines + dues_total - discount - returns,
         "lines": len(items),
         "units": sum(i.quantity for i in items),
         "subtotal": sum((i.gross for i in items), ZERO),
@@ -498,7 +519,7 @@ def totals(sale) -> dict:
         "tax": sum((i.tax_amount for i in items), ZERO),
         "lines_total": lines,
         "discount": discount,
-        "grand_total": lines - discount,
+        "grand_total": lines + dues_total - discount,
     }
 
 
@@ -579,7 +600,7 @@ def checkout_problems(sale) -> list[str]:
     """Reasons the cart cannot be sold yet (shown before payment, enforced at checkout)."""
     problems = []
     items = list(sale.items.select_related("product", "batch"))
-    if not items:
+    if not items and not visit_dues(sale):
         problems.append("The cart is empty.")
     org = sale.organization
     if field_rules.is_required(org, "till.customer") and not (
@@ -663,6 +684,10 @@ def checkout(sale, *, request, payments: list[dict], adjust_cash=False) -> Pharm
                 item.batch, request=request, quantity=item.quantity, reference=sale.number
             )
             item.save(update_fields=["stock_txn", "updated_at"])
+        if t["dues"]:
+            from apps.flow.services import bill_pharmacy_dues
+
+            bill_pharmacy_dues(invoice, request=request, sale=sale)
         if t["discount"]:
             billing.set_invoice_discount(
                 invoice,

@@ -191,6 +191,9 @@ class ServiceCategoryForm(StyledFormMixin, OrgUniqueMixin, forms.ModelForm):
 class ServiceForm(StyledFormMixin, OrgUniqueMixin, forms.ModelForm):
     unique_fields = ("code",)
 
+    def clean_billed_at(self):
+        return self.cleaned_data.get("billed_at") or Service._meta.get_field("billed_at").default
+
     class Meta:
         model = Service
         fields = [
@@ -201,6 +204,7 @@ class ServiceForm(StyledFormMixin, OrgUniqueMixin, forms.ModelForm):
             "price",
             "is_procedure",
             "price_editable",
+            "billed_at",
         ]
 
     def __init__(self, *args, organization, branches, **kwargs):
@@ -208,6 +212,7 @@ class ServiceForm(StyledFormMixin, OrgUniqueMixin, forms.ModelForm):
         self.fields["category"].queryset = ServiceCategory.objects.filter(organization=organization)
         self.fields["department"].queryset = Department.objects.filter(organization=organization)
         self.fields["department"].required = False
+        self.fields["billed_at"].required = False  # left out = reception
         self.branches = list(branches)
         existing = (
             {p.branch_id: p.price for p in self.instance.branch_prices.all()}

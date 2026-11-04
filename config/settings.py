@@ -128,6 +128,7 @@ INSTALLED_APPS = [
     "apps.procedures",
     "apps.hr",
     "apps.finance",
+    "apps.flow",
     "apps.approvals",
     "apps.recyclebin",
 ]

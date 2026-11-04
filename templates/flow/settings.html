@@ -1,0 +1,31 @@
+{% extends "layouts/app.html" %}
+{% block title %}Patient flow{% endblock %}
+{% block page_title %}Patient flow{% endblock %}
+{% block page_subtitle %}Where each fee is paid and how a patient moves from reception to the doctor, lab and pharmacy. Changes apply to new visits.{% endblock %}
+{% block content %}
+{% include "partials/settings_tabs.html" %}
+<form method="post" class="grid gap-6 xl:grid-cols-2" novalidate>
+  {% csrf_token %}
+  <section class="card">
+    <h2 class="section-title mb-1">Reception</h2>
+    <p class="mb-4 text-label text-muted">A patient joins the doctor's queue only once every fee paid at reception is paid. Emergencies go first and pay later.</p>
+    <div class="grid gap-5">
+      {% include "components/field.html" with field=form.consultation_fee_billed_at %}
+      {% include "components/field.html" with field=form.reception_prints_blank_rx %}
+    </div>
+    <p class="mt-4 text-label text-muted">Other fees (injection, dressing...) are routed per service: Settings → Clinical lists → Services → "Fee is paid at".</p>
+  </section>
+  <section class="card">
+    <h2 class="section-title mb-1">Doctor, lab and pharmacy</h2>
+    <p class="mb-4 text-label text-muted">After the doctor, a patient with tests to give goes to the lab first, then to the pharmacy if medicine or a pharmacy fee is waiting.</p>
+    <div class="grid gap-5">
+      {% include "components/field.html" with field=form.doctor_must_click_next %}
+      {% include "components/field.html" with field=form.doctor_generates_digital_rx %}
+      {% include "components/field.html" with field=form.rx_print_at %}
+      {% include "components/field.html" with field=form.pharmacy_handles_manual_rx %}
+    </div>
+    <p class="mt-4 text-label text-muted">The lab never works on an OPD patient while any lab fee is unpaid, whether it is paid at the lab or at central cash.</p>
+  </section>
+  <div class="xl:col-span-2"><button class="btn btn-primary">Save · F8</button></div>
+</form>
+{% endblock %}

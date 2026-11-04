@@ -20,7 +20,9 @@ Test catalogue, orders, samples, results, verification and reports. PRD §8. PRO
 - `lab.catalog.manage` alone (default hospital admin) opens the catalogue only: the worklist
   redirects there, and orders, results and labels stay refused.
 - Order status is derived (`refresh_status`) from items, samples and invoice; never set it.
-- Collect only when paid, unless urgent/STAT or a reason is recorded.
+- Collect only when paid, unless urgent/STAT or a reason is recorded. An OPD visit (`apps/flow`) is stricter:
+  `_flow_guard` refuses collect, processing and result entry while any lab fee of the visit is unpaid,
+  whichever counter takes it; emergencies excepted.
 - Results are clinical records: editable until verified, then only `amend` (new version + reason).
 - Critical flags must be acknowledged by a clinician.
 - The worklist search also takes a tube's accession, so scanning a label finds its order.

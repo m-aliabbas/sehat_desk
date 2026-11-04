@@ -328,6 +328,7 @@ class Command(BaseCommand):
                 organization=self.org, category=categories[category], code=code, name=name,
                 price=price, is_procedure=is_procedure,
                 department=self.departments[dept] if dept else None,
+                billed_at=data.SERVICE_COUNTERS.get(code, "RECEPTION"),
             )  # fmt: skip
         ensure_diagnosis_codes(self.org)
 
@@ -1009,9 +1010,18 @@ class Command(BaseCommand):
 
     # --- today and the coming days ----------------------------------------------------------
 
+    def _pay_fee(self, request, appt):
+        from apps.billing import services as billing
+
+        invoice = billing.create_invoice(request=request, patient=appt.patient, appointment=appt)
+        billing.receive_payment(
+            invoice, request=request, method=self.method("cash"), amount=invoice.grand_total
+        )
+
     def _today(self):
-        """A doctor mid-consultation, a child waiting in the queue, an afternoon booking, and
-        lab desk work in progress."""
+        """A doctor mid-consultation, a child waiting in the queue, a patient held at reception
+        until the fee is paid, one waiting at the pharmacy with a fee to pay there, an afternoon
+        booking, and lab desk work in progress."""
         from apps.appointments import services as appts
         from apps.appointments.models import Appointment
         from apps.encounters import services as encounters
@@ -1026,6 +1036,7 @@ class Command(BaseCommand):
         token = queue.issue_token(request=self.req(self.users["reception1"], self.main),
                                   patient=appt.patient, department=appt.department,
                                   doctor=ayesha, appointment=appt)  # fmt: skip
+        self._pay_fee(desk, appt)
         self._vitals(appt.patient, self.main, self.users["nurse1"], token=token, case_key="urti")
         self.at(today, 9, 20)
         doc_req = self.req(ayesha.user, self.main)
@@ -1036,8 +1047,26 @@ class Command(BaseCommand):
             "history_present_illness": data.CASES["urti"]["hpi"],
         })  # fmt: skip
 
-        # 2. Walk-in child waiting for Dr Sana.
+        # 2. Seen by Dr Sana on paper; an injection fee is taken at the pharmacy with the medicine.
+        from apps.flow import services as flow
+
         sana = self.doctors["sana"]
+        self.at(today, 9, 10)
+        seen = appts.book(
+            request=desk, patient=self.patients[48], doctor=sana, on_date=today,
+            start=self._now_time(), visit_type=Appointment.VisitType.WALK_IN,
+            source=Appointment.Source.COUNTER, reason="Body ache",
+        )  # fmt: skip
+        token = queue.issue_token(request=desk, patient=seen.patient, department=seen.department,
+                                  doctor=sana, appointment=seen)  # fmt: skip
+        self._pay_fee(desk, seen)
+        flow.add_charge(request=desk, visit=flow.visit_for_token(token),
+                        service=self.services["INJ"])  # fmt: skip
+        self.at(today, 9, 25)
+        sana_req = self.req(sana.user, self.main)
+        queue.complete(queue.start(queue.call(token, request=sana_req, doctor=sana)))
+
+        # 3. Walk-in child waiting for Dr Sana.
         self.at(today, 9, 40)
         walk_in = appts.book(
             request=desk, patient=self.patients[42], doctor=sana, on_date=today,
@@ -1047,10 +1076,21 @@ class Command(BaseCommand):
         token = queue.issue_token(request=desk, patient=walk_in.patient,
                                   department=walk_in.department, doctor=sana,
                                   appointment=walk_in)  # fmt: skip
+        self._pay_fee(desk, walk_in)
         self._vitals(walk_in.patient, self.main, self.users["nurse2"], token=token,
                      case_key="tonsillitis")  # fmt: skip
 
-        # 3. Booked for later today with Dr Farhan, confirmed by phone.
+        # 4. Token issued, fee not paid yet: held out of Dr Sana's queue until reception is paid.
+        self.at(today, 9, 50)
+        unpaid = appts.book(
+            request=desk, patient=self.patients[45], doctor=sana, on_date=today,
+            start=self._now_time(), visit_type=Appointment.VisitType.WALK_IN,
+            source=Appointment.Source.COUNTER, reason="Cough",
+        )  # fmt: skip
+        queue.issue_token(request=desk, patient=unpaid.patient, department=unpaid.department,
+                          doctor=sana, appointment=unpaid)  # fmt: skip
+
+        # 5. Booked for later today with Dr Farhan, confirmed by phone.
         farhan = self.doctors["farhan"]
         later = self._book(self.patients[37], farhan, self.main, today, slot=9)
         if later.status == Appointment.Status.SCHEDULED:

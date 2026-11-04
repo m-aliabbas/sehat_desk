@@ -33,6 +33,9 @@ PRD §9. Phases 12–14. PROJECT_NOTES §12–13.
 - Loose sale: a pack (strip/box) can be split; the till's "Sold as: full pack" multiplies by
   `pack_size`. If `allow_loose_sale` is off, the POS service refuses non-multiples of `pack_size`.
 - Checkout is all-or-nothing: stock-out, invoice, payments in one transaction; paid in full.
+- Visit fees routed to the pharmacy (`apps/flow`: doctor's fee, injection...) for the attached patient today show
+  in the cart (`totals["dues"]`, part of `grand_total`) and go on the same invoice (`bill_pharmacy_dues`). A cart
+  with only such fees can be paid. The receipt and sale screen list them under the medicines (`pos.fee_lines`).
 - Prescription-only products need an attached prescription line.
 - Discounts need `pharmacy.discount` (in the default pharmacist role, capped in Billing settings).
 

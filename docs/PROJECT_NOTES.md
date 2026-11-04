@@ -176,6 +176,10 @@ Goal: a customer installs one package, gets a desktop shortcut, double-clicks it
   entry convenience (`pack_size`, `pack_unit`), with an optional "whole packs only" switch. No separate pack
   price, so a loose tablet always costs pack price ÷ pack size.
 - P&L (Phase 36) is accrual: income by invoice issue date, before tax, invoice discounts shared across lines; refunds on the day given. Salaries count for each month the period touches, from finalized payroll only. Segments: Doctors/OPD, Laboratory, Pharmacy, Hospital (system).
+- Patient flow (2026-11-04): where fees are paid and how a patient moves are hospital settings
+  (`apps/flow`), not code. State transitions use django-fsm-2 (pure Python, bundled by the installers).
+  Settings are one row per organization rather than django-solo, because one server hosts several
+  hospitals. The old "collect the doctor's fee up front" preference follows "Doctor's fee is paid at". §11.
 - Access matrix (2026-11-04): roles act as departments; each area (products, suppliers, lab tests, wards,
   reports…) has View / Edit / Delete cells mapped to permission codes (`apps/accounts/matrix.py`). Delete is
   one code per area instead of the single `records.delete`; existing delete rights were carried over per area.
@@ -361,6 +365,14 @@ Tooling:
   from Reception → Counters & display (needs `admin.branches.manage`); rotating revokes the old link.
 - **Token slip:** `/queue/tokens/<id>/slip/` sized for 80 mm receipt printers (browser print).
 - **Average wait** = token issued → first call, averaged in Python (portable between SQLite and PostgreSQL).
+- **Patient flow (`apps/flow`, 2026-11-04):** each token gets a `PatientVisit` whose protected state
+  (django-fsm-2) runs TOKEN_ISSUED → IN_QUEUE → WITH_DOCTOR → LAB_QUEUE / PHARMACY_QUEUE → COMPLETED.
+  The route lives in data: `HospitalFlowSetting` (one row per organization, Settings → Patient flow) and
+  `Service.billed_at` (RECEPTION, PHARMACY, LAB, CENTRAL_CASH). A token joins the doctor's queue only when its
+  reception fees are paid (emergencies first). Pharmacy or lab can take a patient by token when the doctor
+  forgets to send them on. Fees routed to the pharmacy are billed on the till's invoice with the medicine. The
+  lab refuses work on a visit while any lab fee is unpaid, whichever counter takes it. A signed prescription
+  can print by itself on the doctor's desk, at the pharmacy (once), both, or neither (`rx_print_at`). Rules: `apps/flow/CLAUDE.md`.
 
 ## 12. Vitals, diagnoses, prescriptions, laboratory and pharmacy stock (Phases 9–12)
 - **Vitals (`apps/vitals`):** one `VitalSign` row per set of readings, branch-scoped, linked to the patient
