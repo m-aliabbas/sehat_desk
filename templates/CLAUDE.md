@@ -110,6 +110,8 @@ Every page has `#page-trail` (`sdTrail` in `app.js`): Back to the page you came 
 - Hold Alt to see menu numbers for Alt + 1 to 9.
 - Any `title` shows as an instant hint on hover or keyboard focus (`sd-tip`, end of `app.js`). Add a `title` to any column or label
   that needs explaining. `data-ref-low` / `data-ref-high` on a number box add a Low or High word to its label as you type.
+- Access matrix grid: `accounts/_access_grid.html` (Area × View / Edit / Delete from `accounts.matrix.grid`;
+  boxes sharing one code tick together via the form's `@change`; `+`/`–` chips mark a person's overrides).
 - Edit and delete on a setup list: `{% include "recyclebin/_actions.html" with kind="ward" obj=w %}` (pencil and bin,
   shown only for `kind in editable` / `deletable`), or `data-edit` on a table row. `apps/recyclebin/CLAUDE.md`.
 - Ticking rows: `x-data="sdPick"` (app.js) around a list, a "Tick all" box in the head, `<input name="ids" form="pick-<kind>">`

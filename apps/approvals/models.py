@@ -16,6 +16,7 @@ class StockChangeRequest(BranchScopedModel):
         PURCHASE_RETURN = "purchase_return", "Return to supplier"
         DETAILS = "details", "Correct batch number or expiry"
         UNIT = "unit", "Correct unit"
+        DELETE = "delete", "Write off all and delete"
 
     class Status(models.TextChoices):
         PENDING = "pending", "Waiting"
@@ -45,6 +46,8 @@ class StockChangeRequest(BranchScopedModel):
     new_pack_unit = models.CharField(max_length=30, blank=True)
     new_pack_size = models.PositiveIntegerField(default=1)
     unit_factor = models.PositiveIntegerField(default=1)
+    # Write off all and delete: what the stock left is written off as (expired or damaged).
+    write_off_as = models.CharField(max_length=10, blank=True)
     reason = models.CharField(max_length=200)
     reference = models.CharField(max_length=80, blank=True)
     status = models.CharField(
@@ -84,6 +87,8 @@ class StockChangeRequest(BranchScopedModel):
             return self.stock_at_request // self.unit_factor - self.stock_at_request
         if self.action == self.Action.COUNT:
             return (self.quantity or 0) - self.stock_at_request
+        if self.action == self.Action.DELETE:
+            return -self.stock_at_request
         return -(self.quantity or 0)
 
     @property
@@ -104,4 +109,6 @@ class StockChangeRequest(BranchScopedModel):
             return ", ".join(parts)
         if self.action == self.Action.COUNT:
             return f"{self.stock_at_request} → {self.quantity} ({self.change:+d})"
+        if self.action == self.Action.DELETE:
+            return f"{self.change:+d} {self.write_off_as}, then Recycle bin"
         return f"{self.change:+d}"

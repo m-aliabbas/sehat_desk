@@ -634,9 +634,13 @@ def product_detail(request, pk):
             "action_form": BatchActionForm(),
             "can_manage": has_perm(request, MANAGE),
             "can_approve": has_perm(request, "admin.approvals.manage"),
-            "can_delete": has_perm(request, MANAGE) and has_perm(request, "records.delete"),
+            "can_delete": has_perm(request, MANAGE)
+            and has_perm(request, "pharmacy.product.delete"),
             "unit_pending": product.change_requests.filter(
                 status="pending", action="unit"
+            ).exists(),
+            "delete_pending": product.change_requests.filter(
+                status="pending", action="delete"
             ).exists(),
             "stock_total": InventoryBatch.objects.filter(product=product).aggregate(
                 n=Sum("quantity_available")
@@ -818,6 +822,64 @@ def product_unit(request, pk):
                 "It changes once an admin approves it.",
             )
     return redirect("pharmacy:product-detail", pk=product.pk)
+
+
+@permission_required(MANAGE)
+def product_delete(request, pk):
+    """Delete a product that still has stock: write off all of it in this branch and move it to the
+    Recycle bin, in one step. Waits on Approvals unless the person can approve."""
+    from apps.approvals import services as approvals
+
+    product = get_scoped_or_404(Product, request, pk=pk)
+    if request.method == "POST":
+        try:
+            change = approvals.request_delete(
+                request,
+                product,
+                write_off_as=request.POST.get("write_off_as", ""),
+                reason=request.POST.get("reason", ""),
+            )
+        except approvals.ApprovalError as err:
+            messages.error(request, err.message)
+        else:
+            if change.status == change.Status.APPROVED:
+                messages.success(
+                    request, f"{product} written off ({change.summary.split(',')[0]}) and deleted."
+                )
+                return redirect("pharmacy:product-list")
+            messages.warning(
+                request,
+                f"Delete of {product} sent for approval. Its stock is written off and it goes "
+                "to the Recycle bin once an admin approves.",
+            )
+            return redirect("pharmacy:product-detail", pk=product.pk)
+    batches = InventoryBatch.objects.filter(
+        branch=request.branch, product=product, quantity_available__gt=0
+    ).order_by("expiry_date", "pk")
+    return render(
+        request,
+        "pharmacy/product_delete.html",
+        {
+            "product": product,
+            "batches": batches,
+            "left": sum(b.quantity_available for b in batches),
+            "any_expired": any(b.is_expired for b in batches),
+            "value": sum((b.purchase_cost * b.quantity_available for b in batches), 0),
+            "blocker": approvals.delete_blocker(request, product),
+            "can_delete": has_perm(request, MANAGE)
+            and has_perm(request, "pharmacy.product.delete"),
+            "can_approve": has_perm(request, "admin.approvals.manage"),
+            "today": timezone.localdate(),
+            "breadcrumbs": _crumbs(
+                {"label": "Products", "url": reverse("pharmacy:product-list")},
+                {
+                    "label": product.display_name,
+                    "url": reverse("pharmacy:product-detail", args=[pk]),
+                },
+                {"label": "Delete"},
+            ),
+        },
+    )
 
 
 @require_POST

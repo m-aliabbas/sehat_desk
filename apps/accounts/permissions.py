@@ -37,7 +37,25 @@ PERMISSIONS: list[PermissionDef] = [
         "Edit & delete",
         "Fully edit saved records, including locked fields such as a product's unit",
     ),
-    PermissionDef("records.delete", "Edit & delete", "Delete records (they go to the Recycle bin)"),
+    # Delete, one switch per area (DELETE_AREAS); deleting also needs the area's edit right.
+    PermissionDef("pharmacy.product.delete", "Edit & delete", "Delete products"),
+    PermissionDef(
+        "pharmacy.setup.delete", "Edit & delete", "Delete product categories and units of measure"
+    ),
+    PermissionDef("pharmacy.vendor.delete", "Edit & delete", "Delete suppliers"),
+    PermissionDef("lab.catalog.delete", "Edit & delete", "Delete lab tests, panels and categories"),
+    PermissionDef("ipd.facility.delete", "Edit & delete", "Delete wards, rooms and beds"),
+    PermissionDef(
+        "masterdata.department.delete", "Edit & delete", "Delete departments and specialties"
+    ),
+    PermissionDef(
+        "masterdata.service.delete", "Edit & delete", "Delete services and service categories"
+    ),
+    PermissionDef("masterdata.medicine.delete", "Edit & delete", "Delete medicines"),
+    PermissionDef("masterdata.diagnosis.delete", "Edit & delete", "Delete diagnosis codes"),
+    PermissionDef("billing.method.delete", "Edit & delete", "Delete payment methods"),
+    PermissionDef("finance.category.delete", "Edit & delete", "Delete expense categories"),
+    PermissionDef("queue.counter.delete", "Edit & delete", "Delete reception counters"),
     # Patients
     PermissionDef("patient.view", "Patients", "View patients"),
     PermissionDef("patient.create", "Patients", "Register patients"),
@@ -103,13 +121,24 @@ PERMISSIONS: list[PermissionDef] = [
 
 ALL_CODES = frozenset(p.code for p in PERMISSIONS)
 
-# Codes an admin can give to one person on top of their roles (staff page, "Extra access").
-GRANTABLE_CODES = (
-    "records.edit_full",
-    "records.delete",
-    "admin.approvals.manage",
-    "admin.recyclebin.manage",
-)
+# Each delete code and the edit rights of its area. Until 1.0.11 one code, records.delete, deleted
+# everything; `sync_permissions` gives each new code to whoever held that and the area's edit right.
+DELETE_AREAS: dict[str, tuple[str, ...]] = {
+    "pharmacy.product.delete": ("pharmacy.inventory.manage",),
+    "pharmacy.setup.delete": ("pharmacy.inventory.manage",),
+    "pharmacy.vendor.delete": ("pharmacy.inventory.manage",),
+    "lab.catalog.delete": ("lab.catalog.manage",),
+    "ipd.facility.delete": ("ipd.facility.manage",),
+    "masterdata.department.delete": ("admin.masterdata.manage",),
+    "masterdata.service.delete": ("admin.masterdata.manage",),
+    "masterdata.medicine.delete": ("admin.masterdata.manage", "pharmacy.inventory.manage"),
+    "masterdata.diagnosis.delete": ("admin.masterdata.manage",),
+    "billing.method.delete": ("admin.organization.manage",),
+    "finance.category.delete": ("finance.expense.manage",),
+    "queue.counter.delete": ("queue.manage",),
+}
+DELETE_CODES = frozenset(DELETE_AREAS)
+OLD_DELETE_CODE = "records.delete"
 
 SUPER_ADMIN_KEY = "super_admin"
 
@@ -123,8 +152,9 @@ class RoleDef:
 
 
 def _codes(*prefixes: str) -> frozenset:
-    """All codes starting with any prefix, so new codes in a module flow into matching roles."""
-    return frozenset(c for c in ALL_CODES if c.startswith(prefixes))
+    """All codes starting with any prefix, so new codes in a module flow into matching roles.
+    Delete codes are left out: only roles that list DELETE_CODES delete."""
+    return frozenset(c for c in ALL_CODES if c.startswith(prefixes) and c not in DELETE_CODES)
 
 
 # Admin is deliberately not given clinical access (design kit, role permission matrix).
@@ -145,7 +175,8 @@ DEFAULT_ROLES: list[RoleDef] = [
         )
         | {"patient.create", "ipd.facility.manage", "procedure.view"}
         | {"queue.manage", "pharmacy.inventory.manage", "lab.catalog.manage"}
-        | _codes("records."),
+        | _codes("records.")
+        | DELETE_CODES,
     ),
     RoleDef(
         "reception",

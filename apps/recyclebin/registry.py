@@ -2,7 +2,8 @@
 
 Each kind's model uses `core.models.RecycleBinMixin`: `objects` hides deleted rows everywhere,
 `all_objects` still sees them, and old records keep pointing at them. A kind lists the module
-permissions (any one) that allow editing it; deleting also needs `records.delete`. A `blocker`
+permissions (any one) that allow editing it; deleting also needs its area's delete code
+(`delete_perm`, one per area in `accounts.permissions.DELETE_AREAS`). A `blocker`
 explains why a record cannot go yet (stock on the shelf, money owed, other records using it).
 `edit_fields` are what the shared edit page (`recyclebin:edit`) offers when the kind has no edit
 page of its own (`edit_url`).
@@ -22,11 +23,15 @@ class Kind:
     model: str  # "app_label.Model"
     label: str
     manage_perm: str | tuple[str, ...]
+    delete_perm: str
     list_url: str
     blocker: Callable | None = None
     detail_url: str | None = None
     edit_url: str | None = None  # the kind's own edit page, else the shared one
     edit_fields: tuple[str, ...] = ()
+    # Where a blocked delete goes instead of an error, when the kind can clear its own blocker
+    # (a product with stock: write off all and delete).
+    clear_url: str | None = None
 
     @property
     def manage_perms(self) -> tuple[str, ...]:
@@ -57,7 +62,7 @@ def _product_blocker(product):
         or 0
     )
     if left:
-        return f"{left} still in stock. Write it off or return it to the supplier first."
+        return f"{left} still in stock. Press Delete on the product to write it off and delete it."
     if PurchaseItem.objects.filter(
         product=product, purchase__status__in=("draft", "ordered")
     ).exists():
@@ -147,16 +152,19 @@ KINDS = {
             "pharmacy.Product",
             "Product",
             "pharmacy.inventory.manage",
+            "pharmacy.product.delete",
             "pharmacy:product-list",
             _product_blocker,
             "pharmacy:product-detail",
             edit_url="pharmacy:product-edit",
+            clear_url="pharmacy:product-delete",
         ),
         Kind(
             "product_category",
             "pharmacy.ProductCategory",
             "Product category",
             "pharmacy.inventory.manage",
+            "pharmacy.setup.delete",
             "pharmacy:categories",
             _category_blocker,
             edit_fields=("name", "default_tax_percent", "requires_prescription", "tax_note"),
@@ -166,6 +174,7 @@ KINDS = {
             "pharmacy.UnitOfMeasure",
             "Unit of measure",
             "pharmacy.inventory.manage",
+            "pharmacy.setup.delete",
             "pharmacy:uom",
             edit_fields=("name",),
         ),
@@ -174,6 +183,7 @@ KINDS = {
             "pharmacy.Vendor",
             "Supplier",
             "pharmacy.inventory.manage",
+            "pharmacy.vendor.delete",
             "pharmacy:vendor-list",
             _vendor_blocker,
             "pharmacy:vendor-detail",
@@ -184,6 +194,7 @@ KINDS = {
             "masterdata.Department",
             "Department",
             "admin.masterdata.manage",
+            "masterdata.department.delete",
             "masterdata:department-list",
             _department_blocker,
             edit_url="masterdata:department-edit",
@@ -193,6 +204,7 @@ KINDS = {
             "masterdata.Service",
             "Service",
             "admin.masterdata.manage",
+            "masterdata.service.delete",
             "masterdata:service-list",
             edit_url="masterdata:service-edit",
         ),
@@ -201,6 +213,7 @@ KINDS = {
             "masterdata.Specialty",
             "Specialty",
             "admin.masterdata.manage",
+            "masterdata.department.delete",
             "masterdata:department-list",
             _specialty_blocker,
             edit_fields=("name",),
@@ -210,6 +223,7 @@ KINDS = {
             "masterdata.ServiceCategory",
             "Service category",
             "admin.masterdata.manage",
+            "masterdata.service.delete",
             "masterdata:service-list",
             _service_category_blocker,
             edit_fields=("name",),
@@ -219,6 +233,7 @@ KINDS = {
             "finance.ExpenseCategory",
             "Expense category",
             "finance.expense.manage",
+            "finance.category.delete",
             "finance:category-list",
             edit_fields=("name", "segment"),
         ),
@@ -227,6 +242,7 @@ KINDS = {
             "billing.PaymentMethod",
             "Payment method",
             "admin.organization.manage",
+            "billing.method.delete",
             "billing:settings",
             _payment_method_blocker,
             edit_fields=("name", "requires_reference", "sort_order"),
@@ -236,6 +252,7 @@ KINDS = {
             "ipd.Ward",
             "Ward",
             "ipd.facility.manage",
+            "ipd.facility.delete",
             "ipd:setup",
             _ward_blocker,
             edit_url="ipd:setup-ward",
@@ -245,6 +262,7 @@ KINDS = {
             "ipd.Room",
             "Room",
             "ipd.facility.manage",
+            "ipd.facility.delete",
             "ipd:setup",
             _room_blocker,
             edit_url="ipd:setup-room",
@@ -254,6 +272,7 @@ KINDS = {
             "ipd.Bed",
             "Bed",
             "ipd.facility.manage",
+            "ipd.facility.delete",
             "ipd:setup",
             _bed_blocker,
             edit_fields=("room", "code"),
@@ -263,6 +282,7 @@ KINDS = {
             "lab.LabTestCategory",
             "Lab test category",
             "lab.catalog.manage",
+            "lab.catalog.delete",
             "lab:catalog",
             _lab_category_blocker,
             edit_fields=("name", "sort_order"),
@@ -272,6 +292,7 @@ KINDS = {
             "lab.LabTest",
             "Lab test",
             "lab.catalog.manage",
+            "lab.catalog.delete",
             "lab:catalog",
             _lab_test_blocker,
             edit_url="lab:test-edit",
@@ -281,6 +302,7 @@ KINDS = {
             "lab.LabPanel",
             "Lab panel",
             "lab.catalog.manage",
+            "lab.catalog.delete",
             "lab:catalog",
             edit_url="lab:panel-edit",
         ),
@@ -289,6 +311,7 @@ KINDS = {
             "encounters.DiagnosisCode",
             "Diagnosis code",
             "admin.masterdata.manage",
+            "masterdata.diagnosis.delete",
             "encounters:diagnosis-code-list",
             edit_fields=("code", "title"),
         ),
@@ -297,6 +320,7 @@ KINDS = {
             "prescriptions.Medicine",
             "Medicine",
             ("admin.masterdata.manage", "pharmacy.inventory.manage"),
+            "masterdata.medicine.delete",
             "prescriptions:medicine-list",
             _medicine_blocker,
             edit_url="prescriptions:medicine-edit",
@@ -306,6 +330,7 @@ KINDS = {
             "queue.Counter",
             "Reception counter",
             "queue.manage",
+            "queue.counter.delete",
             "queue:counters",
             edit_fields=("code", "name", "assigned_staff"),
         ),

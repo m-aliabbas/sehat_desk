@@ -51,6 +51,7 @@ urlpatterns = [
     path("settings/roles/", views_roles.role_list, name="role-list"),
     path("settings/roles/new/", views_roles.role_create, name="role-create"),
     path("settings/roles/matrix/", views_roles.permission_matrix, name="permission-matrix"),
+    path("settings/roles/access/", views_roles.access_matrix, name="access-matrix"),
     path("settings/roles/<int:pk>/", views_roles.role_edit, name="role-edit"),
     path(
         "settings/roles/<int:pk>/status/", views_roles.role_toggle_active, name="role-toggle-active"

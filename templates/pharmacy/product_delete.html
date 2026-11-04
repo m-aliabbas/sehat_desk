@@ -1,0 +1,46 @@
+{% extends "layouts/app.html" %}
+{% load ui pharmacy %}
+{% block title %}Delete {{ product.display_name }}{% endblock %}
+{% block page_title %}Delete {{ product.display_name }}{% endblock %}
+{% block page_subtitle %}The stock left in {{ current_branch.name }} is written off and the product goes to the Recycle bin, in one step. Past sales and the stock ledger keep it.{% endblock %}
+{% block content %}
+<section class="card max-w-3xl">
+  {% if batches %}
+  <div class="table-wrap mb-4">
+    <table class="table">
+      <thead><tr><th scope="col">Batch</th><th scope="col">Expiry</th><th scope="col" class="text-right">Written off</th><th scope="col" class="text-right">Cost</th></tr></thead>
+      <tbody>
+        {% for b in batches %}
+        <tr><td class="font-mono font-semibold">{{ b.label }}</td><td>{{ b.expiry_date|date:"d M Y" }}{% if b.is_expired %} <span class="chip chip-danger">Expired</span>{% endif %}</td><td class="text-right font-semibold text-red">{{ b.quantity_available }}</td><td class="text-right">{{ b.purchase_cost|floatformat:"2g" }}</td></tr>
+        {% endfor %}
+      </tbody>
+      <tfoot><tr><th scope="row" colspan="2">Total</th><td class="text-right font-bold text-red">{{ left }} {{ product|unit_label:left }}</td><td class="text-right font-bold">{{ organization.currency }} {{ value|floatformat:"2g" }}</td></tr></tfoot>
+    </table>
+  </div>
+  {% else %}
+  <p class="mb-4 text-body text-muted">No stock left in this branch.</p>
+  {% endif %}
+
+  {% if blocker %}
+    <div class="alert alert-danger mb-4" role="alert">{{ blocker }}</div>
+    <a href="{% url 'pharmacy:product-detail' product.pk %}" class="btn btn-secondary">Back to product</a>
+  {% elif not can_delete %}
+    <div class="alert alert-danger mb-4" role="alert">You are not allowed to delete products.</div>
+    <a href="{% url 'pharmacy:product-detail' product.pk %}" class="btn btn-secondary">Back to product</a>
+  {% else %}
+  <form method="post" class="grid gap-3 md:grid-cols-2">{% csrf_token %}
+    <div><label class="field-label" for="pd-kind">Write off as</label>
+      <select id="pd-kind" name="write_off_as" class="select" required>
+        <option value="expired" {% if any_expired %}selected{% endif %}>Expired</option>
+        <option value="damaged" {% if not any_expired %}selected{% endif %}>Damaged / not in use</option>
+      </select></div>
+    <div><label class="field-label" for="pd-reason">Reason</label><input id="pd-reason" name="reason" class="input" required maxlength="200" autofocus placeholder="Discontinued, wrong entry…"></div>
+    <div class="flex flex-wrap gap-2 md:col-span-2">
+      <button class="btn btn-danger" data-confirm="{% if left %}{{ left }} {{ product|unit_label:left }} are written off in the stock ledger, then {% endif %}{{ product.display_name }} goes to the Recycle bin. An admin can restore the product, not the stock." data-confirm-title="Write off and delete?" data-confirm-action="{% if can_approve %}Write off and delete{% else %}Send for approval{% endif %}" data-confirm-danger="true">{% icon "trash" "h-4 w-4" %} {% if can_approve %}Write off and delete{% else %}Send for approval{% endif %}</button>
+      <a href="{% url 'pharmacy:product-detail' product.pk %}" class="btn btn-close">Cancel</a>
+    </div>
+    {% if not can_approve %}<p class="text-label text-muted md:col-span-2">An admin approves it first. Until then the product stays and can still be sold; whatever is left at approval is written off.</p>{% endif %}
+  </form>
+  {% endif %}
+</section>
+{% endblock %}

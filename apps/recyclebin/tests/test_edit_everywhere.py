@@ -124,9 +124,12 @@ def test_each_kind_needs_its_own_permission(client, make_user, org, branch, bed)
     pharmacist = make_user("pharmacy")
     client.force_login(pharmacist)
     assert client.get(reverse("recyclebin:edit", args=["bed", bed.pk])).status_code == 403
-    pharmacist.extra_permissions.add(*_perms("records.delete"))
+    pharmacist.extra_permissions.add(*_perms("pharmacy.product.delete"))
     resp = client.post(reverse("recyclebin:delete", args=["bed", bed.pk]))
     assert resp.status_code == 302 and Bed.objects.filter(pk=bed.pk).exists()  # refused
+    client.post(reverse("recyclebin:delete", args=["medicine", records["medicine"].pk]))
+    assert Medicine.objects.exists()  # deleting products is not deleting medicines
+    pharmacist.extra_permissions.add(*_perms("masterdata.medicine.delete"))
     client.post(reverse("recyclebin:delete", args=["medicine", records["medicine"].pk]))
     assert not Medicine.objects.exists()  # pharmacists manage medicines
 

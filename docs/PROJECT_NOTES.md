@@ -176,6 +176,11 @@ Goal: a customer installs one package, gets a desktop shortcut, double-clicks it
   entry convenience (`pack_size`, `pack_unit`), with an optional "whole packs only" switch. No separate pack
   price, so a loose tablet always costs pack price ÷ pack size.
 - P&L (Phase 36) is accrual: income by invoice issue date, before tax, invoice discounts shared across lines; refunds on the day given. Salaries count for each month the period touches, from finalized payroll only. Segments: Doctors/OPD, Laboratory, Pharmacy, Hospital (system).
+- Access matrix (2026-11-04): roles act as departments; each area (products, suppliers, lab tests, wards,
+  reports…) has View / Edit / Delete cells mapped to permission codes (`apps/accounts/matrix.py`). Delete is
+  one code per area instead of the single `records.delete`; existing delete rights were carried over per area.
+  A person can be given (+) or denied (–) any matrix code on their staff page; a deny wins over roles in
+  every branch. No separate staff "department" field.
 
 ## 7. Repository layout and conventions (Phase 0, updated Phase 1)
 Layout:

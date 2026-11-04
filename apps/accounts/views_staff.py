@@ -13,11 +13,10 @@ from apps.audit import services as audit
 from apps.masterdata.models import DoctorProfile
 from apps.organizations.models import Branch
 
-from . import services
+from . import matrix, services
 from .decorators import has_perm, permission_required
 from .forms import AssignmentForm, ResetPasswordForm, StaffCreateForm, StaffForm
 from .models import Permission, Role, RoleAssignment, User
-from .permissions import GRANTABLE_CODES
 
 STAFF_AUDIT_FIELDS = [
     "first_name",
@@ -118,14 +117,12 @@ def staff_detail(request, pk):
             assignable_roles=_assignable_roles(request),
         )
         ctx["reset_form"] = ResetPasswordForm(user=staff)
-        held = services.all_permissions_anywhere(request.user)
-        given = set(staff.extra_permissions.values_list("code", flat=True))
-        labels = dict(
-            Permission.objects.filter(code__in=GRANTABLE_CODES).values_list("code", "label")
-        )
-        ctx["extra_access"] = [
-            {"code": c, "label": labels.get(c, c), "on": c in given, "can": c in held}
-            for c in GRANTABLE_CODES
+        labels = dict(Permission.objects.values_list("code", "label"))
+        ctx["access_plus"] = [
+            labels[c] for c in staff.extra_permissions.values_list("code", flat=True)
+        ]
+        ctx["access_minus"] = [
+            labels[c] for c in staff.denied_permissions.values_list("code", flat=True)
         ]
     return render(request, "accounts/staff/detail.html", ctx)
 
@@ -257,25 +254,37 @@ def staff_unlock(request, pk):
     return redirect("accounts:staff-detail", pk=pk)
 
 
-@require_POST
 @permission_required("admin.users.manage")
 def staff_access(request, pk):
-    """Extra access on top of roles: full edit, delete, approvals, Recycle bin."""
+    """This person's access matrix: their roles' rights, plus "+" given and "–" taken away."""
     staff = _get_staff(request, pk)
-    added, removed = services.set_extra_access(
-        services.all_permissions_anywhere(request.user), staff, request.POST.getlist("codes")
+    if request.method == "POST":
+        try:
+            added, removed = matrix.save_person(request, staff, request.POST.getlist("codes"))
+        except services.PermissionChangeError as err:
+            messages.error(request, err.message)
+        else:
+            messages.success(
+                request, f"Access for {staff} saved." if added or removed else "Nothing changed."
+            )
+            return redirect("accounts:staff-access", pk=pk)
+    return render(
+        request,
+        "accounts/staff/access.html",
+        {
+            "staff": staff,
+            "locked": services.is_super_admin(staff),
+            "groups": matrix.grid(
+                matrix.person_on(staff),
+                services.all_permissions_anywhere(request.user),
+                base=matrix.person_base(staff) & matrix.CODES,
+            ),
+            "breadcrumbs": _crumbs(
+                {"label": str(staff), "url": reverse("accounts:staff-detail", args=[pk])},
+                {"label": "Access"},
+            ),
+        },
     )
-    if added or removed:
-        audit.record(
-            request,
-            "staff.extra_access",
-            staff,
-            changes={"added": sorted(added), "removed": sorted(removed)},
-        )
-        messages.success(request, f"Extra access for {staff} saved.")
-    else:
-        messages.info(request, "Nothing changed.")
-    return redirect("accounts:staff-detail", pk=pk)
 
 
 @require_POST

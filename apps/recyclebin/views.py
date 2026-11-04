@@ -1,6 +1,6 @@
 """Recycle bin screen, the delete endpoints every list's bin button and "Delete selected" bar
-post to, and the shared edit page. Editing needs the module's permission, deleting also
-`records.delete` (both checked in services); the bin itself needs `admin.recyclebin.manage`."""
+post to, and the shared edit page. Editing needs the module's permission, deleting also the
+area's delete code (both checked in services); the bin needs `admin.recyclebin.manage`."""
 
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
@@ -70,7 +70,7 @@ def edit(request, kind, pk):
 
 
 @require_POST
-@permission_required(services.DELETE)
+@permission_required(*services.DELETE_PERMS, any_of=True)
 def delete_one(request, kind, pk):
     kind = _kind(kind)
     obj = kind.model_class.objects.filter(organization=request.organization, pk=pk).first()
@@ -79,6 +79,8 @@ def delete_one(request, kind, pk):
     try:
         services.delete(request, obj, reason=request.POST.get("reason", ""))
     except services.BinError as err:
+        if kind.clear_url:
+            return redirect(kind.clear_url, pk=obj.pk)
         messages.error(request, err.message)
         return _back(request, kind.url_for(obj))
     messages.success(request, f"{obj} moved to the Recycle bin.")
@@ -86,7 +88,7 @@ def delete_one(request, kind, pk):
 
 
 @require_POST
-@permission_required(services.DELETE)
+@permission_required(*services.DELETE_PERMS, any_of=True)
 def delete_selected(request, kind):
     kind = _kind(kind)
     ids = [i for i in request.POST.getlist("ids") if i.isdigit()]

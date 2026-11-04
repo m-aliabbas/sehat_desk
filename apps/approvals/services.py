@@ -153,6 +153,59 @@ def request_unit_correction(
     return change
 
 
+def delete_blocker(request, product) -> str | None:
+    """Why a product cannot be written off and deleted from this branch, or None."""
+    from apps.pharmacy.models import PurchaseItem
+
+    elsewhere = (
+        InventoryBatch.objects.filter(product=product)
+        .exclude(branch=request.branch)
+        .aggregate(n=Sum("quantity_available"))["n"]
+        or 0
+    )
+    if elsewhere:
+        return f"{elsewhere} is in stock in another branch. Write it off there first."
+    if PurchaseItem.objects.filter(
+        product=product, purchase__status__in=("draft", "ordered")
+    ).exists():
+        return "It is on an open purchase. Receive or cancel that purchase first."
+    if product.change_requests.filter(status=Status.PENDING, action=Action.DELETE).exists():
+        return "Its delete is already waiting for approval."
+    return None
+
+
+@transaction.atomic
+def request_delete(request, product, *, write_off_as: str, reason: str) -> StockChangeRequest:
+    """Write off all and delete: one request that, once approved, writes off every batch left in
+    this branch and moves the product to the Recycle bin. Approvers' own requests apply at once."""
+    from apps.recyclebin import services as recyclebin
+    from apps.recyclebin.registry import KINDS
+
+    if not recyclebin.can_delete(request, KINDS["product"]):
+        raise ApprovalError("You are not allowed to delete products.")
+    if write_off_as not in (Action.EXPIRED, Action.DAMAGED):
+        raise ApprovalError("Choose expired or damaged.")
+    if not reason.strip():
+        raise ApprovalError("Give the reason for deleting it.")
+    if why := delete_blocker(request, product):
+        raise ApprovalError(why)
+    left = (
+        InventoryBatch.objects.filter(branch=request.branch, product=product).aggregate(
+            n=Sum("quantity_available")
+        )["n"]
+        or 0
+    )
+    change = StockChangeRequest.objects.create(
+        organization=request.organization, branch=request.branch, product=product,
+        action=Action.DELETE, stock_at_request=left, quantity=left, write_off_as=write_off_as,
+        reason=reason.strip()[:200], requested_by=request.user,
+    )  # fmt: skip
+    audit.record(request, "stock_change.request", change, summary=f"{product.sku} {change.summary}")
+    if can_approve(request):
+        change = approve(request, change, note="Approved by the person who made the change.")
+    return change
+
+
 @transaction.atomic
 def approve(request, change: StockChangeRequest, *, note: str = "") -> StockChangeRequest:
     if not can_approve(request):
@@ -174,6 +227,18 @@ def approve(request, change: StockChangeRequest, *, note: str = "") -> StockChan
                 factor=change.unit_factor,
                 reason=reason,
             )
+            txn = None
+        elif change.action == Action.DELETE:
+            # Whatever is left now goes, sales since the request included.
+            from apps.recyclebin import services as recyclebin
+
+            stock.write_off_all(
+                change.product, request=request, kind=change.write_off_as, reason=reason
+            )
+            try:
+                recyclebin.send_to_bin(request, change.product, reason=change.reason)
+            except recyclebin.BinError as err:
+                raise ApprovalError(err.message) from err
             txn = None
         elif change.action == Action.DETAILS:
             stock.correct_batch(

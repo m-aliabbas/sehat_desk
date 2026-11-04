@@ -181,3 +181,67 @@ def test_correct_unit_screen(client, make_request, pharmacist, admin_user, org):
     assert "Whole product" in client.get(reverse("approvals:list")).content.decode()
     client.post(reverse("approvals:approve", args=[StockChangeRequest.objects.get().pk]))
     assert _qty(batch) == 5
+
+
+def _grant(user, *codes):
+    from apps.accounts.models import Permission
+
+    user.extra_permissions.add(*Permission.objects.filter(code__in=codes))
+
+
+def test_write_off_and_delete_waits_then_clears_stock(make_request, pharmacist, admin_user, batch):
+    _grant(pharmacist, "pharmacy.product.delete")
+    product = batch.product
+    change = services.request_delete(
+        make_request(pharmacist), product, write_off_as="damaged", reason="Discontinued"
+    )
+    assert change.status == Status.PENDING and _qty(batch) == 100
+    assert Product.objects.filter(pk=product.pk).exists()
+    with pytest.raises(services.ApprovalError, match="already waiting"):
+        services.request_delete(
+            make_request(pharmacist), product, write_off_as="damaged", reason="Again"
+        )
+    stock.sell(batch, request=make_request(pharmacist), quantity=10)  # sold while waiting
+    services.approve(make_request(admin_user), change)
+    assert _qty(batch) == 0
+    assert not Product.objects.filter(pk=product.pk).exists()
+    gone = Product.all_objects.get(pk=product.pk)
+    assert gone.deleted_reason == "Discontinued"
+    off = StockTransaction.objects.get(product=product, kind=StockTransaction.Kind.DAMAGED)
+    assert off.quantity == -90 and "asked by" in off.reason
+
+
+def test_write_off_and_delete_needs_delete_permission(make_request, pharmacist, batch):
+    with pytest.raises(services.ApprovalError, match="not allowed"):
+        services.request_delete(
+            make_request(pharmacist), batch.product, write_off_as="expired", reason="x"
+        )
+
+
+def test_write_off_and_delete_refuses_stock_in_another_branch(
+    make_request, make_user, admin_user, batch, branch2
+):
+    other = make_request(admin_user)
+    other.branch = branch2
+    stock.receive(
+        request=other, product=batch.product, batch_number="B2",
+        expiry_date=TODAY + timedelta(days=300), quantity=7, purchase_cost=Decimal("2"),
+    )  # fmt: skip
+    with pytest.raises(services.ApprovalError, match="another branch"):
+        services.request_delete(
+            make_request(admin_user), batch.product, write_off_as="expired", reason="x"
+        )
+    assert _qty(batch) == 100
+
+
+def test_delete_button_leads_to_write_off_page(client, admin_user, batch):
+    client.force_login(admin_user)
+    product = batch.product
+    resp = client.post(reverse("recyclebin:delete", args=["product", product.pk]))
+    url = reverse("pharmacy:product-delete", args=[product.pk])
+    assert resp.status_code == 302 and resp.url == url
+    assert "Write off and delete" in client.get(url).content.decode()
+    resp = client.post(url, {"write_off_as": "expired", "reason": "Wrong entry"})
+    assert resp.url == reverse("pharmacy:product-list")
+    assert _qty(batch) == 0 and not Product.objects.filter(pk=product.pk).exists()
+    assert StockChangeRequest.objects.get().status == Status.APPROVED

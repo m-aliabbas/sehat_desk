@@ -5,7 +5,7 @@
   {% elif branches_p in sd_perms %}<a class="tab" href="{% url 'organizations:branch-list' %}" {% if settings_tab == "branches" %}aria-selected="true"{% endif %}>Hospital</a>{% endif %}
   {% if org in sd_perms %}<a class="tab" href="{% url 'billing:settings' %}" {% if settings_tab == "billing" or settings_tab == "print" or settings_tab == "printers" %}aria-selected="true"{% endif %}>Billing &amp; printing</a>{% endif %}
   {% if data in sd_perms %}<a class="tab" href="{% url 'masterdata:department-list' %}" {% if settings_tab == "departments" or settings_tab == "doctors" or settings_tab == "services" or settings_tab == "diagnoses" or settings_tab == "medicines" %}aria-selected="true"{% endif %}>Clinical lists</a>{% endif %}
-  {% if roles in sd_perms %}<a class="tab" href="{% url 'accounts:role-list' %}" {% if settings_tab == "roles" or settings_tab == "matrix" or settings_tab == "audit" %}aria-selected="true"{% endif %}>Access</a>
+  {% if roles in sd_perms %}<a class="tab" href="{% url 'accounts:role-list' %}" {% if settings_tab == "roles" or settings_tab == "matrix" or settings_tab == "access" or settings_tab == "audit" %}aria-selected="true"{% endif %}>Access</a>
   {% elif audit_p in sd_perms %}<a class="tab" href="{% url 'audit:log' %}" {% if settings_tab == "audit" %}aria-selected="true"{% endif %}>Access</a>{% endif %}
   {% if org in sd_perms %}<a class="tab" href="{% url 'core:backups' %}" {% if settings_tab == "backups" or settings_tab == "updates" or settings_tab == "system" %}aria-selected="true"{% endif %}>System</a>
   {% elif sys in sd_perms %}<a class="tab" href="{% url 'core:system' %}" {% if settings_tab == "system" %}aria-selected="true"{% endif %}>System</a>{% endif %}
@@ -27,8 +27,9 @@
     <a class="settings-sub" href="{% url 'masterdata:service-list' %}" {% if settings_tab == "services" %}aria-current="page"{% endif %}>Services</a>
     <a class="settings-sub" href="{% url 'encounters:diagnosis-code-list' %}" {% if settings_tab == "diagnoses" %}aria-current="page"{% endif %}>Diagnosis codes</a>
     <a class="settings-sub" href="{% url 'prescriptions:medicine-list' %}" {% if settings_tab == "medicines" %}aria-current="page"{% endif %}>Medicines</a>
-  {% elif settings_tab == "roles" or settings_tab == "matrix" or settings_tab == "audit" %}
+  {% elif settings_tab == "roles" or settings_tab == "matrix" or settings_tab == "access" or settings_tab == "audit" %}
     {% if roles in sd_perms %}<a class="settings-sub" href="{% url 'accounts:role-list' %}" {% if settings_tab == "roles" %}aria-current="page"{% endif %}>Roles</a>
+    <a class="settings-sub" href="{% url 'accounts:access-matrix' %}" {% if settings_tab == "access" %}aria-current="page"{% endif %}>Access matrix</a>
     <a class="settings-sub" href="{% url 'accounts:permission-matrix' %}" {% if settings_tab == "matrix" %}aria-current="page"{% endif %}>Permission matrix</a>{% endif %}
     {% if audit_p in sd_perms %}<a class="settings-sub" href="{% url 'audit:log' %}" {% if settings_tab == "audit" %}aria-current="page"{% endif %}>Audit trail</a>{% endif %}
   {% elif settings_tab == "backups" or settings_tab == "updates" or settings_tab == "system" %}

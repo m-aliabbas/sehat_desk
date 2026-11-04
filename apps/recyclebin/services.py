@@ -1,6 +1,7 @@
 """Delete to the Recycle bin, restore, and erase for good (only records nothing else uses).
 
-Deleting needs `records.delete` plus the module's own permission (registry). Opening the bin,
+Deleting needs the area's delete code plus its edit permission (registry
+`delete_perm`). Opening the bin,
 restoring and erasing need `admin.recyclebin.manage`. Every step is audit-logged.
 """
 
@@ -13,7 +14,7 @@ from apps.audit import services as audit
 
 from .registry import KINDS, Kind, kind_of
 
-DELETE = "records.delete"
+DELETE_PERMS = tuple(sorted({k.delete_perm for k in KINDS.values()}))
 MANAGE_BIN = "admin.recyclebin.manage"
 
 
@@ -34,7 +35,7 @@ def can_edit(request, kind: Kind) -> bool:
 
 
 def can_delete(request, kind: Kind) -> bool:
-    return DELETE in getattr(request, "sd_perms", frozenset()) and can_edit(request, kind)
+    return kind.delete_perm in getattr(request, "sd_perms", frozenset()) and can_edit(request, kind)
 
 
 def deletable_keys(request) -> set[str]:
@@ -80,6 +81,14 @@ def delete(request, obj, *, reason: str = ""):
         raise BinError("That kind of record cannot be deleted.")
     if not can_delete(request, kind):
         raise BinError("You are not allowed to delete this.")
+    return send_to_bin(request, obj, reason=reason)
+
+
+@transaction.atomic
+def send_to_bin(request, obj, *, reason: str = ""):
+    """Move to the bin without the permission check: for a delete someone allowed asked for and
+    an approver finishes (approvals: write off all and delete). Blockers still apply."""
+    kind = kind_of(obj)
     _check_org(request, obj)
     obj = type(obj).all_objects.select_for_update(of=("self",)).get(pk=obj.pk)
     if obj.deleted_at:

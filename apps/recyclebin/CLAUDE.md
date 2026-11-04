@@ -10,14 +10,17 @@ Doctors and roles keep Deactivate (a doctor is tied to a staff login).
 
 ## Files
 - `registry.py` — `KINDS`: each kind (key, model, label, module permission(s) — any one allows
-  editing, list/detail URL, `edit_url` for its own edit page or `edit_fields` for the shared one, and a
+  editing, `delete_perm` (its area's delete code), list/detail URL, `edit_url` for its own edit page or `edit_fields` for the shared one, and a
   `blocker` that says why a record cannot go yet: stock on the shelf, an unsettled supplier account,
-  open purchases, records still using it, an occupied bed, the Cash payment method).
+  open purchases, records still using it, an occupied bed, the Cash payment method). `clear_url`: a
+  page that clears the blocker itself; a blocked `recyclebin:delete` goes there instead of an error
+  (product → `pharmacy:product-delete`, write off all and delete).
 - `forms.py` — `edit_form(kind, request)`: the shared edit form; dropdowns limited to this hospital,
   per-hospital unique names checked. `templatetags/recyclebin.py` — `{% edit_link kind obj as url %}`.
 - `services.py` — `can_edit` / `can_delete`, `editable_keys` / `deletable_keys` (context processor:
   `editable`, `deletable`), `save_edit` (audit `<kind>.update` with the changed fields), `delete` /
-  `delete_many`, `deleted` (bin rows), `restore` (refuses if another active record now has the same name
+  `delete_many`, `send_to_bin` (no permission check, blockers still apply: an approver finishing a
+  delete someone allowed asked for), `deleted` (bin rows), `restore` (refuses if another active record now has the same name
   or code), `erase` (only when nothing else points at it).
 - `views.py` — `recyclebin:edit` (`records/<kind>/<pk>/edit/`, opens in the side panel; the kind's
   permission is checked inside), `recyclebin:delete` (one row; the list's bin button, `reason` optional) and
@@ -36,8 +39,9 @@ Add a `Kind` to `registry.py` and `_actions.html` (or `data-edit` / tick boxes) 
 `masterdata/defaults.py` counts deleted rows as existing, so an update never brings one back.
 
 ## Permissions
-The kind's module permission to edit; `records.delete` plus that permission to delete; `admin.recyclebin.manage` to open the bin,
-restore and erase. Both can be given to one person on their staff page ("Extra access").
+The kind's module permission to edit; its area's delete code (`delete_perm`, e.g. `pharmacy.product.delete`)
+plus that permission to delete; `admin.recyclebin.manage` to open the bin, restore and erase. Set per role or
+per person in the access matrix (`apps/accounts/matrix.py`).
 
 ## Tests
 `tests/test_recyclebin.py`, `tests/test_edit_everywhere.py`.

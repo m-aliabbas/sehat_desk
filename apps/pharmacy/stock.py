@@ -230,6 +230,18 @@ def write_off(batch, *, request, quantity: int, kind: str, reason: str) -> Stock
     return _post(batch, request=request, kind=kind, delta=-quantity, reason=reason)
 
 
+@transaction.atomic
+def write_off_all(product, *, request, kind: str, reason: str) -> list[StockTransaction]:
+    """Write off every batch of the product left in this branch (before deleting it)."""
+    batches = InventoryBatch.objects.filter(
+        branch=request.branch, product=product, quantity_available__gt=0
+    )
+    return [
+        write_off(b, request=request, quantity=b.quantity_available, kind=kind, reason=reason)
+        for b in batches
+    ]
+
+
 def unit_correction_blocker(product, factor: int) -> str | None:
     """Why stock cannot be converted to a new unit yet, or None. Only a conversion (factor > 1)
     is blocked: open sales and purchases count in the old unit."""

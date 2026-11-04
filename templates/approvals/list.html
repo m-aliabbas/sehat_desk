@@ -29,7 +29,7 @@
         <tr {% if r.status == "pending" %}data-remove="{% url 'approvals:reject' r.pk %}" data-remove-label="Reject" data-remove-reason{% endif %}>
           {% if show == "pending" %}<td><input type="checkbox" class="checkbox" name="ids" value="{{ r.pk }}" form="pick-form" aria-label="Tick {{ r.product }}" @change="count()"></td>{% endif %}
           <td>{{ r.created_at|date:"d M, H:i" }}<p class="text-label text-muted">{{ r.requested_by }}</p></td>
-          <td><a href="{% url 'pharmacy:product-detail' r.product_id %}" class="font-medium hover:underline">{{ r.product }}</a>{% if r.batch %}<p class="text-label text-muted font-mono">{{ r.batch.label }} · now {{ r.batch.quantity_available }}</p>{% else %}<p class="text-label text-muted">Whole product, all branches · {{ r.stock_at_request }} {{ r.old_unit }} on file</p>{% endif %}</td>
+          <td><a href="{% url 'pharmacy:product-detail' r.product_id %}" class="font-medium hover:underline">{{ r.product }}</a>{% if r.batch %}<p class="text-label text-muted font-mono">{{ r.batch.label }} · now {{ r.batch.quantity_available }}</p>{% else %}{% if r.action == "delete" %}<p class="text-label text-muted">Every batch in this branch · {{ r.stock_at_request }} on file when asked</p>{% else %}<p class="text-label text-muted">Whole product, all branches · {{ r.stock_at_request }} {{ r.old_unit }} on file</p>{% endif %}{% endif %}</td>
           <td>{{ r.get_action_display }}{% if r.reference %}<p class="text-label text-muted">Ref {{ r.reference }}</p>{% endif %}</td>
           <td class="text-right font-semibold {% if r.change is not None and r.change < 0 %}text-red{% endif %}">{{ r.summary }}</td>
           <td>{{ r.reason }}</td>

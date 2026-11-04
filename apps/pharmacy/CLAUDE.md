@@ -4,7 +4,7 @@ PRD §9. Phases 12–14. PROJECT_NOTES §12–13.
 
 ## Files
 - `stock.py` — the ONLY code that changes stock: `receive`, `sell`, `sale_return`,
-  `purchase_return`, `adjust_to_count`, `write_off`; queries `saleable` (FEFO), `on_hand`,
+  `purchase_return`, `adjust_to_count`, `write_off`, `write_off_all` (every batch, before a delete); queries `saleable` (FEFO), `on_hand`,
   `products_with_stock`, `low_stock`, `near_expiry`, `expired`, `stock_value`,
   `product_statement` (opening, running balance, closing), `ledger_mismatches`.
 - `pos.py` — the till: `open_cart`, `add_product`, `attach_patient`, `attach_prescription`,
@@ -78,7 +78,9 @@ PRD §9. Phases 12–14. PROJECT_NOTES §12–13.
   `stock.correct_batch`) go through `apps/approvals`: they wait until `admin.approvals.manage` approves.
 - Products, categories (renamed on the Categories screen), units of measure and suppliers delete to the
   Recycle bin (`apps/recyclebin`); a product with stock or on an open purchase, a category in use and a
-  supplier with an unsettled account or open purchase cannot go.
+  supplier with an unsettled account or open purchase cannot go. A product with stock is deleted from
+  `product-delete` ("Write off and delete": every batch in this branch written off as expired or damaged,
+  then the bin, via Approvals); the product page's Delete and the list's bin button lead there.
 - A price change is not a batch. New stock takes the product's price; the shelf keeps its own until
   repriced (`pricing`). Repricing never changes cost. Every change is a `ProductPriceChange` row, shown
   on the product page and its ledger, and moves no stock.

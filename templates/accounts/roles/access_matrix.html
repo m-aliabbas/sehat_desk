@@ -1,0 +1,22 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}Access matrix{% endblock %}
+{% block page_title %}Roles &amp; permissions{% endblock %}
+{% block page_subtitle %}Who can view, edit and delete each area, by role. Roles are your departments: Pharmacy, Lab, Reception… Change one person on their staff page.{% endblock %}
+{% block content %}
+{% include "partials/settings_tabs.html" %}
+<nav class="tabs mb-3" aria-label="Roles">
+  {% for r in roles %}<a class="tab" href="?role={{ r.pk }}" {% if r == role %}aria-selected="true"{% endif %}>{{ r.name }}</a>{% endfor %}
+</nav>
+<form method="post" class="card" x-data="{ dirty: false }" @change="dirty = true; const t = $event.target; if (t.name === 'codes') $el.querySelectorAll('input[name=codes]').forEach(i => { if (i.value === t.value && !i.disabled) i.checked = t.checked })">
+  {% csrf_token %}
+  <div class="card-header">
+    <div>
+      <h2 class="section-title">{{ role.name }}</h2>
+      <p class="text-label text-muted">{% if role.is_locked %}Super admin always has everything.{% else %}Delete also needs Edit. Some boxes share one switch (point at a box to see which). Greyed boxes are rights you do not hold.{% endif %}</p>
+    </div>
+    {% if not role.is_locked %}<button type="submit" class="btn btn-primary" :disabled="!dirty">Save {{ role.name }}</button>{% endif %}
+  </div>
+  {% include "accounts/_access_grid.html" with locked=role.is_locked %}
+</form>
+{% endblock %}

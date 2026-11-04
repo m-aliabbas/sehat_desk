@@ -5,11 +5,12 @@ from itertools import groupby
 from django.contrib import messages
 from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.views.decorators.http import require_POST
 
 from apps.audit import services as audit
 
-from . import services
+from . import matrix, services
 from .decorators import permission_required
 from .forms import RoleForm
 from .models import Permission, Role
@@ -177,5 +178,42 @@ def permission_matrix(request):
             "groups": groups,
             "settings_tab": "matrix",
             "breadcrumbs": _crumbs({"label": "Permission matrix"}),
+        },
+    )
+
+
+@permission_required("admin.roles.manage")
+def access_matrix(request):
+    """Area × view / edit / delete for one role (roles act as departments), a tab per role."""
+    roles = sorted(
+        _roles(request).filter(is_active=True).prefetch_related("permissions"),
+        key=lambda r: (not r.is_system, r.name),
+    )
+    role = next((r for r in roles if str(r.pk) == request.GET.get("role", "")), None)
+    role = role or next((r for r in roles if not r.is_locked), roles[0] if roles else None)
+    if role is None:
+        return redirect("accounts:role-list")
+    if request.method == "POST":
+        try:
+            added, removed = matrix.save_role(request, role, request.POST.getlist("codes"))
+        except services.PermissionChangeError as err:
+            messages.error(request, err.message)
+        else:
+            messages.success(
+                request,
+                f"{role.name}: access saved." if added or removed else "Nothing changed.",
+            )
+            return redirect(f"{reverse('accounts:access-matrix')}?role={role.pk}")
+    return render(
+        request,
+        "accounts/roles/access_matrix.html",
+        {
+            "roles": roles,
+            "role": role,
+            "groups": matrix.grid(
+                services.role_codes(role), services.all_permissions_anywhere(request.user)
+            ),
+            "settings_tab": "access",
+            "breadcrumbs": _crumbs({"label": "Access matrix"}),
         },
     )

@@ -288,6 +288,8 @@ HUB_GROUPS: list[tuple[str, str, str, list[HubLink]]] = [
         [
             HubLink("Roles", "What each role may do", "users",
                     "accounts:role-list", ("admin.roles.manage",)),
+            HubLink("Access matrix", "Who can view, edit and delete each area", "users",
+                    "accounts:access-matrix", ("admin.roles.manage",)),
             HubLink("Permission matrix", "Roles and rights side by side", "users",
                     "accounts:permission-matrix", ("admin.roles.manage",)),
             HubLink("Audit log", "Who changed what", "file", "audit:log", ("admin.audit.view",)),

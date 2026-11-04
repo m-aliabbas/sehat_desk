@@ -1,12 +1,24 @@
 """RBAC rules: who can do what, in which branch."""
 
+from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Q
 
 from apps.organizations.models import Branch, Organization
 
 from .models import Permission, Role, RoleAssignment, User
-from .permissions import ALL_CODES, DEFAULT_ROLES, PERMISSIONS, SUPER_ADMIN_KEY
+from .permissions import (
+    ALL_CODES,
+    DEFAULT_ROLES,
+    DELETE_AREAS,
+    OLD_DELETE_CODE,
+    PERMISSIONS,
+    SUPER_ADMIN_KEY,
+)
+
+
+class PermissionChangeError(ValidationError):
+    pass
 
 
 def sync_permissions() -> None:
@@ -25,10 +37,26 @@ def sync_permissions() -> None:
             keys = [k for k, codes in defaults_by_key.items() if p.code in codes]
             for role in Role.objects.filter(system_key__in=keys):
                 role.permissions.add(perm)
+            if p.code in DELETE_AREAS:
+                _carry_old_delete(perm, DELETE_AREAS[p.code])
     Permission.objects.exclude(code__in=ALL_CODES).delete()
     all_perms = list(Permission.objects.all())
     for role in Role.objects.filter(system_key=SUPER_ADMIN_KEY):
         role.permissions.set(all_perms)
+
+
+def _carry_old_delete(perm, edit_codes) -> None:
+    """A new per-area delete code goes to every role and person that held the old records.delete
+    and may edit that area, so nobody gains or loses a delete."""
+    old = Permission.objects.filter(code=OLD_DELETE_CODE).first()
+    if old is None:
+        return
+    for role in Role.objects.filter(permissions=old).prefetch_related("permissions"):
+        if any(p.code in edit_codes for p in role.permissions.all()):
+            role.permissions.add(perm)
+    for user in User.objects.filter(extra_permissions=old):
+        if set(edit_codes) & all_permissions_anywhere(user):
+            user.extra_permissions.add(perm)
 
 
 def seed_default_roles(organization: Organization) -> dict[str, Role]:
@@ -79,6 +107,9 @@ def _active_assignments(user):
     ).filter(Q(branch__isnull=True) | Q(branch__is_active=True))
 
 
+active_assignments = _active_assignments
+
+
 def accessible_branches(user):
     """Branches the user may work in: all active ones for an all-branch assignment."""
     if not user.is_authenticated or user.organization_id is None:
@@ -92,6 +123,10 @@ def accessible_branches(user):
 
 def _extra_codes(user) -> frozenset:
     return frozenset(user.extra_permissions.values_list("code", flat=True))
+
+
+def _denied_codes(user) -> frozenset:
+    return frozenset(user.denied_permissions.values_list("code", flat=True))
 
 
 def effective_permissions(user, branch) -> frozenset:
@@ -108,32 +143,16 @@ def effective_permissions(user, branch) -> frozenset:
         Permission.objects.filter(Q(roles__in=role_ids) | Q(extra_users=user))
         .values_list("code", flat=True)
         .distinct()
-    )
+    ) - _denied_codes(user)
 
 
 def all_permissions_anywhere(user) -> frozenset:
     """Union of a user's permissions across every branch (used for escalation checks)."""
     role_ids = _active_assignments(user).values("role_id")
-    return frozenset(
+    from_roles = frozenset(
         Permission.objects.filter(roles__in=role_ids).values_list("code", flat=True).distinct()
-    ) | _extra_codes(user)
-
-
-def set_extra_access(actor_perms: frozenset, user, codes) -> tuple[set, set]:
-    """Give or take back extra access. Only grantable codes, and only ones the actor holds
-    (no escalation). Returns (added, removed)."""
-    from .permissions import GRANTABLE_CODES
-
-    allowed = {c for c in GRANTABLE_CODES if c in actor_perms}
-    wanted = {c for c in codes if c in allowed}
-    current = set(_extra_codes(user))
-    added = wanted - current
-    removed = (current & allowed) - wanted
-    if added:
-        user.extra_permissions.add(*Permission.objects.filter(code__in=added))
-    if removed:
-        user.extra_permissions.remove(*Permission.objects.filter(code__in=removed))
-    return added, removed
+    )
+    return (from_roles | _extra_codes(user)) - _denied_codes(user)
 
 
 def role_codes(role) -> frozenset:

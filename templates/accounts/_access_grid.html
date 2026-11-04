@@ -1,0 +1,30 @@
+{# Area × View / Edit / Delete grid (apps/accounts/matrix.py). `groups` from matrix.grid; `locked` shows ticks only. Boxes post as `codes`; boxes sharing a code tick together. A "+" or "–" mark is a person's override of their roles. #}
+{% load ui %}
+<div class="table-wrap">
+  <table class="table" data-plain>
+    <thead><tr><th scope="col" class="min-w-60">Area</th><th scope="col" class="w-24 text-center">View</th><th scope="col" class="w-24 text-center">Edit</th><th scope="col" class="w-24 text-center">Delete</th></tr></thead>
+    {% for group, rows in groups %}
+    <tbody>
+      <tr><th scope="rowgroup" colspan="4" class="bg-page text-label font-bold uppercase tracking-wide text-muted">{{ group }}</th></tr>
+      {% for row in rows %}
+      <tr>
+        <th scope="row" class="font-medium">{{ row.area.label }}</th>
+        {% for cell in row.cells %}
+        <td class="text-center">
+          {% if not cell %}<span class="text-subtle" aria-label="Not used">–</span>
+          {% elif locked %}{% if cell.on %}<span class="text-teal" title="{{ cell.title }}: always granted">{% icon "check-circle" "mx-auto h-4 w-4" %}</span>{% endif %}
+          {% else %}
+          <label class="inline-flex items-center gap-1 {% if not cell.can %}opacity-60{% endif %}" title="{{ cell.title }}{% if not cell.can %} — you do not hold this yourself{% endif %}">
+            <input type="checkbox" class="checkbox" name="codes" value="{{ cell.code }}" aria-label="{{ row.area.label }}: {% if forloop.counter == 1 %}view{% elif forloop.counter == 2 %}edit{% else %}delete{% endif %}" {% if cell.on %}checked{% endif %} {% if not cell.can %}disabled{% endif %}>
+            {% if cell.mark == "+" %}<span class="chip chip-success" title="Given to this person on top of their roles">+</span>{% elif cell.mark == "–" %}<span class="chip chip-danger" title="Taken from this person although a role gives it">–</span>{% endif %}
+          </label>
+          {% if not cell.can and cell.on %}<input type="hidden" name="codes" value="{{ cell.code }}">{% endif %}
+          {% endif %}
+        </td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+    {% endfor %}
+  </table>
+</div>

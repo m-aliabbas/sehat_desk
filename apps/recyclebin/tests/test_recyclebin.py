@@ -57,7 +57,7 @@ def test_delete_needs_permission(make_request, make_user, product):
     pharmacist = make_user("pharmacy")
     with pytest.raises(services.BinError, match="not allowed"):
         services.delete(make_request(pharmacist), product)
-    pharmacist.extra_permissions.add(*_perms("records.delete"))
+    pharmacist.extra_permissions.add(*_perms("pharmacy.product.delete"))
     services.delete(make_request(pharmacist), product)
 
 

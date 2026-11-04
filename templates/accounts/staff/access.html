@@ -1,0 +1,19 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}Access · {{ staff }}{% endblock %}
+{% block page_title %}Access · {{ staff }}{% endblock %}
+{% block page_subtitle %}What {{ staff }} can view, edit and delete, in every branch they work in. Ticks come from their roles; change a box to give (+) or take away (–) for this person only.{% endblock %}
+{% block page_actions %}<a href="{% url 'accounts:staff-detail' staff.pk %}" class="btn btn-close">Back</a>{% endblock %}
+{% block content %}
+<form method="post" class="card" x-data="{ dirty: false }" @change="dirty = true; const t = $event.target; if (t.name === 'codes') $el.querySelectorAll('input[name=codes]').forEach(i => { if (i.value === t.value && !i.disabled) i.checked = t.checked })">
+  {% csrf_token %}
+  <div class="card-header">
+    <div>
+      <h2 class="section-title">{{ staff }}</h2>
+      <p class="text-label text-muted">{% if locked %}A super admin always has everything.{% else %}<span class="chip chip-success">+</span> given to this person · <span class="chip chip-danger">–</span> taken away from this person. Untick a + or tick a – to go back to the role.{% endif %}</p>
+    </div>
+    {% if not locked %}<button type="submit" class="btn btn-primary" :disabled="!dirty">Save access</button>{% endif %}
+  </div>
+  {% include "accounts/_access_grid.html" %}
+</form>
+{% endblock %}
