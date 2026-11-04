@@ -7,6 +7,7 @@ from decimal import Decimal
 
 from django.contrib import messages
 from django.db import transaction
+from django.db.models import Sum
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
@@ -634,6 +635,13 @@ def product_detail(request, pk):
             "can_manage": has_perm(request, MANAGE),
             "can_approve": has_perm(request, "admin.approvals.manage"),
             "can_delete": has_perm(request, MANAGE) and has_perm(request, "records.delete"),
+            "unit_pending": product.change_requests.filter(
+                status="pending", action="unit"
+            ).exists(),
+            "stock_total": InventoryBatch.objects.filter(product=product).aggregate(
+                n=Sum("quantity_available")
+            )["n"]
+            or 0,
             "pending_batches": set(
                 product.change_requests.filter(branch=request.branch, status="pending").values_list(
                     "batch_id", flat=True
@@ -771,6 +779,45 @@ def receive(request):
                 return redirect("pharmacy:receive")
             return redirect("pharmacy:product-detail", pk=txn.product_id)
     return _receive_page(request, rows=[], errors=[e for es in form.errors.values() for e in es])
+
+
+def _int(value, default=1) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+@require_POST
+@permission_required(MANAGE)
+def product_unit(request, pk):
+    """Correct unit: the product was saved in the wrong unit (tablet for bottle). Waits on
+    Approvals unless the person can approve; stock and prices convert when approved."""
+    from apps.approvals import services as approvals
+
+    product = get_scoped_or_404(Product, request, pk=pk)
+    try:
+        change = approvals.request_unit_correction(
+            request,
+            product,
+            unit=request.POST.get("unit", ""),
+            pack_unit=request.POST.get("pack_unit", ""),
+            pack_size=_int(request.POST.get("pack_size")),
+            factor=_int(request.POST.get("factor")),
+            reason=request.POST.get("reason", ""),
+        )
+    except approvals.ApprovalError as err:
+        messages.error(request, err.message)
+    else:
+        if change.status == change.Status.APPROVED:
+            messages.success(request, f"Unit corrected: {change.summary}.")
+        else:
+            messages.warning(
+                request,
+                f"Unit correction sent for approval ({change.summary}). "
+                "It changes once an admin approves it.",
+            )
+    return redirect("pharmacy:product-detail", pk=product.pk)
 
 
 @require_POST

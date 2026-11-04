@@ -230,6 +230,103 @@ def write_off(batch, *, request, quantity: int, kind: str, reason: str) -> Stock
     return _post(batch, request=request, kind=kind, delta=-quantity, reason=reason)
 
 
+def unit_correction_blocker(product, factor: int) -> str | None:
+    """Why stock cannot be converted to a new unit yet, or None. Only a conversion (factor > 1)
+    is blocked: open sales and purchases count in the old unit."""
+    from .models import PharmacySale, PharmacySaleItem, PurchaseItem
+
+    if factor <= 1:
+        return None
+    if PharmacySaleItem.objects.filter(
+        product=product, sale__status__in=(PharmacySale.Status.OPEN, PharmacySale.Status.HELD)
+    ).exists():
+        return "It is on a sale in progress or held at the till. Finish or clear that sale first."
+    if PurchaseItem.objects.filter(
+        product=product, purchase__status__in=("draft", "ordered")
+    ).exists():
+        return "It is on an open purchase. Receive or cancel that purchase first."
+    for batch in InventoryBatch.objects.filter(product=product, quantity_available__gt=0):
+        if batch.quantity_available % factor:
+            return (
+                f"Batch {batch.label} has {batch.quantity_available}, which is not a whole number "
+                f"of the new unit ({factor} each). Count it first."
+            )
+    return None
+
+
+@transaction.atomic
+def correct_unit(
+    product, *, request, unit: str, pack_unit: str = "", pack_size: int = 1, factor: int = 1,
+    reason: str,
+):  # fmt: skip
+    """Fix a product saved in the wrong unit, e.g. tablet that is really a bottle.
+
+    factor = how many of the old unit make one of the new unit (1 = only the name was wrong).
+    With a factor, stock in every branch is divided by it and prices per unit multiplied by it,
+    so stock value stays the same; each batch that changes gets an adjustment row in the ledger.
+    Runs only from an approved request (apps.approvals).
+    """
+    _need_manage(request)
+    unit = " ".join((unit or "").split()).lower()[:30]
+    pack_unit = " ".join((pack_unit or "").split()).lower()[:30]
+    if not unit:
+        raise StockError("Enter the correct unit.")
+    if not reason.strip():
+        raise StockError("Give the reason for the correction.")
+    if factor < 1 or pack_size < 1:
+        raise StockError("Sizes must be 1 or more.")
+    product = Product.objects.select_for_update(of=("self",)).get(pk=product.pk)
+    batches = list(
+        InventoryBatch.objects.select_for_update(of=("self",))
+        .filter(product=product)
+        .select_related("branch")
+    )
+    if why := unit_correction_blocker(product, factor):
+        raise StockError(why)
+    before = {
+        "unit": product.unit, "pack_unit": product.pack_unit, "pack_size": product.pack_size,
+        "sale_price": str(product.sale_price), "purchase_price": str(product.purchase_price),
+    }  # fmt: skip
+    note = f"Unit corrected: {factor} {product.unit} = 1 {unit}. {reason.strip()}"[:200]
+    for batch in batches:
+        if factor == 1:
+            break
+        new_qty = batch.quantity_available // factor
+        delta = new_qty - batch.quantity_available
+        cost, price = batch.purchase_cost * factor, batch.sale_price * factor
+        InventoryBatch.objects.filter(pk=batch.pk).update(
+            quantity_available=new_qty,
+            quantity_received=batch.quantity_received // factor,
+            purchase_cost=cost,
+            sale_price=price,
+            updated_at=timezone.now(),
+        )
+        if delta:
+            StockTransaction.objects.create(
+                organization=batch.organization, branch=batch.branch,
+                kind=Kind.ADJUSTMENT, product=product, batch=batch, quantity=delta,
+                balance_after=new_qty, unit_cost=cost, unit_price=price, reason=note,
+                created_by=request.user,
+            )  # fmt: skip
+    product.unit = unit
+    product.pack_size = pack_size
+    product.pack_unit = pack_unit if pack_size > 1 and pack_unit else unit
+    if pack_size == 1:
+        product.packs_per_box = 1
+    product.purchase_price *= factor
+    product.sale_price *= factor
+    product.reorder_level //= factor
+    product.save()
+    audit.record(
+        request,
+        "product.unit_correct",
+        product,
+        changes={k: [v, str(getattr(product, k))] for k, v in before.items()},
+        summary=note[:100],
+    )
+    return product
+
+
 @transaction.atomic
 def correct_batch(batch, *, request, batch_number: str = "", expiry_date=None, reason: str):
     """Fix a batch number or expiry typed wrong. Moves no stock; the change is kept in the audit

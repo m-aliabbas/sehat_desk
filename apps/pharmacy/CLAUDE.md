@@ -69,6 +69,11 @@ PRD §9. Phases 12–14. PROJECT_NOTES §12–13.
   show two. One price per product: each size is that price times its units. No separate pack discount.
 - The smallest unit cannot change once stock has moved (`ProductForm`), unless the person holds
   `records.edit_full` (the rename is audit-logged with old and new unit). Pack sizes can.
+- Correct unit (product page "Wrong unit? Correct it", `product-unit`): for a product saved in the wrong
+  unit. Goes through Approvals; `stock.correct_unit` renames the unit and pack and, with a factor ("10
+  tablets make 1 bottle"), divides stock in every branch and multiplies unit prices, writing one
+  adjustment row per batch so the ledger still balances. `unit_correction_blocker` refuses part units,
+  open or held sales and open purchases.
 - Stock edits on the product page (count, write-off, return, batch number/expiry correction via
   `stock.correct_batch`) go through `apps/approvals`: they wait until `admin.approvals.manage` approves.
 - Products, categories (renamed on the Categories screen), units of measure and suppliers delete to the

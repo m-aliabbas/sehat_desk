@@ -1,6 +1,7 @@
 # apps/approvals — Stock edits that wait for an approver
 
-Counts, write-offs (expired/damaged), returns to supplier and batch corrections (number, expiry) asked
+Counts, write-offs (expired/damaged), returns to supplier, batch corrections (number, expiry) and unit
+corrections (whole product: `request_unit_correction`, `batch` empty) asked
 for on a product page do not move stock straight away. They become a `StockChangeRequest`; stock
 moves only when someone holding `admin.approvals.manage` approves, so missing stock cannot be hidden.
 

@@ -7,6 +7,7 @@ request is approved at once, so admins are not slowed down, but it is still kept
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.db.models import Sum
 from django.utils import timezone
 
 from apps.audit import services as audit
@@ -111,6 +112,48 @@ def request_stock_change(
 
 
 @transaction.atomic
+def request_unit_correction(
+    request, product, *, unit: str, pack_unit: str = "", pack_size: int = 1, factor: int = 1,
+    reason: str,
+) -> StockChangeRequest:  # fmt: skip
+    """A product saved in the wrong unit (tablet that is really a bottle). With factor > 1 the
+    stock and prices are converted when approved (`pharmacy.stock.correct_unit`)."""
+    if "pharmacy.inventory.manage" not in request.sd_perms:
+        raise ApprovalError("You are not allowed to change stock.")
+    unit = " ".join((unit or "").split()).lower()[:30]
+    pack_unit = " ".join((pack_unit or "").split()).lower()[:30]
+    if not unit:
+        raise ApprovalError("Enter the correct unit.")
+    if not reason.strip():
+        raise ApprovalError("Give the reason for the correction.")
+    if factor < 1 or pack_size < 1:
+        raise ApprovalError("Sizes must be 1 or more.")
+    if pack_size > 1 and not pack_unit:
+        raise ApprovalError("Name the pack, like box or carton.")
+    same_pack = pack_size == product.pack_size and (
+        pack_size == 1 or pack_unit == product.pack_unit
+    )
+    if unit == product.unit and factor == 1 and same_pack:
+        raise ApprovalError("That is already the product's unit and pack.")
+    if why := stock.unit_correction_blocker(product, factor):
+        raise ApprovalError(why)
+    total = (
+        InventoryBatch.objects.filter(product=product).aggregate(n=Sum("quantity_available"))["n"]
+        or 0
+    )
+    change = StockChangeRequest.objects.create(
+        organization=request.organization, branch=request.branch, product=product,
+        action=Action.UNIT, stock_at_request=total, old_unit=product.unit, new_unit=unit,
+        new_pack_unit=pack_unit if pack_size > 1 else "", new_pack_size=pack_size,
+        unit_factor=factor, reason=reason.strip()[:200], requested_by=request.user,
+    )  # fmt: skip
+    audit.record(request, "stock_change.request", change, summary=f"{product.sku} {change.summary}")
+    if can_approve(request):
+        change = approve(request, change, note="Approved by the person who made the change.")
+    return change
+
+
+@transaction.atomic
 def approve(request, change: StockChangeRequest, *, note: str = "") -> StockChangeRequest:
     if not can_approve(request):
         raise ApprovalError("You are not allowed to approve stock changes.")
@@ -121,7 +164,18 @@ def approve(request, change: StockChangeRequest, *, note: str = "") -> StockChan
     who = change.requested_by
     reason = change.reason if who == request.user else f"{change.reason} (asked by {who})"
     try:
-        if change.action == Action.DETAILS:
+        if change.action == Action.UNIT:
+            stock.correct_unit(
+                change.product,
+                request=request,
+                unit=change.new_unit,
+                pack_unit=change.new_pack_unit,
+                pack_size=change.new_pack_size,
+                factor=change.unit_factor,
+                reason=reason,
+            )
+            txn = None
+        elif change.action == Action.DETAILS:
             stock.correct_batch(
                 batch,
                 request=request,
@@ -161,7 +215,7 @@ def approve(request, change: StockChangeRequest, *, note: str = "") -> StockChan
         request,
         "stock_change.approve",
         change,
-        summary=f"{batch.product.sku} {batch.label} {change.summary}",
+        summary=f"{change.product.sku} {batch.label if batch else ''} {change.summary}",
     )
     return change
 

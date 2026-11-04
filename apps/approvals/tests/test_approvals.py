@@ -111,3 +111,73 @@ def test_other_branch_request_is_hidden(client, make_request, pharmacist, admin_
     client.force_login(admin_user)
     resp = client.post(reverse("approvals:approve", args=[change.pk]))
     assert resp.status_code == 302 and _qty(batch) == 99
+
+
+# --- Correct unit ------------------------------------------------------------------------------
+
+
+def _syrup(org, make_request, admin_user, qty=50):
+    product = Product.objects.create(
+        organization=org, sku="S-1", brand_name="Cough syrup", unit="tablet", pack_size=10,
+        pack_unit="strip", sale_price=Decimal("8"), purchase_price=Decimal("5"), reorder_level=20,
+    )  # fmt: skip
+    batch = stock.receive(
+        request=make_request(admin_user), product=product, batch_number="SY1",
+        expiry_date=TODAY + timedelta(days=300), quantity=qty, purchase_cost=Decimal("5"),
+    ).batch  # fmt: skip
+    return product, batch
+
+
+def test_unit_name_fix_keeps_stock(make_request, admin_user, org):
+    product, batch = _syrup(org, make_request, admin_user)
+    services.request_unit_correction(
+        make_request(admin_user), product, unit="Bottle", reason="Typed tablet"
+    )
+    product.refresh_from_db()
+    assert (product.unit, product.pack_size, product.pack_unit) == ("bottle", 1, "bottle")
+    assert _qty(batch) == 50 and product.sale_price == Decimal("8")
+
+
+def test_unit_conversion_waits_then_converts_stock_and_prices(
+    make_request, pharmacist, admin_user, org, branch
+):
+    product, batch = _syrup(org, make_request, admin_user)
+    change = services.request_unit_correction(
+        make_request(pharmacist), product, unit="bottle", factor=10, reason="5 bottles, not 50"
+    )
+    assert change.status == Status.PENDING and change.summary.startswith("tablet → bottle")
+    product.refresh_from_db()
+    assert product.unit == "tablet" and _qty(batch) == 50
+    services.approve(make_request(admin_user), change)
+    product.refresh_from_db()
+    fresh = InventoryBatch.objects.get(pk=batch.pk)
+    assert product.unit == "bottle" and fresh.quantity_available == 5
+    assert product.sale_price == Decimal("80") and product.purchase_price == Decimal("50")
+    assert fresh.purchase_cost == Decimal("50") and product.reorder_level == 2
+    assert stock.ledger_mismatches(branch) == []  # the adjustment row keeps the ledger whole
+    adj = StockTransaction.objects.filter(batch=batch, kind="adjustment").get()
+    assert adj.quantity == -45 and "10 tablet = 1 bottle" in adj.reason
+
+
+def test_unit_conversion_refuses_part_units(make_request, pharmacist, admin_user, org):
+    product, _ = _syrup(org, make_request, admin_user, qty=45)
+    with pytest.raises(services.ApprovalError, match="not a whole number"):
+        services.request_unit_correction(
+            make_request(pharmacist), product, unit="bottle", factor=10, reason="x"
+        )
+
+
+def test_correct_unit_screen(client, make_request, pharmacist, admin_user, org):
+    product, batch = _syrup(org, make_request, admin_user)
+    client.force_login(pharmacist)
+    url = reverse("pharmacy:product-unit", args=[product.pk])
+    page = client.get(reverse("pharmacy:product-detail", args=[product.pk])).content.decode()
+    assert "Wrong unit? Correct it" in page
+    client.post(url, {"unit": "bottle", "factor": "10", "pack_size": "1", "reason": "Syrup"})
+    assert StockChangeRequest.objects.get().status == Status.PENDING
+    page = client.get(reverse("pharmacy:product-detail", args=[product.pk])).content.decode()
+    assert "Unit correction waiting approval" in page
+    client.force_login(admin_user)
+    assert "Whole product" in client.get(reverse("approvals:list")).content.decode()
+    client.post(reverse("approvals:approve", args=[StockChangeRequest.objects.get().pk]))
+    assert _qty(batch) == 5

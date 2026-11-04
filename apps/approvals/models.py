@@ -15,14 +15,20 @@ class StockChangeRequest(BranchScopedModel):
         DAMAGED = "damaged", "Write off as damaged"
         PURCHASE_RETURN = "purchase_return", "Return to supplier"
         DETAILS = "details", "Correct batch number or expiry"
+        UNIT = "unit", "Correct unit"
 
     class Status(models.TextChoices):
         PENDING = "pending", "Waiting"
         APPROVED = "approved", "Approved"
         REJECTED = "rejected", "Rejected"
 
+    # Empty for a unit correction, which covers the whole product.
     batch = models.ForeignKey(
-        "pharmacy.InventoryBatch", on_delete=models.PROTECT, related_name="change_requests"
+        "pharmacy.InventoryBatch",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="change_requests",
     )
     product = models.ForeignKey(
         "pharmacy.Product", on_delete=models.PROTECT, related_name="change_requests"
@@ -33,6 +39,12 @@ class StockChangeRequest(BranchScopedModel):
     stock_at_request = models.IntegerField(default=0)
     new_batch_number = models.CharField(max_length=40, blank=True)
     new_expiry_date = models.DateField(null=True, blank=True)
+    # Unit correction: the right unit and pack, and how many old units make one new unit.
+    old_unit = models.CharField(max_length=30, blank=True)
+    new_unit = models.CharField(max_length=30, blank=True)
+    new_pack_unit = models.CharField(max_length=30, blank=True)
+    new_pack_size = models.PositiveIntegerField(default=1)
+    unit_factor = models.PositiveIntegerField(default=1)
     reason = models.CharField(max_length=200)
     reference = models.CharField(max_length=80, blank=True)
     status = models.CharField(
@@ -66,12 +78,23 @@ class StockChangeRequest(BranchScopedModel):
         """Signed units this request moves, as asked (None for a details correction)."""
         if self.action == self.Action.DETAILS:
             return None
+        if self.action == self.Action.UNIT:
+            if self.unit_factor == 1:
+                return None
+            return self.stock_at_request // self.unit_factor - self.stock_at_request
         if self.action == self.Action.COUNT:
             return (self.quantity or 0) - self.stock_at_request
         return -(self.quantity or 0)
 
     @property
     def summary(self) -> str:
+        if self.action == self.Action.UNIT:
+            text = f"{self.old_unit} → {self.new_unit}"
+            if self.unit_factor > 1:
+                text += f" ({self.unit_factor} {self.old_unit} = 1 {self.new_unit})"
+            if self.new_pack_size > 1:
+                text += f", {self.new_pack_unit} of {self.new_pack_size}"
+            return text
         if self.action == self.Action.DETAILS:
             parts = []
             if self.new_batch_number:

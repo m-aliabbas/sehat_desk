@@ -176,8 +176,8 @@ class ProductForm(StyledFormMixin, forms.ModelForm):
             self.add_error(
                 "unit",
                 "Stock is already counted in this unit, so it cannot change. To rename the packs "
-                "or change how many they hold, edit those instead. An admin can give you full "
-                "edit access to rename it.",
+                "or change how many they hold, edit those instead. If it was saved in the wrong "
+                "unit, use Correct unit on the product page.",
             )
         if "pack_price" in self.data:
             size = data["pack_size"]
