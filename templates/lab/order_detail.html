@@ -105,7 +105,7 @@
       <dl class="space-y-2 text-body">
         <div><dt class="text-label text-muted">Ordered</dt><dd>{{ order.created_at|date:"d M Y, H:i" }} by {{ order.created_by }} · {{ order.get_source_display }}</dd></div>
         <div><dt class="text-label text-muted">Ordering doctor</dt><dd>{{ order.doctor|default:"—" }}</dd></div>
-        {% if order.encounter %}<div><dt class="text-label text-muted">Consultation</dt><dd><a class="hover:underline" href="{% url 'encounters:detail' order.encounter_id %}">{{ order.encounter.number }}</a></dd></div>{% endif %}
+        {% if order.encounter %}<div><dt class="text-label text-muted">Consultation</dt><dd>{% url 'encounters:detail' order.encounter_id as enc_url %}{% openable enc_url as enc_url %}{% if enc_url %}<a class="hover:underline" href="{{ enc_url }}">{{ order.encounter.number }}</a>{% else %}{{ order.encounter.number }}{% endif %}</dd></div>{% endif %}
         {% if order.clinical_notes %}<div><dt class="text-label text-muted">Clinical notes</dt><dd>{{ order.clinical_notes }}</dd></div>{% endif %}
         {% if order.released_at %}<div><dt class="text-label text-muted">Released</dt><dd>{{ order.released_at|date:"d M Y, H:i" }} by {{ order.released_by }}</dd></div>{% endif %}
         {% if order.amendment_count %}<div><dt class="text-label text-muted">Amendments</dt><dd>{{ order.amendment_count }}</dd></div>{% endif %}

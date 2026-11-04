@@ -47,6 +47,12 @@ def fee_invoice(appt) -> Invoice | None:
     return appt.invoices.exclude(status=Invoice.Status.CANCELLED).first()
 
 
+def _fee_elsewhere(request) -> bool:
+    from apps.flow.services import fee_counter
+
+    return fee_counter(request.organization, request.branch) != "RECEPTION"
+
+
 def bill_fee(request, appt) -> Invoice | None:
     """The doctor's fee invoice, when reception takes it (Settings → Patient flow)."""
     from apps.flow.services import fee_counter
@@ -149,6 +155,9 @@ def register_visit(
         visit.invoice = bill_fee(request, appt)
     if vitals:
         vitals_services.record(request=request, patient=patient, data=vitals, token=visit.token)
+    if collect and visit.invoice is None and appt.fee > ZERO and _fee_elsewhere(request):
+        # Never take cash that is not recorded: this branch bills the fee at another counter.
+        raise BookingError("This branch takes the doctor's fee at another counter, not here.")
     if collect and visit.invoice is not None and visit.invoice.balance_due > ZERO:
         if method is None:
             raise BookingError("Choose how the fee was paid.")

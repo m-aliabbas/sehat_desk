@@ -372,16 +372,21 @@ def attach_paper_prescription(sale, *, request, doctor) -> PharmacySale:
 
 
 def visits_without_rx(request, *, patient=None, q="") -> list[dict]:
-    """Today's reception visits with nothing for the pharmacy yet. The doctor may have written on
-    paper, so the till can tag the sale to the visit (attach_paper_prescription)."""
+    """Today's reception visits the doctor has seen with nothing for the pharmacy yet. The doctor
+    may have written on paper, so the till can tag the sale to the visit
+    (attach_paper_prescription). A patient still waiting for the doctor has no prescription."""
     from apps.queue.models import QueueToken
 
     today = timezone.localdate()
-    tokens = QueueToken.objects.filter(branch=request.branch, date=today).exclude(
-        status=QueueToken.Status.CANCELLED
+    tokens = QueueToken.objects.filter(
+        branch=request.branch,
+        date=today,
+        status__in=(QueueToken.Status.IN_CONSULTATION, QueueToken.Status.COMPLETED),
     )
-    appointments = Appointment.objects.filter(branch=request.branch, date=today).exclude(
-        status__in=Appointment.RELEASED_STATUSES
+    appointments = Appointment.objects.filter(
+        branch=request.branch,
+        date=today,
+        status__in=(Appointment.Status.WITH_DOCTOR, Appointment.Status.COMPLETED),
     )
     if patient is not None:
         tokens = tokens.filter(patient=patient)
@@ -420,11 +425,20 @@ def visits_without_rx(request, *, patient=None, q="") -> list[dict]:
 
 @transaction.atomic
 def tag_visit(sale, *, request, patient, doctor=None) -> PharmacySale:
-    """Put a visit's patient on the sale and, when the doctor is known, an empty paper Rx."""
+    """Put a visit's patient on the sale with the doctor's prescription: the signed one waiting
+    here when there is one, else (doctor known) an empty paper Rx."""
     sale = _lock_cart(sale, request)
     if sale.patient_id and sale.patient_id != patient.pk:
         raise PosError(f"This sale is for {sale.patient.full_name}. Finish or clear it first.")
     sale = attach_patient(sale, request=request, patient=patient)
+    if sale.prescription_id:
+        return sale
+    waiting = dispensable(request).filter(patient=patient)
+    if doctor is not None:
+        waiting = waiting.filter(doctor=doctor)
+    rx = waiting.order_by("-sent_to_pharmacy_at", "-pk").first()
+    if rx is not None:
+        return attach_prescription(sale, request=request, prescription=rx)
     if doctor is not None:
         sale = attach_paper_prescription(sale, request=request, doctor=doctor)
     return sale

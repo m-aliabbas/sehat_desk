@@ -219,7 +219,15 @@ DEFAULT_ROLES: list[RoleDef] = [
         "lab",
         "Lab technician",
         "Samples, results and verification.",
-        _codes("lab.") | {"patient.view", "document.view", "document.upload", "hr.self"},
+        # Lab tests are paid at the lab by default (apps/flow lab_tests_billed_at).
+        _codes("lab.")
+        | {
+            "patient.view",
+            "document.view",
+            "document.upload",
+            "hr.self",
+            "billing.payment.collect",
+        },
     ),
     RoleDef(
         "pharmacy",

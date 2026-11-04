@@ -268,9 +268,13 @@ document.addEventListener("submit", (event) => {
       openedAt = Date.now();
       const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
       shown = [...select.options].filter((o) => {
-        const text = o.textContent.toLowerCase();
+        // The value too: a doctor types TDS for "Three times daily".
+        const text = `${o.textContent} ${o.value}`.toLowerCase();
         return !o.disabled && words.every((w) => text.includes(w));
       });
+      const code = query.trim().toLowerCase();
+      const byCode = shown.findIndex((o) => o.value && o.value.toLowerCase() === code);
+      if (byCode > 0) shown.unshift(...shown.splice(byCode, 1));
       list.replaceChildren(
         ...shown.slice(0, 100).map((o, i) => {
           const li = document.createElement("li");

@@ -18,6 +18,8 @@ from apps.billing import services as billing_services
 from apps.billing.models import Invoice, PaymentMethod
 from apps.core.forms import StyledFormMixin
 from apps.core.scoping import get_scoped_or_404, scoped
+from apps.flow.choices import CounterLocation
+from apps.flow.services import fee_counter
 from apps.masterdata.models import Department, DoctorProfile, DoctorSchedule
 from apps.organizations import field_rules
 from apps.organizations.models import preferences_for
@@ -451,6 +453,7 @@ def visit_context(request, *, form=None, patient_form=None, vitals_form=None, ne
     pid = form["patient"].value()
     if pid and str(pid).isdigit():
         patient = scoped(Patient, request).filter(pk=pid).first()
+    fee_at = fee_counter(request.organization, request.branch)
     return {
         "form": form,
         "patient_form": patient_form,
@@ -465,6 +468,9 @@ def visit_context(request, *, form=None, patient_form=None, vitals_form=None, ne
         "today": today,
         "tomorrow": today + timedelta(days=1),
         "can_collect": has_perm(request, visits.COLLECT),
+        # This branch's rule (Settings → Patient flow), the same one visits.bill_fee follows.
+        "fee_at": CounterLocation(fee_at).label,
+        "fee_at_desk": fee_at == CounterLocation.RECEPTION,
         "can_discount": has_perm(request, "billing.discount"),
         "cash_limit": billing_services.settings_for(request.organization).cash_adjustment_limit,
         "can_vitals": has_perm(request, "vitals.record"),
@@ -745,7 +751,9 @@ def no_show(request, pk):
 @require_POST
 @permission_required(MANAGE)
 def cancel(request, pk):
-    return _action(
+    from apps.queue.views import _warn_paid_fee
+
+    response = _action(
         request,
         pk,
         "cancel",
@@ -753,6 +761,8 @@ def cancel(request, pk):
         user=request.user,
         reason=request.POST.get("reason", ""),
     )
+    _warn_paid_fee(request, get_scoped_or_404(_appointments(request), request, pk=pk))
+    return response
 
 
 @permission_required(MANAGE)

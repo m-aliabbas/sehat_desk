@@ -631,3 +631,143 @@ def test_counter_screens_list_who_is_waiting_there(
     client.force_login(make_user("pharmacy", username="ph3"))
     page = client.get("/pharmacy/dispense/").content.decode()
     assert "Waiting here (1)" in page and v.token.label in page
+
+
+# --- E2E review (2026-11-04): lab dues on screens, token lookup, cancelled visits ----------------
+
+
+@pytest.mark.parametrize("typed", ["A-1", "a-001", "A1", "A001", "a 1", " A-01 "])
+def test_token_is_found_however_it_is_typed(typed):
+    assert services.normalize_token(typed) == "A-001"
+
+
+def _lab_visit(desk, doc_req, clinic, patient, cash, catalogue):  # noqa: F811
+    """Fee paid at reception; the doctor orders a test billed on the lab's own invoice."""
+    from apps.encounters import services as encounters
+    from apps.lab import services as lab
+
+    visit, v = _visit(desk, patient, clinic, collect=True, method=cash)
+    encounter = _consult(doc_req, clinic, patient, v.token)
+    order = lab.create_order(
+        request=doc_req, patient=patient, tests=[catalogue["hb"]], encounter=encounter
+    )
+    encounters.complete(encounter, request=doc_req)
+    return _fresh(visit), v.token, order
+
+
+def test_lab_invoice_counts_as_still_to_pay_on_the_lab_list(
+    rf,
+    desk,
+    doc_req,
+    clinic,
+    patient,
+    cash,
+    lab_tech,
+    catalogue,  # noqa: F811
+):
+    visit, token, order = _lab_visit(desk, doc_req, clinic, patient, cash, catalogue)
+    assert visit.state == VisitState.LAB_QUEUE and order.invoice.is_outstanding
+    [row] = services.counter_queue(lab_tech, VisitState.LAB_QUEUE)
+    assert row.unpaid_total == order.invoice.balance_due > 0
+    assert row.lab_dues == [(order.number, order.invoice)]
+    visits.collect_fee(order.invoice, request=desk, method=cash)
+    [row] = services.counter_queue(lab_tech, VisitState.LAB_QUEUE)
+    assert row.unpaid_total == 0 and row.lab_dues == []
+
+
+def test_board_shows_the_lab_invoice_with_a_pay_link(
+    client,
+    make_user,
+    desk,
+    doc_req,
+    clinic,
+    patient,
+    cash,
+    catalogue,  # noqa: F811
+):
+    visit, token, order = _lab_visit(desk, doc_req, clinic, patient, cash, catalogue)
+    client.force_login(make_user("cashier", username="cash1"))
+    page = client.get("/flow/").content.decode()
+    assert f"Lab order {order.number}" in page
+    assert f"/billing/{order.invoice_id}/pay/" in page
+
+
+def test_payments_by_token_lists_todays_bills(
+    client,
+    make_user,
+    desk,
+    doc_req,
+    clinic,
+    patient,
+    cash,
+    catalogue,  # noqa: F811
+):
+    visit, token, order = _lab_visit(desk, doc_req, clinic, patient, cash, catalogue)
+    result = services.token_payments(desk, token.label.replace("-", ""))
+    assert result["visit"] == visit
+    assert {i.pk for i in result["invoices"]} == {
+        order.invoice_id,
+        *visit.bill_items.values_list("invoice_id", flat=True),
+    }
+    assert result["due"] == order.invoice.balance_due
+    for role in ("pharmacy", "lab"):
+        client.force_login(make_user(role, username=f"tok-{role}"))
+        page = client.get("/flow/token/", {"token": token.label}).content.decode()
+        assert order.invoice.number in page and "due" in page
+
+
+def test_payments_by_token_keeps_doctors_to_their_own_patients(
+    client, make_user, desk, clinic, patient, cash, department
+):
+    from apps.masterdata.models import DoctorProfile
+
+    _visit(desk, patient, clinic, collect=True, method=cash)
+    token = QueueToken.objects.get(patient=patient)
+    client.force_login(clinic.user)
+    assert client.get("/flow/token/", {"token": token.label}).status_code == 200
+    other = make_user("doctor", username="otherdoc")
+    DoctorProfile.objects.create(
+        organization=desk.organization, user=other, department=department, consultation_fee=100
+    )
+    client.force_login(other)
+    assert client.get("/flow/token/", {"token": token.label}).status_code == 404
+
+
+def test_cancelling_a_token_voids_its_unpaid_fee_and_drops_the_fee(desk, clinic, patient):
+    visit, v = _visit(desk, patient, clinic)
+    assert v.invoice.status == Invoice.Status.UNPAID
+    queue.cancel(v.token, reason="Left", user=desk.user)
+    v.invoice.refresh_from_db()
+    assert v.invoice.status == Invoice.Status.CANCELLED
+    assert _fresh(visit).state == VisitState.CANCELLED
+    assert not visit.bill_items.exists()
+
+
+def test_cancelling_a_paid_token_keeps_the_money_and_says_so(
+    client, make_user, desk, clinic, patient, cash
+):
+    visit, v = _visit(desk, patient, clinic, collect=True, method=cash)
+    client.force_login(desk.user)
+    response = client.post(f"/queue/tokens/{v.token.pk}/cancel/", {"reason": "Left"}, follow=True)
+    v.invoice.refresh_from_db()
+    assert v.invoice.status == Invoice.Status.PAID
+    assert "Refund it from the invoice" in response.content.decode()
+
+
+def test_desk_follows_the_branchs_own_fee_counter(client, desk, branch, clinic, patient, cash):
+    """The hospital takes the fee at reception, this branch at central cash: the desk must not
+    offer to take (and lose) the money."""
+    from apps.flow.models import HospitalFlowSetting
+
+    HospitalFlowSetting.objects.create(
+        organization=desk.organization, branch=branch, consultation_fee_billed_at="CENTRAL_CASH"
+    )
+    desk.organization._sd_flow_settings = None
+    client.force_login(desk.user)
+    page = client.get("/reception/").content.decode()
+    assert "Paid at Central cash, not here." in page and "Fee received now" not in page
+    with pytest.raises(visits.BookingError, match="another counter"):
+        visits.register_visit(
+            request=desk, patient=patient, doctor=clinic, on_date=timezone.localdate(),
+            collect=True, method=cash,
+        )  # fmt: skip

@@ -375,6 +375,10 @@ def receive_payment(
             organization=request.organization, idempotency_key=idempotency_key
         ).first()
         if done:
+            if done.invoice_id != invoice.pk:
+                raise BillingError(
+                    "This payment form was already used. Reload the page and try again."
+                )
             return done  # the same form was submitted twice; never charge twice
     invoice = _lock(invoice)
     if invoice.status == Status.DRAFT:
@@ -443,6 +447,10 @@ def settle_cash(
             organization=request.organization, idempotency_key=idempotency_key
         ).first()
         if done:
+            if done.invoice_id != invoice.pk:
+                raise BillingError(
+                    "This payment form was already used. Reload the page and try again."
+                )
             return done
     if to_money(cash_paid) != invoice.balance_due:
         if method.code != "cash":

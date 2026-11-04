@@ -18,6 +18,7 @@ Phases 20–21. PROJECT_NOTES §14, §20.
   daily purchases) also open with `pharmacy.inventory.manage`, who already see them on the supplier page.
 - Daily sales are billed amounts, paid or not; money received is `daily-collection`. Pharmacy returns
   come from `PharmacySaleReturn`, other refunds from `Refund`, so neither counts twice.
+- The lab dashboard links an order only for people `lab:order-detail` lets in (`can_open_orders`).
 - Keep dashboards cheap: aggregate queries, no per-row loops (`test_query_scaling.py`).
 
 ## Permissions

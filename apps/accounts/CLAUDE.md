@@ -10,7 +10,8 @@ workspace (branch) picker. PRD §17. PROJECT_NOTES §9.
   (codes for a user in one branch), `accessible_branches`, `can_grant_role` (no escalation),
   `super_admin_count` / `is_super_admin`.
 - `middleware.py` — sets `request.organization`, `request.branch`, `request.sd_perms`.
-- `decorators.py` — `permission_required(*codes, any_of=False)`, `workspace_exempt`, `has_perm`.
+- `decorators.py` — `permission_required(*codes, any_of=False)` (records `sd_permissions`/`sd_any_of` on the
+  view), `workspace_exempt`, `has_perm`, `can_open(request, url)` (passes that view's guard; `{% openable %}`).
 - `views_auth.py` (login, setup, passwords, branch pick; a chosen branch is remembered per computer in a signed cookie, so the picker shows only once), `views_roles.py` (permission matrix, access matrix),
   `views_staff.py` (staff directory).
 
@@ -32,6 +33,9 @@ workspace (branch) picker. PRD §17. PROJECT_NOTES §9.
   Prefix roles (`_codes`) never include delete codes; Hospital admin gets `DELETE_CODES`. The old single
   `records.delete` was replaced in 1.0.11: `sync_permissions` gave each new code to the roles and people
   who held it and could edit that area, then dropped it.
+
+- Default Lab technician holds `billing.payment.collect`: lab tests are paid at the lab by default (apps/flow).
+- Deactivating a role warns how many active staff hold it (they lose its access).
 
 ## Doctors
 Creating staff with the Doctor role goes straight to Add doctor with that person chosen, for someone holding `admin.masterdata.manage`. Staff detail shows the doctor profile, or a button to add one.

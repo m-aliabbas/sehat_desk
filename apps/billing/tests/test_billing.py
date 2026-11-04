@@ -213,6 +213,11 @@ def test_same_payment_form_twice_charges_once(bill_request, patient, cash):
     )
     inv.refresh_from_db()
     assert a.pk == b.pk and inv.amount_paid == D("500") and Payment.objects.count() == 1
+    other = _invoice(bill_request, patient, ("Dressing", "300", 1))
+    with pytest.raises(services.BillingError, match="already used"):  # not silently "paid"
+        services.receive_payment(
+            other, request=bill_request, method=cash, amount="300", idempotency_key="k1"
+        )
 
 
 def test_disabled_method_cannot_be_used(bill_request, patient, cash):

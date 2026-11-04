@@ -19,7 +19,7 @@ PROJECT_NOTES §11.
   billing (`unbilled`, `collect_lines`, `counter_invoice`, `pharmacy_dues`, `bill_pharmacy_dues`, `sync_invoice`),
   routing (`route_after_doctor/_lab/_pharmacy`), doctor (`on_token_status`, `doctor_clicked_next`), printing,
   `pull_by_token`, lab (`lab_guard`, `unpaid_lab_lines`), `send_on`, `close_stale_visits`, screens (`board`,
-  `counter_queue`, `flow_times`).
+  `counter_queue`, `attach_lab_dues`, `token_payments`, `flow_times`), `normalize_token` (A-012 = a12 = A012 = "a 12").
 - `signals.py` — token saved (open visit, follow its status), invoice saved (fees follow it), lab order status,
   pharmacy sale completed.
 - `management/commands/close_flow_day.py` — closes visits left open on earlier days.
@@ -27,7 +27,9 @@ PROJECT_NOTES §11.
   worklist "Waiting here"), `flow/_encounter_fees.html` (consultation Fees tab).
 - `templatetags/flow.py` — `{% pending_print %}`.
 - `views.py` — `flow:board` (today's visits by state, Bill at counter, Done here, Add fee, take by token),
-  `flow:settings`.
+  `flow:token` (Payments by token), `flow:settings`.
+- `flow/_token_lookup.html` (box) + `_token_payments.html` (result, htmx) + `token.html` (page): on the board, the
+  pharmacy Prescriptions page, the lab worklist and the doctor workspace.
 
 ## Rules
 - `state` is protected: only transition methods move it, only services call them. Re-read a visit with
@@ -54,6 +56,12 @@ PROJECT_NOTES §11.
   collect with a reason (audit `lab.unpaid_override`), then are not asked again. Emergencies and lab-desk orders
   (no consultation) keep the lab's own rules.
 - Adding a fee needs `flow.charge.add` (reception, doctor, cashier by default).
+- Lab orders billed on their own invoice carry no fee row: `attach_lab_dues` adds their unpaid invoices to the board
+  (with a pay link) and to "Still to pay" on the counter lists (Collect, or "Pay at cash" without the permission).
+- Payments by token (`token_payments`): today's issued invoices of the token's patient in this branch, plus fees on no
+  invoice yet. Counters and doctors (`consultation.create`); a doctor who is only a doctor sees their own patients.
+- A cancelled visit owes nothing: when its fee invoice is voided (`appointments.release_fee`), `sync_invoice` deletes
+  its fee rows instead of freeing them.
 - Day end: `close_stale_visits` (first board view of a day, or `close_flow_day`) closes open visits from earlier
   days (`closed_at_day_end`); unpaid fees stay on record. Report `patient-flow-times` (apps/reports, clinical).
 - Prescription printing (`rx_print_at`: none, doctor, pharmacy, both): `print_at_doctor` when the doctor signs,
@@ -61,7 +69,8 @@ PROJECT_NOTES §11.
   waits in the session; `{% pending_print %}` (`layouts/app.html`, till cart) prints it in a hidden frame.
 
 ## Permissions
-Board: any of `queue.manage`, `pharmacy.sale`, `lab.sample.collect`, `billing.payment.collect`. Billing a counter
+Board: any of `queue.manage`, `pharmacy.sale`, `lab.sample.collect`, `billing.payment.collect`. Payments by token: the
+same or `consultation.create`. Billing a counter
 needs `billing.payment.collect`; adding a fee `flow.charge.add`. Settings: `admin.organization.manage`.
 
 ## Tests

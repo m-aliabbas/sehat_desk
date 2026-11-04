@@ -388,14 +388,33 @@ def complete_and_next(request, pk):
 @permission_required(DESK)
 def cancel(request, pk):
     token = get_scoped_or_404(QueueToken, request, pk=pk)
-    return _run(
+    response = _run(
         request,
         "cancel",
         services.cancel,
         token,
         reverse("queue:desk"),
         reason=request.POST.get("reason", ""),
+        user=request.user,
     )
+    _warn_paid_fee(request, token.appointment)
+    return response
+
+
+def _warn_paid_fee(request, appt):
+    """A cancelled visit whose fee was paid: the money is still with the hospital."""
+    from apps.appointments.visits import fee_invoice
+
+    if appt is None:
+        return
+    appt.refresh_from_db(fields=["status"])
+    invoice = fee_invoice(appt)
+    if appt.status == "cancelled" and invoice is not None and invoice.net_paid > 0:
+        messages.warning(
+            request,
+            f"{invoice.number}: {invoice.net_paid:,.2f} was paid for this visit. "
+            "Refund it from the invoice.",
+        )
 
 
 # --- Doctor queue ------------------------------------------------------------------------------

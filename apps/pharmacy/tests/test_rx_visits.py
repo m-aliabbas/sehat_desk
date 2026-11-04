@@ -4,8 +4,10 @@ import pytest
 from django.urls import reverse
 
 from apps.pharmacy import pos
+from apps.pharmacy.tests.test_pos import paracetamol, sent_rx  # noqa: F401
 from apps.prescriptions.models import Prescription
 from apps.queue import services as queue
+from apps.queue.models import QueueToken
 
 pytestmark = pytest.mark.django_db
 
@@ -15,10 +17,29 @@ def req(make_request, admin_user):
     return make_request(admin_user)
 
 
+def _token(req, patient, doctor, status=QueueToken.Status.COMPLETED):
+    token = queue.issue_token(request=req, patient=patient, doctor=doctor,
+                              department=doctor.department)  # fmt: skip
+    QueueToken.objects.filter(pk=token.pk).update(status=status)
+    return token
+
+
 @pytest.fixture
 def visit(req, patient, doctor):
-    return queue.issue_token(request=req, patient=patient, doctor=doctor,
-                             department=doctor.department)  # fmt: skip
+    """The doctor has seen the patient (and may have written on paper)."""
+    return _token(req, patient, doctor)
+
+
+def test_a_patient_still_waiting_for_the_doctor_is_not_offered(req, patient, doctor):
+    _token(req, patient, doctor, status=QueueToken.Status.WAITING)
+    assert pos.visits_without_rx(req) == []
+
+
+def test_tagging_a_visit_attaches_the_doctors_sent_prescription(req, patient, doctor, sent_rx):
+    """Open at till / Tag at till with a signed prescription waiting: that one, not a paper Rx."""
+    cart = pos.tag_visit(pos.open_cart(req), request=req, patient=patient, doctor=doctor)
+    assert cart.prescription == sent_rx
+    assert not Prescription.objects.filter(patient=patient, status="paper").exists()
 
 
 def test_visit_shows_until_tagged_then_goes(req, visit, patient, doctor):

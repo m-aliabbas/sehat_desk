@@ -232,6 +232,7 @@ class Command(BaseCommand):
 
     def _staff(self):
         from apps.accounts.models import Role, RoleAssignment
+        from apps.hr.models import PayProfile
 
         roles = {r.system_key: r for r in Role.objects.filter(organization=self.org)}
         self.logins = [(self.admin.username, "Super admin", "All branches")]
@@ -244,6 +245,11 @@ class Command(BaseCommand):
             )
             self.users[key] = user
             self.logins.append((user.username, roles[role].name, branch.name if branch else "All"))
+            if key in data.SALARIES:
+                PayProfile.objects.create(
+                    organization=self.org, branch=branch or self.main, user=user,
+                    monthly_salary=Decimal(data.SALARIES[key]),
+                )  # fmt: skip
         self.doctor_role = roles["doctor"]
 
     def _user(self, username, first, last, designation, n):

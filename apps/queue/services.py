@@ -12,7 +12,7 @@ from django.db.models import F, Q
 from django.utils import timezone
 
 from apps.appointments.models import Appointment
-from apps.appointments.services import schedule_for
+from apps.appointments.services import release_fee, schedule_for
 from apps.core.models import next_number
 
 from .models import QueueToken
@@ -263,7 +263,7 @@ def close_elsewhere(token):
 
 
 @transaction.atomic
-def cancel(token, *, reason):
+def cancel(token, *, reason, user=None):
     if not reason.strip():
         raise QueueError("A reason is required to cancel a token.")
     _require(token, *QueueToken.OPEN_STATUSES)
@@ -277,6 +277,7 @@ def cancel(token, *, reason):
         appt.cancelled_at = token.cancelled_at
         appt.cancellation_reason = f"Token cancelled: {token.cancel_reason}"
         appt.save(update_fields=["status", "cancelled_at", "cancellation_reason", "updated_at"])
+        release_fee(appt, user=user, reason=appt.cancellation_reason)
     return token
 
 

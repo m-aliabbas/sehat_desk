@@ -132,6 +132,13 @@ def test_deposit_is_idempotent_and_needs_collect_permission(
     d1 = services.record_deposit(adm, request=req, method=cash, amount="5000", idempotency_key="k1")
     d2 = services.record_deposit(adm, request=req, method=cash, amount="5000", idempotency_key="k1")
     assert d1.pk == d2.pk and adm.deposits.count() == 1
+    second = register_patient(
+        organization=org, branch=branch, user=req.user,
+        data={"full_name": "Second Patient", "gender": "female"},
+    )  # fmt: skip
+    other = admit(req, second, doctor, beds[1])
+    with pytest.raises(services.IpdError, match="already used"):  # never another patient's deposit
+        services.record_deposit(other, request=req, method=cash, amount="900", idempotency_key="k1")
     nurse = make_request(rf, make_user("nurse"), org, branch)
     with pytest.raises(services.IpdError, match="not allowed"):
         services.record_deposit(adm, request=nurse, method=cash, amount="100")

@@ -17,6 +17,7 @@
   <p class="basis-full text-label text-muted">For a patient the doctor saw but did not send on. Their token closes in the doctor's queue and the take is written to the audit log.</p>
 </form>
 {% endif %}
+{% include "flow/_token_lookup.html" %}
 <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
   {% for state, visits in columns %}
   <section class="card" aria-label="{{ state.label }}">
@@ -38,6 +39,13 @@
       <ul class="mt-1 space-y-0.5 text-label">
         {% for b in v.bill_items.all %}
         <li class="flex justify-between gap-2"><span>{{ b.description }} <span class="text-muted">· {{ b.get_billed_at_display }}</span></span><span class="{% if b.is_paid %}text-muted{% else %}font-semibold{% endif %}">{{ b.amount|floatformat:"2g" }} {% if b.is_paid %}paid{% elif b.invoice_id %}{% if can_collect %}<a class="underline" href="{% url 'billing:invoice-pay' b.invoice_id %}">billed · pay</a>{% else %}billed{% endif %}{% else %}due{% endif %}</span></li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+      {% if v.lab_dues %}
+      <ul class="mt-1 space-y-0.5 text-label">
+        {% for number, inv in v.lab_dues %}
+        <li class="flex justify-between gap-2"><span>Lab order {{ number }} <span class="text-muted">· Lab</span></span><span class="font-semibold">{{ inv.balance_due|floatformat:"2g" }} {% if can_collect %}<a class="underline" href="{% url 'billing:invoice-pay' inv.pk %}">billed · pay</a>{% else %}due{% endif %}</span></li>
         {% endfor %}
       </ul>
       {% endif %}

@@ -72,6 +72,13 @@ STAFF = [
     ("nurse2", "Asif", "Masih", "nurse", "main", "Staff nurse"),
 ]
 
+# Monthly salary (PKR) per staff key, so HR attendance and payroll have someone to pay.
+SALARIES = {
+    "manager": 180000, "reception1": 45000, "reception2": 42000, "cashier1": 50000,
+    "cashier2": 46000, "lab1": 85000, "lab2": 60000, "pharmacy1": 75000, "pharmacy2": 70000,
+    "nurse1": 70000, "nurse2": 55000,
+}  # fmt: skip
+
 # code, name, category, price, is_procedure, department key
 # Where each service's fee is paid (apps/flow); the rest are paid at reception.
 SERVICE_COUNTERS = {"INJ": "PHARMACY", "NEB": "PHARMACY"}

@@ -6,9 +6,10 @@
 {% block toolbar_extra %}
   {% if prefs.opd_print_blank_prescription %}<a id="print-rx" href="?part=rx&amp;print=1" target="_blank" class="btn btn-secondary">Print Rx · F9</a>{% endif %}
   {% if invoice and invoice.refundable and can_refund %}<a href="{% url 'billing:invoice-refund' invoice.pk %}" class="btn btn-secondary">Refund</a>{% endif %}
-  <a href="{% url 'queue:desk' %}" class="btn btn-primary">Next patient</a>
+  {% url 'queue:desk' as desk %}{% openable desk as desk_url %}
+  {% if desk_url %}<a href="{{ desk_url }}" class="btn btn-primary">Next patient</a>{% endif %}
 {% endblock %}
-{% block close_button %}<a href="{% url 'queue:desk' %}" class="btn btn-close">Back to desk</a>{% endblock %}
+{% block close_button %}{% url 'queue:desk' as desk %}{% openable desk as desk_url %}<a href="{{ desk_url|default:'/' }}" class="btn btn-close">{% if desk_url %}Back to desk{% else %}Close{% endif %}</a>{% endblock %}
 {% block before_sheet %}
 <div class="no-print mx-auto mb-4 max-w-[148mm] space-y-3 px-4">
   {% if token_printers|length > 1 %}

@@ -11,6 +11,7 @@
   <div class="stat-card bg-mint"><p class="text-body text-ink">Received today</p><p class="mt-2 text-[32px] font-bold text-ink">{{ today_count }}</p><p class="text-label text-muted">Sent to this pharmacy</p></div>
 </div>
 {% include "flow/_counter_queue.html" with counter="PHARMACY" %}
+{% include "flow/_token_lookup.html" %}
 {% if visits %}
 <section class="card mb-6">
   <h2 class="section-title mb-1">Today's visits, no prescription in the system</h2>

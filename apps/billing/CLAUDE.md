@@ -17,7 +17,8 @@ cashier's day closing. PRD §11. PROJECT_NOTES §12–13, §18.
 - Money fields change only through services, inside a transaction with `locked(invoice)`.
 - Issued invoices lock their items. A paid invoice is corrected by refund, never by edit.
 - Discounts need `billing.discount`, a reason, and stay under the cap in Billing settings.
-- Non-cash methods need a reference. `idempotency_key` makes a double submit charge once.
+- Non-cash methods need a reference. `idempotency_key` makes a double submit charge once; a key already used
+  on another invoice is refused (never reported as paid). Same for IPD deposits and staff pay.
 - Other apps create their invoices through these services (lab orders, POS checkout, IPD stay,
   procedures). Lab and HR react to invoice saves via signals.
 - `InvoiceItem.unit_price` keeps six decimals: pharmacy lines bill per tablet and must add back up to the

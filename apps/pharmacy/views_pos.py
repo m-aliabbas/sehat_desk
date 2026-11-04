@@ -371,14 +371,19 @@ def _tag_visit(request, cart):
             return _cart_reply(request, error=err.message)
         messages.error(request, err.message)
         return redirect("pharmacy:pos")
-    if cart.prescription_id:
+    rx = cart.prescription
+    if rx is not None and rx.status == Prescription.Status.PAPER:
         audit.record(
             request,
             "prescription.paper",
-            cart.prescription,
-            summary=f"{cart.prescription.number} on {cart.number} from a visit",
+            rx,
+            summary=f"{rx.number} on {cart.number} from a visit",
         )
+    elif rx is not None:
+        flow_services.print_at_pharmacy(request, rx)
     text = f"{patient.full_name} tagged to this sale."
+    if rx is not None and rx.status != Prescription.Status.PAPER:
+        text = f"{patient.full_name} tagged with {rx.number}."
     if request.htmx:
         return _cart_reply(request, success=text)
     messages.success(request, text)

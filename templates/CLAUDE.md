@@ -8,6 +8,8 @@ must work offline on the hospital LAN (no CDNs, fonts or icons from other hosts;
 - Screens extend `layouts/app.html` and fill `title`, `page_title`, `page_subtitle`,
   `page_actions`, `content` (plus `breadcrumbs_wrap` when needed). Sign-in pages use
   `layouts/auth.html`; error pages `layouts/error.html`.
+- `{% openable url as x %}` (ui) gives the URL only if this person passes its view's permission guard; breadcrumbs,
+  stock-ledger documents and cross-module links use it so nobody sees a link that ends in 403.
 - Load `{% load ui %}` for `{% icon "name" "h-4 w-4" %}`, `{% status_chip status label %}` and the
   `initials`, `get_item`, `sum_values` filters (`apps/core/templatetags/ui.py`).
   Pharmacy quantities: `{% load pharmacy %}` → `{{ qty|in_packs:product }}` ("25 tablets (2 strips + 5)"),
@@ -86,6 +88,7 @@ Every page has `#page-trail` (`sdTrail` in `app.js`): Back to the page you came 
   new entry screens usable the same way: focus moves to the next field, no popups or extra pages.
 - `static/js/app.js` turns every `select.select` into the one dropdown: a type-to-search box with a floating list; the
   real select stays, hidden, in the form. Nothing typed starts on the current value, so Enter keeps it and moves on.
+  Typing matches an option's text or its value (TDS, BD, CENTRAL_CASH); an exact value match comes first.
 - A dropdown with `data-create-kind` (or `data-create-url`) shows `+ Add "typed"` to permitted staff: Enter adds it when nothing matches, or arrow down to it. The new entry reaches other dropdowns of that list on the screen. `apps/CLAUDE.md`.
 - Every `table.table` and `table.sheet` in `#main` gets the shared layer in `app.js` (`sdTables`), with no template
   change: an expand column, Ctrl+E popup (boxes move in and back; a row with a link shows that page's content;

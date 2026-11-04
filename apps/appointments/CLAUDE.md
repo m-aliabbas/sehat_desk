@@ -19,6 +19,11 @@ Doctor slots, booking, rescheduling and appointment status. PRD §4. PROJECT_NOT
 - No booking in the past; one active appointment per patient per doctor per day.
 - Downstream: `queue.issue_token` moves it to in_queue; encounters move it to with_doctor/completed.
 - Check-in (`check_in` view) issues the token and the fee invoice (`visits.bill_fee`) in one transaction.
+- The desk follows this branch's fee counter (`flow.fee_counter`, not the hospital-wide Preference): elsewhere it
+  shows "Paid at …, not here" and `register_visit` refuses `collect` rather than take unrecorded cash.
+- Cancelling a visit (`cancel`, or `queue.cancel` of its token) calls `release_fee`: a fee invoice with no money is
+  voided; a paid one stays and the screen warns to refund it.
+- The fee box shows a Follow-up chip when the follow-up fee applies (`visit-suggested` from `_slots.html`).
 
 - Time on a visit is automatic (`next_free_slot`, optional shift); today with no slot left becomes a
   walk-in. Future dates get no token or invoice until `arrive`, unless the fee is paid in advance.

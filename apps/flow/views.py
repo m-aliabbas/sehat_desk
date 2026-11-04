@@ -10,6 +10,7 @@ from apps.accounts.decorators import permission_required
 from apps.core.scoping import get_scoped_or_404, scoped
 from apps.masterdata.models import Service
 from apps.organizations.models import Branch
+from apps.patients.services import require_own_patient
 
 from . import services
 from .forms import FlowSettingsForm
@@ -52,6 +53,27 @@ def board(request):
             .order_by("name"),
         },
     )
+
+
+# Counters and doctors look up what a token's patient paid today.
+TOKEN_LOOKUP = (*COUNTERS, "consultation.create")
+
+
+@permission_required(*TOKEN_LOOKUP, any_of=True)
+def token(request):
+    """Today's payments for a token: ?token=M-2. A doctor who is only a doctor sees their own
+    patients only, like every other patient screen."""
+    label = request.GET.get("token", "").strip()
+    ctx = {"label": label, "can_collect": "billing.payment.collect" in request.sd_perms}
+    if label:
+        try:
+            ctx.update(services.token_payments(request, label))
+        except services.FlowError as err:
+            ctx["error"] = err.message
+        else:
+            require_own_patient(request, ctx["visit"].patient)
+    template = "flow/_token_payments.html" if request.htmx else "flow/token.html"
+    return render(request, template, ctx)
 
 
 def _int(value) -> int:

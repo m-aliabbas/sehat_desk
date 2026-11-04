@@ -13,6 +13,7 @@ the queue, billing, lab or pharmacy save something.
     day end    close_stale_visits closes visits left open on earlier days
 """
 
+import re
 from collections import defaultdict
 from datetime import timedelta
 
@@ -187,14 +188,18 @@ def visit_for_encounter(encounter) -> PatientVisit | None:
     return PatientVisit.objects.filter(token_id=encounter.token_id).first()
 
 
+def normalize_token(label: str) -> str:
+    """A-012 however it was typed or scanned: a-12, A12, A012, "a 12"."""
+    label = (label or "").strip().upper()
+    match = re.fullmatch(r"([A-Z]+)[\s-]*0*(\d+)", label)
+    return f"{match[1]}-{int(match[2]):03d}" if match else label
+
+
 def find_token_visit(request, label: str) -> PatientVisit:
     """Today's visit for a token number typed or scanned at a counter (A-012, a-12)."""
-    label = (label or "").strip().upper()
+    label = normalize_token(label)
     if not label:
         raise FlowError("Type the token number, e.g. A-012.")
-    letters, _, digits = label.partition("-")
-    if digits.isdigit():
-        label = f"{letters}-{int(digits):03d}"
     visit = (
         PatientVisit.objects.filter(
             organization=request.organization,
@@ -588,6 +593,9 @@ def sync_invoice(invoice) -> None:
     now = timezone.now()
     paid = invoice.status in PAID_STATUSES
     for item in items:
+        if invoice.status == Invoice.Status.CANCELLED and item.visit.state == VisitState.CANCELLED:
+            item.delete()  # the visit was cancelled: it owes nothing (fees are not money)
+            continue
         if invoice.status == Invoice.Status.CANCELLED:
             item.invoice = item.invoice_item = None
             item.is_paid, item.paid_at, item.collected_by_counter = False, None, ""
@@ -986,6 +994,41 @@ def close_stale_visits(*, organization=None, today=None) -> int:
 # --- Screens ----------------------------------------------------------------------------------
 
 
+def token_payments(request, label: str) -> dict:
+    """Everything a token's patient was billed today in this branch and what is still owed:
+    issued invoices (doctor's fee, lab, procedures, pharmacy) and fees no invoice carries yet.
+    Pharmacy, lab and doctors look a patient up by the token on the slip (M-2, M002...)."""
+    from apps.core.dates import on_day
+
+    visit = find_token_visit(request, label)
+    invoices = list(
+        Invoice.objects.filter(
+            organization=request.organization,
+            branch=request.branch,
+            patient=visit.patient,
+            **on_day("created_at", timezone.localdate()),
+        )
+        .exclude(status__in=(Invoice.Status.DRAFT, Invoice.Status.CANCELLED))
+        .prefetch_related("items")
+        .order_by("created_at", "pk")
+    )
+    for inv in invoices:
+        inv.kinds = sorted({i.get_kind_display() for i in inv.items.all()})
+    waiting = list(visit.bill_items.filter(is_paid=False, invoice__isnull=True).order_by("pk"))
+    billed = sum((i.grand_total for i in invoices), 0)
+    paid = sum((i.amount_paid for i in invoices), 0)
+    due = sum((i.balance_due for i in invoices), 0) + sum((b.amount for b in waiting), 0)
+    return {
+        "visit": visit,
+        "invoices": invoices,
+        "waiting": waiting,
+        "billed": billed,
+        "paid": paid,
+        "due": due,
+        "lab_orders": list(lab_orders(visit).only("pk", "number", "status")),
+    }
+
+
 def _counters_due(visit) -> list[tuple[str, str]]:
     """Counters with fees on no invoice yet; the pharmacy bills its own at the till."""
     return [
@@ -998,6 +1041,32 @@ def _counters_due(visit) -> list[tuple[str, str]]:
             }
         )
     ]
+
+
+def attach_lab_dues(visits) -> None:
+    """Set `lab_dues` on each visit: (order number, invoice) for lab orders billed on their own
+    invoice and not yet paid. They are money the visit owes but carry no PatientBillItem, so
+    screens add them to what is still to pay. One query for the whole list."""
+    from apps.lab.models import LabOrder
+
+    by_token = {v.token_id: v for v in visits}
+    for v in visits:
+        v.lab_dues = []
+    if not by_token:
+        return
+    orders = (
+        LabOrder.objects.filter(encounter__token_id__in=by_token, invoice__isnull=False)
+        .exclude(status=LabOrder.Status.CANCELLED)
+        .select_related("invoice", "encounter")
+        .order_by("pk")
+    )
+    for order in orders:
+        visit = by_token[order.encounter.token_id]
+        if not order.invoice.is_outstanding:
+            continue
+        if any(b.invoice_id == order.invoice_id for b in visit.bill_items.all()):
+            continue  # already listed as a fee
+        visit.lab_dues.append((order.number, order.invoice))
 
 
 def todays_visits(request, *states):
@@ -1017,7 +1086,9 @@ def todays_visits(request, *states):
 def board(request) -> dict:
     """Today's visits in this branch, grouped by where they are."""
     groups = {state: [] for state in VisitState.values}
-    for visit in todays_visits(request):
+    visits = list(todays_visits(request))
+    attach_lab_dues(visits)
+    for visit in visits:
         visit.counters_due = _counters_due(visit)
         groups[visit.state].append(visit)
     return groups
@@ -1026,9 +1097,11 @@ def board(request) -> dict:
 def counter_queue(request, state) -> list[PatientVisit]:
     """The pharmacy's or lab's own 'Waiting here' list."""
     visits = list(todays_visits(request, state))
+    attach_lab_dues(visits)
     for visit in visits:
         visit.counters_due = _counters_due(visit)
         visit.unpaid_total = sum((b.amount for b in visit.bill_items.all() if not b.is_paid), 0)
+        visit.unpaid_total += sum((inv.balance_due for _, inv in visit.lab_dues), 0)
         if state == VisitState.LAB_QUEUE:
             visit.lab_orders = list(lab_orders(visit).only("pk", "number"))
     return visits

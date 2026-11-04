@@ -173,6 +173,10 @@ def pay_staff(
             organization=request.organization, idempotency_key=idempotency_key
         ).first()
         if done:
+            if done.user_id != user.pk:
+                raise PayrollError(
+                    "This payment form was already used. Reload the page and try again."
+                )
             return done
     if user.organization_id != request.organization.pk:
         raise PayrollError("That staff member is not in this hospital.")

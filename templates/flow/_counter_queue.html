@@ -22,6 +22,7 @@
         <form method="post" action="{% url 'pharmacy:pos-prescription' %}" class="inline">{% csrf_token %}<input type="hidden" name="action" value="visit"><input type="hidden" name="patient" value="{{ v.patient.pk }}">{% if v.token.doctor_id %}<input type="hidden" name="doctor" value="{{ v.token.doctor_id }}">{% endif %}<button class="btn btn-primary btn-sm">Open at till</button></form>
         {% else %}
         {% for o in v.lab_orders %}<a class="btn btn-secondary btn-sm" href="{% url 'lab:order-detail' o.pk %}">{{ o.number }}</a>{% endfor %}
+        {% for number, inv in v.lab_dues %}{% if "billing.payment.collect" in sd_perms %}<a class="btn btn-warning btn-sm" href="{% url 'billing:invoice-pay' inv.pk %}">Collect {{ inv.balance_due|floatformat:"2g" }}</a>{% else %}<span class="chip chip-warning" title="{{ number }}">Pay at cash</span>{% endif %}{% endfor %}
         {% endif %}
         <form method="post" action="{% url 'flow:send-on' v.pk %}" class="inline">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="btn btn-ghost btn-sm">Done here</button></form>
       </td>

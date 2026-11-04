@@ -1,0 +1,35 @@
+{# Result of flow:token. Context: label, error | visit, invoices, waiting, billed, paid, due, lab_orders, can_collect. #}
+{% if error %}
+  <p class="rounded-control bg-red-soft px-3 py-2 text-body" role="alert">{{ error }}</p>
+{% elif visit %}
+  <div class="flex flex-wrap items-baseline justify-between gap-2">
+    <p class="font-semibold"><span class="font-mono">{{ visit.token.label }}</span> · {{ visit.patient.full_name }} <span class="font-mono text-label text-muted">{{ visit.patient.mrn }}</span></p>
+    <p class="text-label">{{ visit.get_state_display }}{% if visit.token.doctor %} · {{ visit.token.doctor }}{% endif %}</p>
+  </div>
+  <div class="table-wrap mt-2"><table class="table" data-plain>
+    <thead><tr><th scope="col">Bill</th><th scope="col">For</th><th scope="col" class="text-right">Amount</th><th scope="col" class="text-right">Paid</th><th scope="col" class="text-right">Due</th></tr></thead>
+    <tbody>
+      {% for inv in invoices %}
+      <tr>
+        <td class="font-mono">{{ inv.number }}</td>
+        <td>{{ inv.kinds|join:", "|default:"—" }}</td>
+        <td class="text-right">{{ inv.grand_total|floatformat:"2g" }}</td>
+        <td class="text-right">{{ inv.amount_paid|floatformat:"2g" }}</td>
+        <td class="text-right">{% if inv.balance_due %}<span class="font-semibold">{{ inv.balance_due|floatformat:"2g" }}</span>{% if can_collect %} <a class="underline" href="{% url 'billing:invoice-pay' inv.pk %}">pay</a>{% endif %}{% else %}<span class="text-muted">paid</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+      {% for b in waiting %}
+      <tr>
+        <td class="text-muted">not billed yet</td>
+        <td>{{ b.description }} <span class="text-label text-muted">· {{ b.get_billed_at_display }}</span></td>
+        <td class="text-right">{{ b.amount|floatformat:"2g" }}</td>
+        <td class="text-right">0.00</td>
+        <td class="text-right font-semibold">{{ b.amount|floatformat:"2g" }}</td>
+      </tr>
+      {% endfor %}
+      {% if not invoices and not waiting %}<tr><td colspan="5" class="text-muted">Nothing billed today.</td></tr>{% endif %}
+    </tbody>
+    <tfoot><tr class="font-semibold"><td colspan="2">Today</td><td class="text-right">{{ billed|floatformat:"2g" }}</td><td class="text-right">{{ paid|floatformat:"2g" }}</td><td class="text-right">{% if due %}{{ due|floatformat:"2g" }} due{% else %}All paid{% endif %}</td></tr></tfoot>
+  </table></div>
+  {% if lab_orders %}<p class="mt-2 text-label">Lab: {% for o in lab_orders %}<span class="font-mono">{{ o.number }}</span> {{ o.get_status_display|lower }}{% if not forloop.last %} · {% endif %}{% endfor %}</p>{% endif %}
+{% endif %}

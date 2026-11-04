@@ -28,7 +28,7 @@
         <tr>
           <td class="whitespace-nowrap">{{ t.created_at|date:"d M Y, H:i" }}</td>
           <td>{{ t.get_kind_display }}{% if t.reason %}<p class="text-label text-muted">{{ t.reason }}</p>{% endif %}</td>
-          <td class="whitespace-nowrap">{% with doc=t.document %}{% if doc %}<a href="{{ doc.1 }}" class="font-mono hover:underline">{{ doc.0 }}</a>{% elif t.reference %}<span class="font-mono">{{ t.reference }}</span>{% else %}<span class="text-muted">—</span>{% endif %}{% endwith %}</td>
+          <td class="whitespace-nowrap">{% with doc=t.document %}{% if doc %}{% openable doc.1 as doc_url %}{% if doc_url %}<a href="{{ doc_url }}" class="font-mono hover:underline">{{ doc.0 }}</a>{% else %}<span class="font-mono">{{ doc.0 }}</span>{% endif %}{% elif t.reference %}<span class="font-mono">{{ t.reference }}</span>{% else %}<span class="text-muted">—</span>{% endif %}{% endwith %}</td>
           <td class="font-mono">{{ t.batch.label }}</td>
           <td class="text-right font-semibold text-teal-deep">{% if t.quantity > 0 %}{{ t.quantity }}{% endif %}</td>
           <td class="text-right font-semibold text-red">{% if t.quantity < 0 %}{{ t.quantity|abs_value }}{% endif %}</td>

@@ -1,0 +1,16 @@
+{% extends "layouts/app.html" %}
+{% block title %}Payments by token{% endblock %}
+{% block page_title %}Payments by token{% endblock %}
+{% block page_subtitle %}What a patient paid today and what is still owed, by the token on their slip.{% endblock %}
+{% block content %}
+<section class="card" aria-label="Payments by token">
+  <form method="get" class="flex flex-wrap items-end gap-3">
+    <div class="field min-w-[12rem]">
+      <label class="field-label" for="token-lookup">Token</label>
+      <input id="token-lookup" name="token" value="{{ label }}" class="input" placeholder="M-2" autocomplete="off" required data-draft="off">
+    </div>
+    <button class="btn btn-primary">Look up</button>
+  </form>
+  <div class="mt-4">{% include "flow/_token_payments.html" %}</div>
+</section>
+{% endblock %}
