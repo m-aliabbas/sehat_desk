@@ -42,7 +42,7 @@
   <section class="card h-fit">
     <h2 class="section-title mb-4">Specialties</h2>
     <div class="flex flex-wrap gap-2">
-      {% for s in specialties %}<span class="chip chip-neutral">{{ s.name }}</span>{% empty %}<p class="text-label text-muted">No specialties yet.</p>{% endfor %}
+      {% for s in specialties %}<span class="chip chip-neutral inline-flex items-center gap-1">{{ s.name }}{% include "recyclebin/_actions.html" with kind="specialty" obj=s %}</span>{% empty %}<p class="text-label text-muted">No specialties yet.</p>{% endfor %}
     </div>
     <form method="post" action="{% url 'masterdata:specialty-create' %}" class="mt-5 flex items-end gap-2">
       {% csrf_token %}

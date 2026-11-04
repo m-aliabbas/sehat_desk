@@ -17,7 +17,7 @@ from django.core.validators import FileExtensionValidator
 from django.db import models
 from django.utils import timezone
 
-from apps.core.models import TimeStampedModel
+from apps.core.models import LIVE, RecycleBinMixin, TimeStampedModel
 from apps.core.scoping import BranchScopedModel, OrgScopedModel
 from apps.masterdata.models import money
 
@@ -34,7 +34,7 @@ class SampleType(models.TextChoices):
     OTHER = "other", "Other"
 
 
-class LabTestCategory(OrgScopedModel):
+class LabTestCategory(RecycleBinMixin, OrgScopedModel):
     name = models.CharField(max_length=80)
     sort_order = models.PositiveSmallIntegerField(default=0)
 
@@ -42,14 +42,16 @@ class LabTestCategory(OrgScopedModel):
         ordering = ["sort_order", "name"]
         verbose_name_plural = "lab test categories"
         constraints = [
-            models.UniqueConstraint(fields=["organization", "name"], name="uniq_lab_category")
+            models.UniqueConstraint(
+                fields=["organization", "name"], condition=LIVE, name="uniq_lab_category"
+            )
         ]
 
     def __str__(self):
         return self.name
 
 
-class LabTest(OrgScopedModel):
+class LabTest(RecycleBinMixin, OrgScopedModel):
     class ResultType(models.TextChoices):
         NUMERIC = "numeric", "Numeric"
         TEXT = "text", "Text"
@@ -83,7 +85,9 @@ class LabTest(OrgScopedModel):
     class Meta:
         ordering = ["category__sort_order", "name"]
         constraints = [
-            models.UniqueConstraint(fields=["organization", "code"], name="uniq_lab_test_code")
+            models.UniqueConstraint(
+                fields=["organization", "code"], condition=LIVE, name="uniq_lab_test_code"
+            )
         ]
 
     def __str__(self):
@@ -201,7 +205,7 @@ class LabReferenceRange(TimeStampedModel):
         return f"{text} ({', '.join(who)})" if who and text else text
 
 
-class LabPanel(OrgScopedModel):
+class LabPanel(RecycleBinMixin, OrgScopedModel):
     """A package of tests sold together at a package price (e.g. LFT, Lipid profile)."""
 
     code = models.CharField(max_length=16)
@@ -213,7 +217,9 @@ class LabPanel(OrgScopedModel):
     class Meta:
         ordering = ["name"]
         constraints = [
-            models.UniqueConstraint(fields=["organization", "code"], name="uniq_lab_panel_code")
+            models.UniqueConstraint(
+                fields=["organization", "code"], condition=LIVE, name="uniq_lab_panel_code"
+            )
         ]
 
     def __str__(self):

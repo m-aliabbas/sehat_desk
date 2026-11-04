@@ -45,7 +45,7 @@
   <section class="card h-fit">
     <h2 class="section-title mb-4">Categories</h2>
     <div class="flex flex-wrap gap-2">
-      {% for c in categories %}<span class="chip chip-neutral">{{ c.name }}</span>{% empty %}<p class="text-label text-muted">No categories yet.</p>{% endfor %}
+      {% for c in categories %}<span class="chip chip-neutral inline-flex items-center gap-1">{{ c.name }}{% include "recyclebin/_actions.html" with kind="service_category" obj=c %}</span>{% empty %}<p class="text-label text-muted">No categories yet.</p>{% endfor %}
     </div>
     <form method="post" action="{% url 'masterdata:category-create' %}" class="mt-5 flex items-end gap-2">
       {% csrf_token %}

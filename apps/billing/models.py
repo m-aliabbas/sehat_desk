@@ -19,6 +19,7 @@ from django.conf import settings
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
+from apps.core.models import LIVE, RecycleBinMixin
 from apps.core.scoping import BranchScopedModel, OrgScopedModel
 from apps.masterdata.models import money
 
@@ -76,7 +77,7 @@ class BillingSettings(OrgScopedModel):
         return f"Billing settings · {self.organization}"
 
 
-class PaymentMethod(OrgScopedModel):
+class PaymentMethod(RecycleBinMixin, OrgScopedModel):
     """Configurable ways to pay (PRD §11.3). Defaults: masterdata/defaults.json."""
 
     code = models.SlugField(max_length=30)
@@ -90,7 +91,9 @@ class PaymentMethod(OrgScopedModel):
     class Meta:
         ordering = ["sort_order", "name"]
         constraints = [
-            models.UniqueConstraint(fields=["organization", "code"], name="uniq_payment_method")
+            models.UniqueConstraint(
+                fields=["organization", "code"], condition=LIVE, name="uniq_payment_method"
+            )
         ]
 
     def __str__(self):

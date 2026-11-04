@@ -12,7 +12,7 @@ from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
-from apps.core.models import TimeStampedModel
+from apps.core.models import LIVE, RecycleBinMixin, TimeStampedModel
 from apps.core.scoping import BranchScopedModel, OrgScopedModel
 
 # The consultation note, in the order the workspace shows it. (field, label, section)
@@ -183,7 +183,7 @@ class EncounterVersion(models.Model):
 # --- Diagnoses (Phase 10) ---------------------------------------------------------------------
 
 
-class DiagnosisCode(OrgScopedModel):
+class DiagnosisCode(RecycleBinMixin, OrgScopedModel):
     """Searchable diagnosis catalogue (ICD-10 style codes). A starter list is loaded on first use;
     hospitals can add their own codes."""
 
@@ -194,7 +194,9 @@ class DiagnosisCode(OrgScopedModel):
     class Meta:
         ordering = ["code"]
         constraints = [
-            models.UniqueConstraint(fields=["organization", "code"], name="uniq_diagnosis_code")
+            models.UniqueConstraint(
+                fields=["organization", "code"], condition=LIVE, name="uniq_diagnosis_code"
+            )
         ]
 
     def __str__(self):

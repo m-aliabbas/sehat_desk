@@ -1,16 +1,19 @@
-"""Recycle bin screen, plus the delete endpoints every list's bin button and "Delete selected"
-bar post to. Deleting needs `records.delete` and the module's permission (checked in services);
-the bin itself needs `admin.recyclebin.manage`."""
+"""Recycle bin screen, the delete endpoints every list's bin button and "Delete selected" bar
+post to, and the shared edit page. Editing needs the module's permission, deleting also
+`records.delete` (both checked in services); the bin itself needs `admin.recyclebin.manage`."""
 
 from django.contrib import messages
+from django.core.exceptions import PermissionDenied
 from django.http import Http404
 from django.shortcuts import redirect, render
+from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_GET, require_POST
 
 from apps.accounts.decorators import permission_required
 
 from . import services
+from .forms import edit_form
 from .registry import KINDS
 
 
@@ -26,6 +29,44 @@ def _kind(key):
         return services.get_kind(key)
     except services.BinError as err:
         raise Http404 from err
+
+
+# Anyone who may edit some kind reaches the view; the kind's own permission is checked inside.
+EDIT_PERMS = tuple(sorted({code for k in KINDS.values() for code in k.manage_perms}))
+
+
+@permission_required(*EDIT_PERMS, any_of=True)
+def edit(request, kind, pk):
+    """Edit a record of any kind with `edit_fields` (pencil on its list). Permission is per kind:
+    the module's manage permission, checked here and in `services.save_edit`."""
+    kind = _kind(kind)
+    if not kind.edit_fields:
+        raise Http404
+    if not services.can_edit(request, kind):
+        raise PermissionDenied
+    obj = kind.model_class.objects.filter(organization=request.organization, pk=pk).first()
+    if obj is None:
+        raise Http404
+    form = edit_form(kind, request)(request.POST or None, instance=obj)
+    if request.method == "POST" and form.is_valid():
+        try:
+            obj = services.save_edit(request, form, kind)
+        except services.BinError as err:
+            messages.error(request, err.message)
+        else:
+            messages.success(request, f"{obj} saved.")
+            return _back(request, reverse(kind.list_url))
+    return render(
+        request,
+        "recyclebin/edit.html",
+        {
+            "form": form,
+            "obj": obj,
+            "kind": kind,
+            "can_delete": services.can_delete(request, kind),
+            "cancel_url": reverse(kind.list_url),
+        },
+    )
 
 
 @require_POST

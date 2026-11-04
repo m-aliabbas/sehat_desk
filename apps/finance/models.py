@@ -10,12 +10,13 @@ from django.core.validators import MinValueValidator
 from django.db import models
 
 from apps.billing.models import CENT
+from apps.core.models import LIVE, RecycleBinMixin
 from apps.core.scoping import BranchScopedModel, OrgScopedModel
 
 from . import segments
 
 
-class ExpenseCategory(OrgScopedModel):
+class ExpenseCategory(RecycleBinMixin, OrgScopedModel):
     name = models.CharField(max_length=80)
     segment = models.CharField(
         max_length=12,
@@ -29,7 +30,9 @@ class ExpenseCategory(OrgScopedModel):
         ordering = ["name"]
         verbose_name_plural = "expense categories"
         constraints = [
-            models.UniqueConstraint(fields=["organization", "name"], name="uniq_expense_category")
+            models.UniqueConstraint(
+                fields=["organization", "name"], condition=LIVE, name="uniq_expense_category"
+            )
         ]
 
     def __str__(self):

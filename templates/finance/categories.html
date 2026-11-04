@@ -9,8 +9,8 @@
     <div class="table-wrap"><table class="table">
       <thead><tr><th scope="col">Category</th><th scope="col">Default segment</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
       <tbody>{% for c in categories %}
-        <tr><td class="font-medium">{{ c.name }}</td><td>{{ c.get_segment_display }}</td><td>{% if c.is_active %}{% status_chip "active" %}{% else %}{% status_chip "inactive" %}{% endif %}</td>
-          <td class="text-right"><form method="post" action="{% url 'finance:category-toggle' c.pk %}">{% csrf_token %}<button class="btn btn-ghost btn-sm">{% if c.is_active %}Deactivate{% else %}Activate{% endif %}</button></form></td></tr>
+        <tr {% if "expense_category" in editable %}data-edit="{% url 'recyclebin:edit' 'expense_category' c.pk %}"{% endif %}><td class="font-medium">{{ c.name }}</td><td>{{ c.get_segment_display }}</td><td>{% if c.is_active %}{% status_chip "active" %}{% else %}{% status_chip "inactive" %}{% endif %}</td>
+          <td class="text-right whitespace-nowrap"><form method="post" action="{% url 'finance:category-toggle' c.pk %}" class="inline">{% csrf_token %}<button class="btn btn-ghost btn-sm">{% if c.is_active %}Deactivate{% else %}Activate{% endif %}</button></form>{% include "recyclebin/_actions.html" with kind="expense_category" obj=c %}</td></tr>
       {% endfor %}</tbody></table></div>
   </section>
   <form method="post" class="card h-fit space-y-4" novalidate>{% csrf_token %}

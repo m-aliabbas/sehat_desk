@@ -21,11 +21,11 @@
           <thead><tr><th scope="col">Counter</th><th scope="col">Assigned staff</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Action</span></th></tr></thead>
           <tbody>
             {% for c in counters %}
-              <tr>
+              <tr {% if "counter" in editable %}data-edit="{% url 'recyclebin:edit' 'counter' c.pk %}"{% endif %}>
                 <td class="font-medium">{{ c.code }} · {{ c.name }}</td>
                 <td>{{ c.assigned_staff|default:"Unassigned" }}</td>
                 <td>{% if c.is_open %}{% status_chip "open" "Open" %}{% else %}{% status_chip "closed" "Closed" %}{% endif %}</td>
-                <td class="text-right"><form method="post" action="{% url 'queue:counter-toggle' c.pk %}">{% csrf_token %}<button class="btn btn-secondary btn-sm">{% if c.is_open %}Close{% else %}Open{% endif %}</button></form></td>
+                <td class="text-right whitespace-nowrap"><form method="post" action="{% url 'queue:counter-toggle' c.pk %}" class="inline">{% csrf_token %}<button class="btn btn-secondary btn-sm">{% if c.is_open %}Close{% else %}Open{% endif %}</button></form>{% include "recyclebin/_actions.html" with kind="counter" obj=c %}</td>
               </tr>
             {% endfor %}
           </tbody>

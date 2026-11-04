@@ -10,10 +10,11 @@ from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
+from apps.core.models import LIVE, RecycleBinMixin
 from apps.core.scoping import BranchScopedModel
 
 
-class Counter(BranchScopedModel):
+class Counter(RecycleBinMixin, BranchScopedModel):
     code = models.CharField(max_length=10, help_text="Stable desk ID, e.g. 01.")
     name = models.CharField(max_length=80, help_text="e.g. Main reception")
     assigned_staff = models.ForeignKey(
@@ -25,7 +26,9 @@ class Counter(BranchScopedModel):
     class Meta:
         ordering = ["code"]
         constraints = [
-            models.UniqueConstraint(fields=["branch", "code"], name="uniq_counter_code_per_branch")
+            models.UniqueConstraint(
+                fields=["branch", "code"], condition=LIVE, name="uniq_counter_code_per_branch"
+            )
         ]
 
     def __str__(self):

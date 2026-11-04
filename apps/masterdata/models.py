@@ -50,14 +50,16 @@ class Department(RecycleBinMixin, OrgScopedModel):
         return self.token_prefix or self.code[:1]
 
 
-class Specialty(OrgScopedModel):
+class Specialty(RecycleBinMixin, OrgScopedModel):
     name = models.CharField(max_length=100)
 
     class Meta:
         ordering = ["name"]
         verbose_name_plural = "specialties"
         constraints = [
-            models.UniqueConstraint(fields=["organization", "name"], name="uniq_specialty_name")
+            models.UniqueConstraint(
+                fields=["organization", "name"], condition=LIVE, name="uniq_specialty_name"
+            )
         ]
 
     def __str__(self):
@@ -186,14 +188,16 @@ class DoctorLeave(TimeStampedModel):
             raise ValidationError("Leave must end on or after its start date.")
 
 
-class ServiceCategory(OrgScopedModel):
+class ServiceCategory(RecycleBinMixin, OrgScopedModel):
     name = models.CharField(max_length=80)
 
     class Meta:
         ordering = ["name"]
         verbose_name_plural = "service categories"
         constraints = [
-            models.UniqueConstraint(fields=["organization", "name"], name="uniq_service_category")
+            models.UniqueConstraint(
+                fields=["organization", "name"], condition=LIVE, name="uniq_service_category"
+            )
         ]
 
     def __str__(self):

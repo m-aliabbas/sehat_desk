@@ -28,13 +28,44 @@ def get_kind(key: str) -> Kind:
         raise BinError("That kind of record cannot be deleted.") from err
 
 
+def can_edit(request, kind: Kind) -> bool:
+    held = getattr(request, "sd_perms", frozenset())
+    return any(code in held for code in kind.manage_perms)
+
+
 def can_delete(request, kind: Kind) -> bool:
-    return {DELETE, kind.manage_perm} <= set(request.sd_perms)
+    return DELETE in getattr(request, "sd_perms", frozenset()) and can_edit(request, kind)
 
 
 def deletable_keys(request) -> set[str]:
-    """Kinds this person may delete, for templates (`can_delete.product`)."""
+    """Kinds this person may delete, for templates: {% if "product" in deletable %}."""
     return {key for key, kind in KINDS.items() if can_delete(request, kind)}
+
+
+def editable_keys(request) -> set[str]:
+    """Kinds this person may edit, for templates: {% if "ward" in editable %}."""
+    return {key for key, kind in KINDS.items() if can_edit(request, kind)}
+
+
+def _changes(obj, fields, before) -> dict:
+    return {
+        f: [str(before[f]), str(getattr(obj, f))] for f in fields if before[f] != getattr(obj, f)
+    }
+
+
+def save_edit(request, form, kind: Kind):
+    """Save the shared edit form, audit-logging the fields that changed."""
+    if not can_edit(request, kind):
+        raise BinError("You are not allowed to edit this.")
+    obj = form.instance
+    _check_org(request, obj)
+    before = {f: getattr(type(obj).objects.get(pk=obj.pk), f) for f in kind.edit_fields}
+    with transaction.atomic():
+        obj = form.save()
+        audit.record(
+            request, f"{kind.key}.update", obj, changes=_changes(obj, kind.edit_fields, before)
+        )
+    return obj
 
 
 def _check_org(request, obj):

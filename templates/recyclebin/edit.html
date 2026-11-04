@@ -1,0 +1,24 @@
+{% extends "layouts/app.html" %}
+{% load ui %}
+{% block title %}Edit {{ kind.label|lower }}{% endblock %}
+{% block page_title %}Edit {{ kind.label|lower }}{% endblock %}
+{% block page_subtitle %}{{ obj }}{% endblock %}
+{% block content %}
+<form method="post" class="card max-w-3xl" novalidate>
+  {% csrf_token %}
+  {% for e in form.non_field_errors %}{% include "components/alert.html" with level="danger" message=e %}{% endfor %}
+  <div class="grid gap-5 md:grid-cols-2">
+    {% for field in form %}{% include "components/field.html" with field=field %}{% endfor %}
+  </div>
+  <div class="mt-6 flex gap-3">
+    <button type="submit" class="btn btn-primary">Save</button>
+    <a href="{{ cancel_url }}" class="btn btn-close">Cancel</a>
+  </div>
+</form>
+{% if can_delete %}
+<form method="post" action="{% url 'recyclebin:delete' kind.key obj.pk %}" class="mt-4 max-w-3xl">{% csrf_token %}
+  <input type="hidden" name="next" value="{{ cancel_url }}">
+  <button class="btn btn-danger btn-sm" data-confirm="{{ obj }} goes to the Recycle bin. An admin can restore it." data-confirm-title="Delete this {{ kind.label|lower }}?" data-confirm-action="Delete" data-confirm-danger="true">{% icon "trash" "h-4 w-4" %} Delete</button>
+</form>
+{% endif %}
+{% endblock %}

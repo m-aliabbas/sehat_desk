@@ -24,7 +24,7 @@
             <td class="text-right">{{ t.price|floatformat:"0g" }}</td>
             <td>{% if t.is_active %}{% status_chip "active" %}{% else %}{% status_chip "inactive" %}{% endif %}</td>
             <td class="text-right whitespace-nowrap"><a href="{% url 'lab:test-edit' t.pk %}" class="btn btn-ghost btn-sm">Edit</a>
-              <form method="post" action="{% url 'lab:test-toggle' t.pk %}" class="inline">{% csrf_token %}{% if t.is_active %}<button class="btn btn-ghost btn-sm text-red">Deactivate</button>{% else %}<button class="btn btn-ghost btn-sm">Activate</button>{% endif %}</form></td>
+              <form method="post" action="{% url 'lab:test-toggle' t.pk %}" class="inline">{% csrf_token %}{% if t.is_active %}<button class="btn btn-ghost btn-sm text-red">Deactivate</button>{% else %}<button class="btn btn-ghost btn-sm">Activate</button>{% endif %}</form>{% include "recyclebin/_actions.html" with kind="lab_test" obj=t no_edit=True %}</td>
           </tr>
           {% endfor %}
         </tbody>
@@ -37,14 +37,14 @@
       <h2 class="section-title mb-3">Panels</h2>
       <ul class="space-y-3">
         {% for p in panels %}
-        <li class="text-body"><div class="flex items-center justify-between gap-2"><a href="{% url 'lab:panel-edit' p.pk %}" class="font-medium hover:underline">{{ p.name }}</a><span class="text-label">{{ organization.currency }} {{ p.price|floatformat:"0g" }}</span></div>
+        <li class="text-body"><div class="flex items-center justify-between gap-2"><a href="{% url 'lab:panel-edit' p.pk %}" class="font-medium hover:underline">{{ p.name }}</a><span class="flex items-center gap-1 text-label">{{ organization.currency }} {{ p.price|floatformat:"0g" }}{% include "recyclebin/_actions.html" with kind="lab_panel" obj=p no_edit=True %}</span></div>
           <p class="text-label text-muted"><span class="font-mono">{{ p.code }}</span> · {% for t in p.tests.all %}{{ t.code }}{% if not forloop.last %}, {% endif %}{% endfor %}{% if not p.is_active %} · inactive{% endif %}</p></li>
         {% empty %}<li class="text-label text-muted">No panels yet.</li>{% endfor %}
       </ul>
     </section>
     <section class="card">
       <h2 class="section-title mb-3">Categories</h2>
-      <div class="flex flex-wrap gap-2">{% for c in categories %}<span class="chip chip-neutral">{{ c.name }} · {{ c.n }}</span>{% empty %}<p class="text-label text-muted">No categories yet.</p>{% endfor %}</div>
+      <div class="flex flex-wrap gap-2">{% for c in categories %}<span class="chip chip-neutral inline-flex items-center gap-1">{{ c.name }} · {{ c.n }}{% include "recyclebin/_actions.html" with kind="lab_category" obj=c %}</span>{% empty %}<p class="text-label text-muted">No categories yet.</p>{% endfor %}</div>
       <form method="post" class="mt-4 flex items-end gap-2">{% csrf_token %}
         <div class="field flex-1"><label class="field-label" for="cat-name">Add category</label><input id="cat-name" name="name" class="input" required maxlength="80" placeholder="e.g. Haematology"></div>
         <button class="btn btn-secondary">Add</button>

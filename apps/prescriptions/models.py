@@ -17,11 +17,11 @@ from django.conf import settings
 from django.core.validators import MinValueValidator
 from django.db import models
 
-from apps.core.models import TimeStampedModel
+from apps.core.models import LIVE, RecycleBinMixin, TimeStampedModel
 from apps.core.scoping import BranchScopedModel, OrgScopedModel
 
 
-class Medicine(OrgScopedModel):
+class Medicine(RecycleBinMixin, OrgScopedModel):
     class Form(models.TextChoices):
         TABLET = "tablet", "Tablet"
         CAPSULE = "capsule", "Capsule"
@@ -65,6 +65,7 @@ class Medicine(OrgScopedModel):
         constraints = [
             models.UniqueConstraint(
                 fields=["organization", "brand_name", "strength", "form"],
+                condition=LIVE,
                 name="uniq_medicine_brand_strength_form",
             )
         ]

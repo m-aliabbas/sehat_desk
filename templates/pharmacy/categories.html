@@ -12,7 +12,7 @@
   {% csrf_token %}
   <div class="table-wrap">
     <table class="table">
-      <thead><tr>{% if "product_category" in deletable %}<th scope="col" class="w-8"><input type="checkbox" class="checkbox" aria-label="Tick all" @change="all($event)"></th>{% endif %}<th scope="col">Category</th><th scope="col">Tax added at the till (%)</th><th scope="col">Prescription needed</th><th scope="col">Note</th></tr></thead>
+      <thead><tr>{% if "product_category" in deletable %}<th scope="col" class="w-8"><input type="checkbox" class="checkbox" aria-label="Tick all" @change="all($event)"></th>{% endif %}<th scope="col">Category</th><th scope="col">Tax added at the till (%)</th><th scope="col">Prescription needed</th><th scope="col">Note</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
       <tbody>
         {% for c in categories %}
         <tr {% if "product_category" in deletable %}data-remove="{% url 'recyclebin:delete' 'product_category' c.pk %}" data-remove-label="Delete" data-remove-note="{{ c.name }} goes to the Recycle bin. Only a category no product uses can go."{% endif %}>
@@ -21,6 +21,7 @@
           <td><input name="tax_{{ c.pk }}" type="number" min="0" max="100" step="0.01" value="{{ c.default_tax_percent|stringformat:'s' }}" class="input w-24" aria-label="Tax for {{ c.name }}"></td>
           <td><input name="rx_{{ c.pk }}" type="checkbox" class="checkbox" {% if c.requires_prescription %}checked{% endif %} aria-label="Prescription needed for {{ c.name }}"></td>
           <td class="text-label text-muted">{{ c.tax_note }}</td>
+          <td class="text-right whitespace-nowrap">{% include "recyclebin/_actions.html" with kind="product_category" obj=c no_delete=True %}</td>
         </tr>
         {% endfor %}
       </tbody>

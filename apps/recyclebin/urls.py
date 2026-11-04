@@ -9,6 +9,7 @@ urlpatterns = [
     path("recycle-bin/restore/", views.restore_selected, name="restore-selected"),
     path("recycle-bin/<slug:kind>/<int:pk>/restore/", views.restore, name="restore"),
     path("recycle-bin/<slug:kind>/<int:pk>/erase/", views.erase, name="erase"),
+    path("records/<slug:kind>/<int:pk>/edit/", views.edit, name="edit"),
     path("delete/<slug:kind>/", views.delete_selected, name="delete-selected"),
     path("delete/<slug:kind>/<int:pk>/", views.delete_one, name="delete"),
 ]

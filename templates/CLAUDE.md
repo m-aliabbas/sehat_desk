@@ -110,6 +110,8 @@ Every page has `#page-trail` (`sdTrail` in `app.js`): Back to the page you came 
 - Hold Alt to see menu numbers for Alt + 1 to 9.
 - Any `title` shows as an instant hint on hover or keyboard focus (`sd-tip`, end of `app.js`). Add a `title` to any column or label
   that needs explaining. `data-ref-low` / `data-ref-high` on a number box add a Low or High word to its label as you type.
+- Edit and delete on a setup list: `{% include "recyclebin/_actions.html" with kind="ward" obj=w %}` (pencil and bin,
+  shown only for `kind in editable` / `deletable`), or `data-edit` on a table row. `apps/recyclebin/CLAUDE.md`.
 - Ticking rows: `x-data="sdPick"` (app.js) around a list, a "Tick all" box in the head, `<input name="ids" form="pick-<kind>">`
   per row and `{% include "recyclebin/_select_bar.html" with kind=... %}` for "Delete selected". Show them only when
   `"<kind>" in deletable` (context processor). Approvals and the Recycle bin use the same state.

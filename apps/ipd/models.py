@@ -20,13 +20,13 @@ from django.db import models
 from django.db.models import Q
 from django.utils import timezone
 
-from apps.core.models import TimeStampedModel
+from apps.core.models import LIVE, RecycleBinMixin, TimeStampedModel
 from apps.core.scoping import BranchScopedModel
 
 money = {"max_digits": 12, "decimal_places": 2}
 
 
-class Ward(BranchScopedModel):
+class Ward(RecycleBinMixin, BranchScopedModel):
     class Kind(models.TextChoices):
         GENERAL = "general", "General ward"
         PRIVATE = "private", "Private rooms"
@@ -50,14 +50,16 @@ class Ward(BranchScopedModel):
     class Meta:
         ordering = ["sort_order", "name"]
         constraints = [
-            models.UniqueConstraint(fields=["branch", "code"], name="uniq_ward_code_per_branch")
+            models.UniqueConstraint(
+                fields=["branch", "code"], condition=LIVE, name="uniq_ward_code_per_branch"
+            )
         ]
 
     def __str__(self):
         return self.name
 
 
-class Room(BranchScopedModel):
+class Room(RecycleBinMixin, BranchScopedModel):
     class Kind(models.TextChoices):
         WARD = "ward", "Shared ward room"
         SEMI_PRIVATE = "semi_private", "Semi-private"
@@ -76,14 +78,16 @@ class Room(BranchScopedModel):
     class Meta:
         ordering = ["ward__sort_order", "ward__name", "name"]
         constraints = [
-            models.UniqueConstraint(fields=["ward", "name"], name="uniq_room_name_per_ward")
+            models.UniqueConstraint(
+                fields=["ward", "name"], condition=LIVE, name="uniq_room_name_per_ward"
+            )
         ]
 
     def __str__(self):
         return f"{self.ward.name} · {self.name}"
 
 
-class Bed(BranchScopedModel):
+class Bed(RecycleBinMixin, BranchScopedModel):
     class Status(models.TextChoices):
         AVAILABLE = "available", "Available"
         OCCUPIED = "occupied", "Occupied"
@@ -113,7 +117,9 @@ class Bed(BranchScopedModel):
     class Meta:
         ordering = ["room__ward__sort_order", "room__ward__name", "room__name", "code"]
         constraints = [
-            models.UniqueConstraint(fields=["branch", "code"], name="uniq_bed_code_per_branch")
+            models.UniqueConstraint(
+                fields=["branch", "code"], condition=LIVE, name="uniq_bed_code_per_branch"
+            )
         ]
 
     def __str__(self):

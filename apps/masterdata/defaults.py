@@ -33,7 +33,8 @@ def suggestions(source: str) -> list[str]:
 
 def _add(organization, label, entries, unique=("name",), numbered=False) -> None:
     model = apps.get_model(label)
-    existing = model.objects.filter(organization=organization)
+    # Deleted ones count too: an update never brings back what a hospital deleted.
+    existing = getattr(model, "all_objects", model.objects).filter(organization=organization)
     for position, entry in enumerate(entries):
         row = {"name": entry} if isinstance(entry, str) else dict(entry)
         if any(existing.filter(**{f"{f}__iexact": row[f]}).exists() for f in unique):
