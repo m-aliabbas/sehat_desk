@@ -370,6 +370,12 @@ class PurchaseCreateForm(StyledFormMixin, forms.Form):
         initial=timezone.localdate,
         widget=forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
     )
+    received_on = forms.DateField(
+        label="Received on",
+        required=False,
+        help_text="Optional. Blank = today; an earlier day dates the stock and supplier entry.",
+        widget=forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
+    )
     tax_amount = forms.DecimalField(label="GST on bill", min_value=0, max_digits=12,
                                     decimal_places=2, required=False)  # fmt: skip
     further_tax = forms.DecimalField(label="Further tax", min_value=0, max_digits=12,

@@ -13,7 +13,7 @@
       @keydown.enter="if ($event.target.id === 'id_supplier_invoice_number') { $event.preventDefault(); document.getElementById('id_supplier_invoice_date').focus(); } else if ($event.target.id === 'id_supplier_invoice_date') { $event.preventDefault(); document.getElementById('grid-scan').focus(); } else if ($event.target.closest('[data-bill]')) { $event.preventDefault(); }">
   {% csrf_token %}
   {% for e in form.non_field_errors %}{% include "components/alert.html" with level="danger" message=e %}{% endfor %}
-  <div class="grid gap-3 md:grid-cols-4">
+  <div class="grid gap-3 md:grid-cols-5">
     <div class="md:col-span-2">
       <label class="field-label" for="id_vendor">Supplier <span class="text-red">*</span></label>
       <select id="id_vendor" name="vendor" class="select mt-1" data-searchable data-autofocus data-next="#id_supplier_invoice_number" data-create-url="{% url 'pharmacy:vendor-quick' %}">
@@ -24,6 +24,7 @@
     </div>
     {% include "components/field.html" with field=form.supplier_invoice_number %}
     {% include "components/field.html" with field=form.supplier_invoice_date %}
+    {% include "components/field.html" with field=form.received_on %}
   </div>
   {% include "pharmacy/purchasing/_item_grid.html" %}
   <div class="flex flex-wrap items-start justify-between gap-6 border-t border-line pt-3">

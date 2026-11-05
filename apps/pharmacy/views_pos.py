@@ -31,6 +31,7 @@ from apps.organizations.models import preferences_for
 from apps.patients.models import Patient
 from apps.prescriptions.models import Prescription, PrescriptionItem
 from apps.prescriptions.services import allergy_conflicts
+from apps.queue.services import token_q
 
 from . import pos, scan, stock
 from .models import (
@@ -365,7 +366,13 @@ def _tag_visit(request, cart):
     if request.POST.get("doctor"):
         doctor = get_scoped_or_404(DoctorProfile, request, pk=_int(request.POST.get("doctor")))
     try:
-        cart = pos.tag_visit(cart, request=request, patient=patient, doctor=doctor)
+        cart = pos.tag_visit(
+            cart,
+            request=request,
+            patient=patient,
+            doctor=doctor,
+            token=request.POST.get("token", "").strip()[:12],
+        )
     except pos.PosError as err:
         if request.htmx:
             return _cart_reply(request, error=err.message)
@@ -429,19 +436,27 @@ def prescription(request):
             Q(number__icontains=q)
             | Q(patient__mrn__icontains=q)
             | Q(patient__name_search__icontains=" ".join(q.lower().split()))
+            | token_q(request, q)
         )
+    prescriptions = list(rxs.order_by("-sent_to_pharmacy_at")[:30])
+    visits = pos.visits_without_rx(
+        request, patient=cart.patient if cart and cart.patient_id else None, q=q
+    )[:30]
+    # Enter in the search box (pick=1) with exactly one match: the modal tags or attaches it.
+    auto_pick = ""
+    if q and request.GET.get("pick") and len(visits) + len(prescriptions) == 1:
+        auto_pick = "visit" if visits else "rx"
     return render(
         request,
         "pharmacy/pos/_rx_modal.html",
         {
-            "prescriptions": rxs.order_by("-sent_to_pharmacy_at")[:30],
+            "prescriptions": prescriptions,
             "cart": cart,
             "q": q,
             "doctors": scoped(DoctorProfile, request).filter(is_active=True).select_related("user"),
             "suggested_doctor": pos.suggested_doctor(cart),
-            "visits": pos.visits_without_rx(
-                request, patient=cart.patient if cart and cart.patient_id else None, q=q
-            )[:30],
+            "visits": visits,
+            "auto_pick": auto_pick,
         },
     )
 
@@ -695,6 +710,7 @@ def rx_queue(request):
             Q(number__icontains=q)
             | Q(patient__mrn__icontains=q)
             | Q(patient__name_search__icontains=" ".join(q.lower().split()))
+            | token_q(request, q)
         )
     today = timezone.localdate()
     return render(
@@ -820,6 +836,7 @@ def sale_list(request):
             | Q(customer_name__icontains=q)
             | Q(patient__mrn__icontains=q)
             | Q(patient__name_search__icontains=" ".join(q.lower().split()))
+            | token_q(request, q)
         )
     else:
         sales = sales.filter(**in_days("completed_at", start, end))

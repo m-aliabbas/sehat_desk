@@ -44,7 +44,8 @@ PROJECT_NOTES §11.
   `doctor_must_click_next`, only Checked · Next or Sign & next (`doctor_clicked_next`) does; signing alone leaves
   the patient WITH_DOCTOR for pharmacy or lab to take by token.
 - Fail-safe `pull_by_token`: pharmacy (`pharmacy.sale`) or lab (`lab.sample.collect`) takes an IN_QUEUE or
-  WITH_DOCTOR visit by token; the token closes (`queue.close_elsewhere`); audit `flow.pull`.
+  WITH_DOCTOR visit by token; the token closes (`queue.close_elsewhere`); audit `flow.pull`. Tagging a waiting
+  visit at the till (`pharmacy.pos.tag_visit` with its token) does the same pull.
 - Fees are not money. Money is the invoice; `sync_invoice` marks fees paid when it is paid (not refunded), and
   frees them if it is cancelled. Pharmacy fees join the till's invoice (`pos.totals`, `pos.checkout` →
   `bill_pharmacy_dues`); the procedure or lab order then points at that invoice. Other counters use

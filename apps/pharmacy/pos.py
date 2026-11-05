@@ -372,33 +372,44 @@ def attach_paper_prescription(sale, *, request, doctor) -> PharmacySale:
 
 
 def visits_without_rx(request, *, patient=None, q="") -> list[dict]:
-    """Today's reception visits the doctor has seen with nothing for the pharmacy yet. The doctor
-    may have written on paper, so the till can tag the sale to the visit
-    (attach_paper_prescription). A patient still waiting for the doctor has no prescription."""
+    """Today's reception visits with nothing for the pharmacy yet: seen by the doctor, or still
+    in the doctor's queue (the doctor wrote on paper and never pressed Next or wrote an Rx in the
+    system). The till tags the sale to the visit (tag_visit). Tokens still owing reception are
+    left out: they have not been to the doctor."""
+    from apps.flow.choices import VisitState
     from apps.queue.models import QueueToken
+    from apps.queue.services import token_q
 
     today = timezone.localdate()
-    tokens = QueueToken.objects.filter(
-        branch=request.branch,
-        date=today,
-        status__in=(QueueToken.Status.IN_CONSULTATION, QueueToken.Status.COMPLETED),
+    tokens = (
+        QueueToken.objects.filter(branch=request.branch, date=today)
+        .exclude(status=QueueToken.Status.CANCELLED)
+        .exclude(flow_visit__state=VisitState.TOKEN_ISSUED)
     )
+    # An appointment with a token is judged by its token (above): held or cancelled stay out.
     appointments = Appointment.objects.filter(
         branch=request.branch,
         date=today,
-        status__in=(Appointment.Status.WITH_DOCTOR, Appointment.Status.COMPLETED),
+        token__isnull=True,
+        status__in=(
+            Appointment.Status.CHECKED_IN,
+            Appointment.Status.IN_QUEUE,
+            Appointment.Status.WITH_DOCTOR,
+            Appointment.Status.COMPLETED,
+        ),
     )
     if patient is not None:
         tokens = tokens.filter(patient=patient)
         appointments = appointments.filter(patient=patient)
     if q:
         words = " ".join(q.lower().split())
-        tokens = tokens.filter(
-            Q(patient__mrn__icontains=q) | Q(patient__name_search__icontains=words)
+        found = (
+            Q(patient__mrn__icontains=q)
+            | Q(patient__name_search__icontains=words)
+            | token_q(request, q)
         )
-        appointments = appointments.filter(
-            Q(patient__mrn__icontains=q) | Q(patient__name_search__icontains=words)
-        )
+        tokens = tokens.filter(found)
+        appointments = appointments.filter(found)
     handled = set(
         Prescription.objects.filter(branch=request.branch)
         .filter(
@@ -407,6 +418,11 @@ def visits_without_rx(request, *, patient=None, q="") -> list[dict]:
         )
         .values_list("patient_id", "doctor_id")
     )
+    seen = (
+        QueueToken.Status.IN_CONSULTATION,
+        QueueToken.Status.COMPLETED,
+        Appointment.Status.WITH_DOCTOR,
+    )
     visits = {}
     for visit in [
         *tokens.select_related("patient", "doctor__user").order_by("created_at")[:100],
@@ -414,22 +430,31 @@ def visits_without_rx(request, *, patient=None, q="") -> list[dict]:
     ]:
         key = (visit.patient_id, visit.doctor_id)
         if key not in handled and key not in visits:
+            is_token = isinstance(visit, QueueToken)
             visits[key] = {
                 "patient": visit.patient,
                 "doctor": visit.doctor,
-                "label": getattr(visit, "label", None) or visit.number,
+                "label": visit.label if is_token else visit.number,
+                "token": visit.label if is_token else "",
                 "status": visit.get_status_display(),
+                # Still in the doctor's queue in the system: tagging takes them from it.
+                "waiting": visit.status not in seen,
             }
-    return list(visits.values())
+    # Seen by the doctor first, then those the system still shows waiting.
+    return sorted(visits.values(), key=lambda v: v["waiting"])
 
 
 @transaction.atomic
-def tag_visit(sale, *, request, patient, doctor=None) -> PharmacySale:
+def tag_visit(sale, *, request, patient, doctor=None, token="") -> PharmacySale:
     """Put a visit's patient on the sale with the doctor's prescription: the signed one waiting
-    here when there is one, else (doctor known) an empty paper Rx."""
+    here when there is one, else (doctor known) an empty paper Rx. With today's token, a patient
+    the system still shows with the doctor is taken to the pharmacy (flow.pull_by_token), so the
+    doctor's list is cleared and the visit moves on."""
     sale = _lock_cart(sale, request)
     if sale.patient_id and sale.patient_id != patient.pk:
         raise PosError(f"This sale is for {sale.patient.full_name}. Finish or clear it first.")
+    if token:
+        _take_from_doctor(request, token, patient)
     sale = attach_patient(sale, request=request, patient=patient)
     if sale.prescription_id:
         return sale
@@ -442,6 +467,24 @@ def tag_visit(sale, *, request, patient, doctor=None) -> PharmacySale:
     if doctor is not None:
         sale = attach_paper_prescription(sale, request=request, doctor=doctor)
     return sale
+
+
+def _take_from_doctor(request, token, patient):
+    from apps.flow import services as flow
+    from apps.flow.choices import CounterLocation, VisitState
+
+    try:
+        visit = flow.find_token_visit(request, token)
+    except flow.FlowError:
+        return  # a token with no flow visit: tag only
+    if visit.patient_id != patient.pk:
+        raise PosError(f"Token {visit.token.label} belongs to another patient.")
+    if visit.state not in (VisitState.IN_QUEUE, VisitState.WITH_DOCTOR):
+        return
+    try:
+        flow.pull_by_token(request=request, label=token, to=CounterLocation.PHARMACY)
+    except flow.FlowError as err:
+        raise PosError(err.message) from err
 
 
 def suggested_doctor(sale):

@@ -29,6 +29,10 @@ Phase 6. Tokens per branch, department and day (A-001...). Emergency tokens numb
   closes an open token when pharmacy or lab takes the patient by token. Checked · Next tells the flow
   (`doctor_clicked_next`).
 
+- Find by token: `todays_token_patients(request, q)` / `token_q(request, q, field=)` match today's tokens in this
+  branch however typed (A-012, a12, "a 12", #12, token 12, or the bare number for any department), never other
+  days. ORed into `patients.search_patients(qs, q, request)` (patient lookups, Patients list, Ctrl+K) and the
+  search boxes of the pharmacy (Prescriptions, Rx modal, Sales), lab worklist, doctor's lab page and procedures.
 - `position(token)` gives the slip its "Now serving" number and patients ahead (`queue/_running_number.html`).
 
 ## Permissions

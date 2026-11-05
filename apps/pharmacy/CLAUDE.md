@@ -97,10 +97,13 @@ PRD §9. Phases 12–14. PROJECT_NOTES §12–13.
 - Till ergonomics: focus returns to the scan box after every action, unit chips sit on the row, price
   shows for the chosen unit, batch is first-expiry by default, paying goes straight back to the till.
 
-- Reception visits at the pharmacy: `pos.visits_without_rx` lists today's tokens and appointments the doctor
-  has seen (in consultation or completed) with nothing sent; `pos.tag_visit` puts the patient on the sale with
-  the doctor's signed prescription waiting here when there is one (printed per `rx_print_at`), else an empty
-  paper Rx (Prescriptions page "Open at till" / "Tag at till" and the till's Attach Rx). Product page has the barcode and labels (roll 1.5 x 1 inch by default, 50 x 25 mm, or A4; `core/labels.py`). The Barcodes page has the same choice. Each sticker is its own page, because a browser shrinks an A4 page onto a sticker.
+- Reception visits at the pharmacy: `pos.visits_without_rx` lists today's tokens (and token-less appointments)
+  with nothing sent, seen by the doctor or still in the doctor's queue (`waiting`: the doctor wrote on paper and
+  never pressed Next); tokens still owing reception and cancelled ones stay out. `pos.tag_visit` puts the patient
+  on the sale with the doctor's signed prescription waiting here when there is one (printed per `rx_print_at`),
+  else an empty paper Rx; given the `token`, a visit still IN_QUEUE/WITH_DOCTOR is taken to the pharmacy
+  (`flow.pull_by_token`, closes the doctor's token). Prescriptions page "Tag at till", the till's Attach Rx (F3:
+  cursor in the search box, type the token, Enter tags it when only one visit or Rx matches, `auto_pick`). Product page has the barcode and labels (roll 1.5 x 1 inch by default, 50 x 25 mm, or A4; `core/labels.py`). The Barcodes page has the same choice. Each sticker is its own page, because a browser shrinks an A4 page onto a sticker.
 - Entry grid: switching Tablet/Strip/Box converts the rate (`setUnit`). `Disc %` is per line.
 - Supplier ledger: the supplier page shows the account across branches; the full dated version with
   exports is report `supplier-statement` (tab on the purchasing screens, `apps/reports`).
@@ -110,6 +113,14 @@ PRD §9. Phases 12–14. PROJECT_NOTES §12–13.
   be empty. `return_items` remains for a return from one purchase.
 - Till: `checkout(adjust_cash=True)` lets cash differ by the Billing limit (`billing.apply_cash_adjustment`).
 
+- Back-dated receipts: Receive stock, New purchase and the purchase's Post to stock take an optional
+  "Received on" date (`stock.received_at_for`: that day at the current time, today or blank = now, future refused).
+  `stock.receive(received_on=)` dates the `StockTransaction`, `purchasing.receive(received_on=)` also
+  `Purchase.received_at` and the supplier `VendorLedgerEntry`; the audit summary says "received <date>". Receive stock
+  also has "Invoice date", appended to each row's reference ("INV-77 · inv 30-10-2026"); a purchase keeps
+  `supplier_invoice_date`.
+- Search boxes on the till's patient lookup, Prescriptions, the Rx modal and Sales also find today's token
+  (`queue.services.token_q`).
 - Scanning: the barcode keeps only the product code from a QR code, and the same GTIN at another length counts as a
   duplicate. Till: `pos.batch_for_scan` sells the scanned batch, refuses an expired pack even with newer stock on the
   shelf, and warns and uses first-expiry when the batch is not in stock. If no separators arrived the batch is a guess
@@ -122,7 +133,8 @@ PRD §9. Phases 12–14. PROJECT_NOTES §12–13.
 
 ## Tests
 `tests/test_inventory.py`, `tests/test_pos.py`, `tests/test_purchasing.py`, `tests/test_workflows.py`,
-`tests/test_packing_pricing.py`.
+`tests/test_packing_pricing.py`, `tests/test_rx_visits.py`, `tests/test_token_tagging.py`,
+`tests/test_backdated_receipts.py`.
 
 ## Keep this file current
 Update it in the same change when you add or rename an entry point, change a status flow, a money/stock/clinical rule, a permission this app checks, or a cross-app link listed here. Shared conventions: `apps/CLAUDE.md`.

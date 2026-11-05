@@ -101,13 +101,16 @@ def find_duplicates(
 # --- Search ----------------------------------------------------------------------------------
 
 
-def search_patients(qs, query: str):
-    """Search by MRN, phone, CNIC or name. Returns (queryset, suggestions)."""
+def search_patients(qs, query: str, request=None):
+    """Search by MRN, phone, CNIC or name, and (with request) today's token in this branch
+    (A-012, a12, 12). Returns (queryset, suggestions)."""
+    from apps.queue.services import token_q
+
     q = (query or "").strip()
     if not q:
         return qs, []
     d = digits(q)
-    cond = Q(mrn__iexact=q) | Q(mrn__icontains=q)
+    cond = Q(mrn__iexact=q) | Q(mrn__icontains=q) | token_q(request, q, field="")
     if d and len(d) >= 4:
         cond |= Q(phone__contains=normalize_phone(q) or d) | Q(phone__contains=d)
         cond |= Q(cnic__contains=d) | Q(emergency_contact_phone__contains=d)

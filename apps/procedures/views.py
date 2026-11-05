@@ -16,6 +16,7 @@ from apps.encounters import services as encounter_services
 from apps.encounters.models import Encounter
 from apps.patients.models import Patient
 from apps.patients.services import limit_records_to_own_patients, limit_to_own_patients
+from apps.queue.services import token_q
 
 from . import services
 from .forms import CancelForm, CompleteForm, ProcedureOrderForm
@@ -74,6 +75,7 @@ def procedure_list(request):
             | Q(name__icontains=q)
             | Q(patient__full_name__icontains=q)
             | Q(patient__mrn__icontains=q)
+            | token_q(request, q)
         )
     day = request.GET.get("date", "")
     try:

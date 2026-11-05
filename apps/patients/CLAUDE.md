@@ -3,7 +3,7 @@
 Registration, search, duplicate detection, demographics and allergies. PRD §5. PROJECT_NOTES §10.
 
 ## Files
-- `services.py` — `register_patient` (assigns MRN), `find_duplicates`, `search_patients`,
+- `services.py` — `register_patient` (assigns MRN), `find_duplicates`, `search_patients` (with `request`, also today's token: `queue.token_q`),
   `add_identifier`, `format_mrn`.
 - `identity.py` — `normalize_phone`, `normalize_cnic`, `format_phone`, `is_valid_phone`.
 - `models.py` — `Patient` (org-wide, one MRN in every branch), `PatientIdentifier`, `Allergy`,

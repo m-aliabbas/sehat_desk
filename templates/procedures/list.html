@@ -7,7 +7,7 @@
 {% block content %}
 <section class="card">
   <form method="get" class="mb-5 grid gap-3 md:grid-cols-[1fr_200px_180px]" x-data @change="$el.submit()">
-    <input type="search" name="q" value="{{ q }}" class="input" placeholder="Search by number, procedure, patient name or MRN" aria-label="Search">
+    <input type="search" name="q" value="{{ q }}" class="input" placeholder="Number, procedure, patient name, MRN or today's token (A-12)" aria-label="Search">
     <select name="status" class="select" aria-label="Status">
       <option value="">All statuses</option>
       {% for v, l in statuses %}<option value="{{ v }}" {% if status == v %}selected{% endif %}>{{ l }}</option>{% endfor %}

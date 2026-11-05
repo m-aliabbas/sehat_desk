@@ -72,7 +72,9 @@ def _patients(request, q, limit):
     from apps.patients.services import search_patients
 
     results, _ = search_patients(
-        limit_to_own_patients(scoped(Patient, request), request).filter(is_active=True), q
+        limit_to_own_patients(scoped(Patient, request), request).filter(is_active=True),
+        q,
+        request,
     )
     return [
         Hit(

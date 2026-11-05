@@ -266,9 +266,15 @@ def receipt_problems(purchase) -> list[str]:
 
 
 @transaction.atomic
-def receive(purchase, *, request) -> Purchase:
-    """Goods receipt: post every line to stock and the total to the supplier ledger."""
+def receive(purchase, *, request, received_on=None) -> Purchase:
+    """Goods receipt: post every line to stock and the total to the supplier ledger.
+    received_on (optional): the day the goods really came, for a bill entered late. Stock, the
+    purchase and the supplier ledger are dated that day; the audit log keeps the real time."""
     purchase = _lock(purchase, request)
+    try:
+        received_at = stock.received_at_for(received_on)
+    except stock.StockError as err:
+        raise PurchaseError(err.message) from err
     problems = receipt_problems(purchase)
     if problems:
         raise PurchaseError(problems[0])
@@ -285,6 +291,7 @@ def receive(purchase, *, request) -> Purchase:
                 purchase_cost=item.effective_unit_cost,
                 sale_price=item.sale_price,
                 reference=reference,
+                received_on=received_on,
             )
         except stock.StockError as err:
             raise PurchaseError(f"{item.product}: {err.message}") from err
@@ -303,11 +310,11 @@ def receive(purchase, *, request) -> Purchase:
                 reference=reference,
             )
     purchase.status = Status.RECEIVED
-    purchase.received_at = timezone.now()
+    purchase.received_at = received_at or timezone.now()
     purchase.received_by = request.user
     purchase.save(update_fields=["status", "received_at", "received_by", "updated_at"])
     if purchase.grand_total:
-        _ledger(
+        entry = _ledger(
             request,
             purchase.vendor,
             VendorLedgerEntry.Kind.PURCHASE,
@@ -315,6 +322,8 @@ def receive(purchase, *, request) -> Purchase:
             purchase=purchase,
             note=f"Invoice {purchase.supplier_invoice_number}",
         )
+        if received_at is not None:
+            VendorLedgerEntry.objects.filter(pk=entry.pk).update(created_at=received_at)
     return purchase
 
 

@@ -124,7 +124,9 @@
       {% else %}
         <p class="mb-4 text-label text-muted">Every line has a batch and expiry. Posting adds the stock and {{ organization.currency }} {{ purchase.grand_total|floatformat:"2g" }} to the supplier's balance.</p>
       {% endif %}
-      <form method="post" action="{% url 'pharmacy:purchase-receive' purchase.pk %}">{% csrf_token %}
+      <form method="post" action="{% url 'pharmacy:purchase-receive' purchase.pk %}" class="space-y-2">{% csrf_token %}
+        <label class="field-label" for="received-on">Received on <span class="text-muted">(optional, blank = today)</span></label>
+        <input id="received-on" name="received_on" type="date" class="input" max="{% now 'Y-m-d' %}" title="Pick an earlier day when the bill is entered late; stock and the supplier entry are dated that day.">
         <button class="btn btn-primary w-full" {% if problems %}disabled{% endif %} data-confirm="Stock for every line goes on the shelf and the purchase is locked. Corrections afterwards are made with a purchase return." data-confirm-title="Post goods to stock?" data-confirm-action="Post stock">Post to stock</button>
       </form>
       <form method="post" action="{% url 'pharmacy:purchase-cancel' purchase.pk %}" class="mt-4 space-y-2 border-t border-line pt-4">{% csrf_token %}

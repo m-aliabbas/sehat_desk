@@ -14,7 +14,7 @@
   </nav>
   <form method="get" class="mb-5">
     <input type="hidden" name="tab" value="{{ tab }}">
-    <input type="search" name="q" value="{{ q }}" class="input" placeholder="Patient name, MRN or order number" aria-label="Search">
+    <input type="search" name="q" value="{{ q }}" class="input" placeholder="Patient name, MRN, order number or today's token (A-12)" aria-label="Search">
   </form>
   {% if page_obj.object_list %}
   <div class="table-wrap">

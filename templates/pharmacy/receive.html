@@ -8,6 +8,8 @@
   {% for e in errors %}{% include "components/alert.html" with level="danger" message=e %}{% endfor %}
   <div class="flex flex-wrap items-end gap-4">
     <div class="max-w-md min-w-[14rem] flex-1"><label class="field-label" for="r-ref">Supplier invoice / reference</label><input id="r-ref" name="reference" class="input mt-1" maxlength="80" autocomplete="off" value="{{ reference }}"></div>
+    <div class="w-44"><label class="field-label" for="r-inv-date">Invoice date</label><input id="r-inv-date" name="invoice_date" type="date" class="input mt-1" max="{{ today|date:'Y-m-d' }}" value="{{ invoice_date }}" title="The date printed on the supplier's invoice. It is kept with the reference on every stock row."></div>
+    <div class="w-44"><label class="field-label" for="r-date">Received on <span class="text-muted">(optional)</span></label><input id="r-date" name="received_on" type="date" class="input mt-1" max="{{ today|date:'Y-m-d' }}" value="{{ received_on }}" title="Blank = today. Pick an earlier day when the bill is entered late; the stock is dated that day."></div>
     <label class="flex items-center gap-2 pb-3 text-body"><input type="checkbox" class="checkbox" name="opening" {% if opening %}checked{% endif %}> Opening stock (not a purchase)</label>
   </div>
   {% include "pharmacy/purchasing/_item_grid.html" %}

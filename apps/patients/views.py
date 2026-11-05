@@ -58,7 +58,7 @@ def patient_list(request):
         qs = qs.filter(is_active=True)
     elif status == "inactive":
         qs = qs.filter(is_active=False)
-    results, suggestions = services.search_patients(qs, q)
+    results, suggestions = services.search_patients(qs, q, request)
     page = Paginator(results.order_by("-created_at"), 20).get_page(request.GET.get("page"))
     ctx = {"page_obj": page, "q": q, "status": status, "suggestions": suggestions}
     if request.htmx and request.htmx.target == "patient-results":
@@ -72,8 +72,8 @@ def patient_lookup(request):
     """Small htmx search used by appointment booking and other pickers."""
     q = request.GET.get("q", "").strip()
     results = []
-    if len(q) >= 2:
-        results, _ = services.search_patients(_patients(request).filter(is_active=True), q)
+    if len(q) >= 2 or q.isdigit():  # a bare token number may be one digit
+        results, _ = services.search_patients(_patients(request).filter(is_active=True), q, request)
         results = results[:8]
     return render(
         request,

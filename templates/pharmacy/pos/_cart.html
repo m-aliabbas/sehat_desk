@@ -127,7 +127,7 @@
           {% csrf_token %}<input type="hidden" name="patient" x-ref="pid">
           <div class="relative">
             <label class="sr-only" for="pos-patient">Patient</label>
-            <input id="pos-patient" x-ref="psearch" type="search" name="q" class="input" placeholder="Patient: name, phone, CNIC" autocomplete="off" x-model="search"
+            <input id="pos-patient" x-ref="psearch" type="search" name="q" class="input" placeholder="Patient: name, phone, CNIC or token (A-12)" autocomplete="off" x-model="search"
                    @keydown.enter.prevent="document.querySelector('#pos-patient-results button')?.click()"
                    hx-get="{% url 'patients:lookup' %}" hx-trigger="input changed delay:250ms" hx-target="#pos-patient-results" hx-swap="innerHTML" hx-include="this">
             <div id="pos-patient-results" class="absolute z-20 mt-1 w-full" x-show="search.length >= 2"></div>
@@ -145,7 +145,7 @@
           <button type="button" tabindex="-1" class="btn btn-ghost btn-sm" hx-post="{% url 'pharmacy:pos-prescription' %}" hx-vals='{"action": "detach"}' hx-target="#pos-cart" hx-swap="outerHTML">Remove</button>
         {% else %}
           <span class="text-label text-muted">No prescription</span>
-          <button type="button" tabindex="-1" class="btn btn-ghost btn-sm" hx-get="{% url 'pharmacy:pos-prescription' %}" hx-target="#overlay-root">Attach Rx</button>
+          <button type="button" tabindex="-1" id="pos-attach-rx" class="btn btn-ghost btn-sm" hx-get="{% url 'pharmacy:pos-prescription' %}" hx-target="#overlay-root" title="Tag today's visit by token, or attach a prescription">Attach Rx · F3</button>
         {% endif %}
       </div>
     </div>

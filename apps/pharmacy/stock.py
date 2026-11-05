@@ -5,7 +5,7 @@ stock and writes a StockTransaction in the same database transaction.
 takes a row lock, so two tills selling the last strip cannot both succeed.
 """
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 from decimal import Decimal
 
 from django.core.exceptions import ValidationError
@@ -84,11 +84,13 @@ def receive(
     sale_price=None,
     reference="",
     opening=False,
+    received_on=None,
 ) -> StockTransaction:
     """Purchase stock-in (or opening stock). Stock at the cost and price of a lot already on record
     joins it. A new cost or price under the same batch number opens a new lot, so what was bought
     earlier keeps its own cost. A new sale price also becomes the product's price for new stock."""
     _need_manage(request)
+    received_at = received_at_for(received_on)
     if product.organization_id != request.organization.id or not product.is_active:
         raise StockError("That product is not available.")
     if quantity <= 0:
@@ -138,13 +140,32 @@ def receive(
     InventoryBatch.objects.filter(pk=batch.pk).update(
         quantity_received=F("quantity_received") + quantity
     )
-    return _post(
+    txn = _post(
         batch,
         request=request,
         kind=Kind.OPENING if opening else Kind.PURCHASE,
         delta=quantity,
         reference=reference,
     )
+    if received_at is not None:
+        StockTransaction.objects.filter(pk=txn.pk).update(created_at=received_at)
+        txn.created_at = received_at
+    return txn
+
+
+def received_at_for(received_on):
+    """The moment to record for stock that arrived on an earlier day (a supplier bill entered late):
+    that day at the current time of day. None for today or no date, so the real time is kept.
+    A future date is refused."""
+    if not received_on:
+        return None
+    today = timezone.localdate()
+    if received_on > today:
+        raise StockError("The received date cannot be in the future.")
+    if received_on == today:
+        return None
+    now = timezone.localtime()
+    return timezone.make_aware(datetime.combine(received_on, now.time().replace(microsecond=0)))
 
 
 @transaction.atomic

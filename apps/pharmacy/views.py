@@ -660,7 +660,9 @@ def product_detail(request, pk):
     )
 
 
-def _receive_page(request, *, rows, errors=(), reference="", opening=False):
+def _receive_page(
+    request, *, rows, errors=(), reference="", opening=False, received_on="", invoice_date=""
+):
     return render(
         request,
         "pharmacy/receive.html",
@@ -669,6 +671,9 @@ def _receive_page(request, *, rows, errors=(), reference="", opening=False):
             "errors": errors,
             "reference": reference,
             "opening": opening,
+            "received_on": received_on,
+            "invoice_date": invoice_date,
+            "today": timezone.localdate(),
             "breadcrumbs": _crumbs({"label": "Receive stock"}),
         },
     )
@@ -684,7 +689,16 @@ def _receive_rows(request):
     """All rows post together, or none."""
     reference = request.POST.get("reference", "").strip()[:80]
     opening = bool(request.POST.get("opening"))
+    received_on = request.POST.get("received_on", "").strip()
+    invoice_date = request.POST.get("invoice_date", "").strip()
     try:
+        day = date.fromisoformat(received_on) if received_on else None
+        if invoice_date:
+            bill_day = date.fromisoformat(invoice_date)
+            if bill_day > timezone.localdate():
+                raise stock.StockError("The invoice date cannot be in the future.")
+            # No purchase record here: the bill's date travels with the reference on each row.
+            reference = " · ".join(x for x in [reference, f"inv {bill_day:%d-%m-%Y}"] if x)[:80]
         lines = views_purchasing.grid_lines(request)
         if not lines:
             raise stock.StockError("Add at least one row.")
@@ -704,6 +718,7 @@ def _receive_rows(request):
                         sale_price=line["sale_price"],
                         reference=reference,
                         opening=opening,
+                        received_on=day,
                     )
                 )
     except stock.StockError as err:
@@ -718,7 +733,8 @@ def _receive_rows(request):
                 request,
                 f"stock.{txn.kind}",
                 txn.batch,
-                summary=f"{txn.product.sku} {txn.batch.batch_number} +{txn.quantity}",
+                summary=f"{txn.product.sku} {txn.batch.batch_number} +{txn.quantity}"
+                + (f" received {day:%d %b %Y}" if day and day != timezone.localdate() else ""),
             )
         messages.success(request, f"{len(done)} row{'s' if len(done) != 1 else ''} received.")
         return redirect("pharmacy:product-list")
@@ -726,8 +742,10 @@ def _receive_rows(request):
         request,
         rows=views_purchasing.echo_rows(request),
         errors=errors,
-        reference=reference,
+        reference=request.POST.get("reference", "").strip()[:80],
         opening=opening,
+        received_on=received_on,
+        invoice_date=invoice_date,
     )
 
 

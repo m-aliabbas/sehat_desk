@@ -26,6 +26,7 @@ from apps.encounters import services as encounter_services
 from apps.encounters.models import Encounter
 from apps.patients.models import Patient
 from apps.patients.services import limit_to_own_patients, own_doctor_only
+from apps.queue.services import token_q
 
 from . import services
 from .barcode import code39_svg
@@ -157,6 +158,7 @@ def worklist(request):
                 | Q(**{f"{prefix}samples__accession__iexact": q})  # a scanned tube label
                 | Q(**{f"{prefix}patient__mrn__icontains": q})
                 | Q(**{f"{prefix}patient__name_search__contains": q.lower()})
+                | token_q(request, q, field=f"{prefix}patient")
             )
         if priority:
             qs = qs.filter(**{f"{prefix}priority": priority})
@@ -224,6 +226,7 @@ def _my_patients_tests(request, doctor):
             Q(number__icontains=q)
             | Q(patient__mrn__icontains=q)
             | Q(patient__name_search__contains=q.lower())
+            | token_q(request, q)
         )
     return render(
         request,

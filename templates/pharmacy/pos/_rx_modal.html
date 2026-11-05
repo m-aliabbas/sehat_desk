@@ -1,9 +1,29 @@
 {% extends "components/modal_base.html" %}
 {% block modal_size %}max-w-2xl{% endblock %}
-{% block modal_title %}Attach prescription{% endblock %}
+{% block modal_title %}Attach prescription or tag a visit · F3{% endblock %}
 {% block modal_body %}
+{# Search first: type today's token (A-12, a12, 12), MRN or name. Enter with one match tags or attaches it. #}
+<form hx-get="{% url 'pharmacy:pos-prescription' %}" hx-target="#overlay-root" hx-trigger="input changed delay:300ms from:#rx-search, submit">
+  <input type="hidden" name="pick" value="" x-ref="pick">
+  <label class="sr-only" for="rx-search">Search prescriptions and visits</label>
+  <input id="rx-search" name="q" type="search" value="{{ q }}" class="input" autocomplete="off" data-autofocus data-draft="off"
+         placeholder="Token (A-12), prescription number, MRN or patient name, then Enter"
+         @keydown.enter.prevent="$refs.pick.value = '1'; htmx.trigger($el.form, 'submit')">
+  <p class="mt-1 text-label text-muted">Enter tags the patient when only one visit or prescription matches.</p>
+</form>
+{% if visits %}
+<p class="mt-4 text-label font-semibold text-ink">Today's visits with no prescription in the system</p>
+<ul class="mb-4 mt-1 divide-y divide-line">
+  {% for v in visits %}
+  <li class="flex flex-wrap items-center justify-between gap-3 py-2">
+    <div><p>{% if v.token %}<span class="font-mono font-semibold">{{ v.token }}</span> · {% endif %}{{ v.patient.full_name }} <span class="font-mono text-label text-muted">{{ v.patient.mrn }}</span></p><p class="text-label text-muted">{{ v.doctor|default:"No doctor chosen" }} · {% if not v.token %}{{ v.label }} · {% endif %}{{ v.status }}{% if v.waiting %} · <span class="font-semibold text-ink">doctor has not closed it; tagging takes the patient here</span>{% endif %}</p></div>
+    <button type="button" class="btn btn-primary btn-sm" hx-post="{% url 'pharmacy:pos-prescription' %}" hx-vals='{"action": "visit", "patient": "{{ v.patient.pk }}"{% if v.doctor %}, "doctor": "{{ v.doctor.pk }}"{% endif %}{% if v.token %}, "token": "{{ v.token }}"{% endif %}}' hx-target="#pos-cart" hx-swap="outerHTML" @click="open = false"{% if auto_pick == "visit" %} hx-trigger="click, load" @htmx:after-request="open = false"{% endif %}>Tag to sale</button>
+  </li>
+  {% endfor %}
+</ul>
+{% endif %}
 {% if cart.patient %}
-<form class="mb-4 flex flex-wrap items-end gap-2 rounded-control bg-page p-3" hx-post="{% url 'pharmacy:pos-prescription' %}" hx-target="#pos-cart" hx-swap="outerHTML" @submit="open = false">
+<form class="my-4 flex flex-wrap items-end gap-2 rounded-control bg-page p-3" hx-post="{% url 'pharmacy:pos-prescription' %}" hx-target="#pos-cart" hx-swap="outerHTML" @submit="open = false">
   <input type="hidden" name="action" value="paper">
   <div class="min-w-[14rem] flex-1">
     <label class="field-label" for="rx-doctor">Handwritten prescription, written by</label>
@@ -16,24 +36,9 @@
   <p class="w-full text-label text-muted">What you sell gets added to it when the sale is paid.</p>
 </form>
 {% else %}
-<p class="mb-3 rounded-control bg-page p-3 text-label text-muted">For a handwritten prescription, attach the patient first.</p>
-{% endif %}
-{% if visits %}
-<p class="text-label font-semibold text-ink">Today's visits with no prescription in the system</p>
-<ul class="mb-4 mt-1 divide-y divide-line">
-  {% for v in visits %}
-  <li class="flex flex-wrap items-center justify-between gap-3 py-2">
-    <div><p>{{ v.patient.full_name }} <span class="font-mono text-label text-muted">{{ v.patient.mrn }}</span></p><p class="text-label text-muted">{{ v.doctor|default:"No doctor chosen" }} · {{ v.label }} · {{ v.status }}</p></div>
-    <button type="button" class="btn btn-primary btn-sm" hx-post="{% url 'pharmacy:pos-prescription' %}" hx-vals='{"action": "visit", "patient": "{{ v.patient.pk }}"{% if v.doctor %}, "doctor": "{{ v.doctor.pk }}"{% endif %}}' hx-target="#pos-cart" hx-swap="outerHTML" @click="open = false">Tag to sale</button>
-  </li>
-  {% endfor %}
-</ul>
+<p class="my-3 rounded-control bg-page p-3 text-label text-muted">For a handwritten prescription with no visit, attach the patient first.</p>
 {% endif %}
 <p class="text-label text-muted">Signed prescriptions waiting at this pharmacy{% if cart.patient %} for {{ cart.patient.full_name }}{% endif %}. To choose products and quantities line by line, open the prescription.</p>
-<form class="mt-3" hx-get="{% url 'pharmacy:pos-prescription' %}" hx-target="#overlay-root" hx-trigger="input changed delay:300ms from:#rx-search, submit">
-  <label class="sr-only" for="rx-search">Search prescriptions</label>
-  <input id="rx-search" name="q" type="search" value="{{ q }}" class="input" placeholder="Prescription number, MRN or patient name">
-</form>
 <ul class="mt-3 max-h-96 divide-y divide-line overflow-y-auto">
   {% for rx in prescriptions %}
   <li class="flex flex-wrap items-center justify-between gap-3 py-3">
@@ -43,7 +48,7 @@
     </div>
     <div class="flex gap-2">
       <a href="{% url 'pharmacy:rx-detail' rx.pk %}" class="btn btn-secondary btn-sm">Open</a>
-      <button type="button" class="btn btn-primary btn-sm" hx-post="{% url 'pharmacy:pos-prescription' %}" hx-vals='{"rx": "{{ rx.pk }}"}' hx-target="#pos-cart" hx-swap="outerHTML" @click="open = false">Attach</button>
+      <button type="button" class="btn btn-primary btn-sm" hx-post="{% url 'pharmacy:pos-prescription' %}" hx-vals='{"rx": "{{ rx.pk }}"}' hx-target="#pos-cart" hx-swap="outerHTML" @click="open = false"{% if auto_pick == "rx" %} hx-trigger="click, load" @htmx:after-request="open = false"{% endif %}>Attach</button>
     </div>
   </li>
   {% empty %}

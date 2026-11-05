@@ -343,7 +343,7 @@ def purchase_create(request):
                     notes=c["notes"],
                 )
                 if request.POST.get("post"):
-                    purchasing.receive(purchase, request=request)
+                    purchasing.receive(purchase, request=request, received_on=c["received_on"])
         except purchasing.PurchaseError as err:
             form.add_error(None, err.message)
         except GridError as err:
@@ -353,7 +353,12 @@ def purchase_create(request):
         else:
             audit.record(request, "purchase.create", purchase, summary=f"{purchase.vendor}")
             if request.POST.get("post"):
-                audit.record(request, "purchase.receive", purchase, summary=purchase.number)
+                audit.record(
+                    request,
+                    "purchase.receive",
+                    purchase,
+                    summary=purchase.number + _received_note(purchase),
+                )
                 messages.success(request, f"{purchase.number} posted to stock.")
             return redirect("pharmacy:purchase-detail", pk=purchase.pk)
     return render(
@@ -649,12 +654,19 @@ def purchase_order(request, pk):
     return _back(pk)
 
 
+def _received_note(purchase) -> str:
+    """Audit note for a receipt dated earlier than the day it was entered."""
+    day = timezone.localtime(purchase.received_at).date()
+    return f" received {day:%d %b %Y}" if day != timezone.localdate() else ""
+
+
 @require_POST
 @permission_required(MANAGE)
 def purchase_receive(request, pk):
     purchase = _get_purchase(request, pk)
     try:
-        purchase = purchasing.receive(purchase, request=request)
+        received_on = _date(request.POST.get("received_on"), None)
+        purchase = purchasing.receive(purchase, request=request, received_on=received_on)
     except purchasing.PurchaseError as err:
         messages.error(request, err.message)
     else:
@@ -664,7 +676,7 @@ def purchase_receive(request, pk):
             purchase,
             summary=(
                 f"{purchase.number} {purchase.vendor} invoice {purchase.supplier_invoice_number}"
-                f" total {purchase.grand_total}"
+                f" total {purchase.grand_total}{_received_note(purchase)}"
             ),
         )
         messages.success(request, f"{purchase.number} received. Stock is now available for sale.")

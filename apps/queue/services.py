@@ -6,6 +6,8 @@ waiting → called → in_consultation → completed
 The linked appointment follows: in_queue → with_doctor → completed (or cancelled).
 """
 
+import re
+
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import F, Q
@@ -23,6 +25,39 @@ ApptStatus = Appointment.Status
 
 class QueueError(ValidationError):
     pass
+
+
+# --- Find a patient by today's token ----------------------------------------------------------
+
+_TOKEN_TYPED = re.compile(r"(?:TOKEN|TKN)?[\s#:-]*([A-Z]{0,3})[\s#:-]*0*(\d{1,4})")
+
+
+def todays_token_patients(request, q):
+    """Patient ids holding today's token typed in a search box, in this branch, or None when the
+    text does not look like a token. Accepts how a token is typed or read off the slip:
+    A-012, a12, A 12, A012, #12, token 12, and the bare number 12 (any department's 12 today)."""
+    if request is None or getattr(request, "branch", None) is None:
+        return None
+    text = (q or "").strip().upper()
+    match = _TOKEN_TYPED.fullmatch(text)
+    if not match:
+        return None
+    letters, number = match[1], int(match[2])
+    tokens = QueueToken.objects.filter(
+        branch=request.branch, date=timezone.localdate(), number=number
+    ).exclude(status=Status.CANCELLED)
+    if letters:
+        tokens = tokens.filter(label=f"{letters}-{number:03d}")
+    return tokens.values("patient_id")
+
+
+def token_q(request, q, field="patient") -> Q:
+    """A filter to OR into a search: rows whose patient holds today's token typed as `q`.
+    `field` is the path to the patient ("patient", "order__patient"; "" for Patient itself)."""
+    ids = todays_token_patients(request, q)
+    if ids is None:
+        return Q()
+    return Q(**{f"{field}__in" if field else "pk__in": ids})
 
 
 def _now_time():

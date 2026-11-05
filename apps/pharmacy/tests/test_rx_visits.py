@@ -30,8 +30,10 @@ def visit(req, patient, doctor):
     return _token(req, patient, doctor)
 
 
-def test_a_patient_still_waiting_for_the_doctor_is_not_offered(req, patient, doctor):
-    _token(req, patient, doctor, status=QueueToken.Status.WAITING)
+def test_a_cancelled_token_is_not_offered(req, patient, doctor):
+    """A patient still waiting is offered now (the doctor may write on paper and never close
+    the token; apps/pharmacy/tests/test_token_tagging.py). A cancelled visit is not."""
+    _token(req, patient, doctor, status=QueueToken.Status.CANCELLED)
     assert pos.visits_without_rx(req) == []
 
 

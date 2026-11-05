@@ -26,7 +26,7 @@
   </nav>
   <form method="get" class="mb-5 grid gap-3 md:grid-cols-[1fr_auto_auto]" x-data @change="$el.submit()">
     <input type="hidden" name="tab" value="{{ tab }}">
-    <input type="search" name="q" value="{{ q }}" class="input" placeholder="Order number, MRN or patient name" aria-label="Search">
+    <input type="search" name="q" value="{{ q }}" class="input" placeholder="Order number, MRN, patient name or today's token (A-12)" aria-label="Search">
     <select name="priority" class="select" aria-label="Priority"><option value="">All priorities</option>{% for v, l in priorities %}<option value="{{ v }}" {% if priority == v %}selected{% endif %}>{{ l }}</option>{% endfor %}</select>
     <select name="category" class="select" aria-label="Category"><option value="">All categories</option>{% for c in categories %}<option value="{{ c.pk }}" {% if category == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>{% endfor %}</select>
   </form>
